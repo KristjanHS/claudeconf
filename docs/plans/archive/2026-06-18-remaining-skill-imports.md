@@ -1,6 +1,6 @@
 # Plan: remaining dotfiles skill imports
 
-Status: **open** · Created 2026-06-18
+Status: **closed (complete)** · Created 2026-06-18 · Closed 2026-06-18 — all 11 skills imported (catalog 15 → 26)
 
 Catalog now ships 15 skills (was 5). This plan tracks the **11 dotfiles skills
 not yet imported**. Source: `~/projects/dotfiles/claude/.claude/skills/`.

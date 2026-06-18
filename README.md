@@ -125,7 +125,7 @@ deeper prose for the two mechanisms that don't fit a cell is below the table.
 | Piece | Purpose | How it works | Cost |
 |---|---|---|---|
 | `.claude/CLAUDE.md` | Keep rules out of the always-loaded prompt | "References" + "Rules Index" sections *point* at content instead of inlining it | Must keep the index in sync as rules change |
-| Path-gated rules (×4) | Topic rules that load only when relevant | Frontmatter `globs`; harness loads the body on a matching read/edit. The `CLAUDE.md` Rules Index is the *awareness* layer - it names the rules so Claude knows they exist before a glob fires (the harness auto-lists skills this way, but not rules) | Loads on every matching file touch |
+| Path-gated rules (×4) | Topic rules that load only when relevant | Frontmatter `globs` load the body on a matching read/edit; the `CLAUDE.md` Rules Index names them so Claude knows they exist before a glob fires | Loads on every matching file touch |
 | L3 references (×7) | Long checklists/postmortems, on demand | Plain `.md`; loaded only when a `CLAUDE.md` pointer fires | None until triggered |
 | `pre-compact.py` | Insurance copy before a compaction | `PreCompact` hook snapshots transcript + plan/todo to a sidecar | Runs on every compaction |
 | `post-compact-restore.py` | Re-orient cheaply after compaction | `SessionStart` hook prints the newest snapshot's recovery pointer | Runs on compact/resume |
@@ -133,7 +133,7 @@ deeper prose for the two mechanisms that don't fit a cell is below the table.
 | `impag-budget-check.py` | Stop a long run before the context cliff | `PostToolUse` hook on Bash; exact token read, hard-stop at 130k | Interrupts mid-run at the threshold |
 | `statusline.sh` | Show live context %, cost, distance-to-stop | Reads Claude Code's statusline JSON; needs `jq` + `git` | Negligible |
 | `settings.json` | Wire the 4 hooks | Matcher → script entries | One-time hand-merge |
-| Skills (×15) | Context-hygiene core + config/session/thinking exemplars | Hygiene: `condense`, `de-bloat`, `claude-md-progressive-disclosurer`; executor: `impag`; config/skill mgmt: `config-reuse`, `install-skill`, `skills-discovery`; session hygiene: `reflect`, `retro`; design & critique: `senior-architect`, `brutal-honesty-review`, `deep-research`, `architecture-diagram-creator`, `mybrain`; writing & AI-text: `detect-ai-text-humanize` | Skill body loads when matched |
+| Skills (×26) | Context-hygiene core + config/session/quality/thinking exemplars | Hygiene core (`condense`, `de-bloat`, `claude-md-progressive-disclosurer`, `impag`); exemplar groups: config & skill mgmt, session hygiene, design & critique, code quality & dev workflow, Kaizen improvement, writing & AI-text | Skill body loads when matched |
 | `.claudeignore` | Keep archived plans out of context | Lists paths the harness skips | None |
 
 ## The budget governor (detail)
@@ -149,10 +149,11 @@ measurement is explained in
 
 ## The skills (detail)
 
-Fifteen `/<name>` skills ship in `.claude/skills/`. The first group is the
+Twenty-six `/<name>` skills ship in `.claude/skills/`. The first group is the
 context-hygiene set this repo is really about; the rest are bundled exemplars
-across config management, session hygiene, and general thinking tools. Skill
-bodies load only when you invoke them, so they cost nothing until used.
+across config management, session hygiene, code quality & dev workflow, Kaizen
+improvement, and general thinking tools. Skill bodies load only when you invoke
+them, so they cost nothing until used.
 
 **Context-hygiene core** - the leanness toolkit:
 
@@ -202,6 +203,35 @@ context-engineering theme:
 - **`mybrain`** - refine rough ideas into designs via questioning and ideation,
   before creative or strategic work. Pairs with the
   `ideation-techniques-library.md` reference.
+
+**Code quality & dev workflow** - exemplars for test integrity and branch/debug
+discipline:
+
+- **`testing-anti-patterns`** - catch mock-testing, production pollution with
+  test-only methods, and mocking without understanding dependencies. Reach for it
+  when writing or changing tests or adding mocks.
+- **`systematic-debugging`** - structured investigation before proposing fixes,
+  for any bug, test failure, or unexpected behavior. Pairs with the
+  `anti-patterns-common-rationalizations.md` reference.
+- **`python-simplifier`** - simplify or refactor complex Python: code smells,
+  duplication, coupling, readability (not Django).
+- **`finishing-a-development-branch`** - close out a stage or branch: verify
+  tests, report branch state, hand back (no merge or push).
+
+**Kaizen improvement** - a coherent continuous-improvement family (all-or-nothing
+exemplar set):
+
+- **`kaizen-kaizen`** - apply Kaizen principles (iterative improvement,
+  error-proofing, YAGNI) to a specific change.
+- **`kaizen-analyse`** - pick a Kaizen method (Gemba / Value Stream / Muda) for a
+  target.
+- **`kaizen-analyse-problem`** - A3 one-page problem analysis: root cause plus
+  action plan.
+- **`kaizen-cause-and-effect`** - fishbone diagram across the 6M cause categories.
+- **`kaizen-plan-do-check-act`** - PDCA iterative experimentation cycle.
+- **`kaizen-root-cause-tracing`** - trace a bug backward through the call stack to
+  its original trigger.
+- **`kaizen-why`** - Five Whys: drill from symptom to fundamental cause.
 
 **Writing & AI-text** - outside the context-engineering theme:
 

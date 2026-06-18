@@ -104,13 +104,18 @@ are bundled exemplars: `config-reuse`, `install-skill`, and `skills-discovery`
 manage Claude config and skills (the acquisition side of a copy-in catalog);
 `reflect` and `retro` are end-of-session hygiene; `senior-architect`,
 `brutal-honesty-review`, `deep-research`, `architecture-diagram-creator`, and
-`mybrain` are general-purpose design/critique tools; `detect-ai-text-humanize`
-flags AI-sounding prose and rewrites it human (point it at a doc with "humanize
-the AI text in X" or "check X for AI"). They are self-contained, and any
-reference to tooling you don't run is written as optional - except `mybrain`,
-which reads `~/.claude/references/ideation-techniques-library.md`; copy that
-file from `.claude/references/` into your `~/.claude/references/` alongside the
-skill.
+`mybrain` are general-purpose design/critique tools; `testing-anti-patterns`,
+`systematic-debugging`, `python-simplifier`, and `finishing-a-development-branch`
+are code-quality & dev-workflow exemplars; the seven `kaizen-*` skills are a
+coherent continuous-improvement family (copy them as a set or skip them);
+`detect-ai-text-humanize` flags AI-sounding prose and rewrites it human (point it
+at a doc with "humanize the AI text in X" or "check X for AI"). They are
+self-contained, and any reference to tooling you don't run is written as optional
+- except two with a non-optional reference dep: `mybrain` reads
+`~/.claude/references/ideation-techniques-library.md`, and `systematic-debugging`
+reads `~/.claude/references/anti-patterns-common-rationalizations.md`; copy those
+files from `.claude/references/` into your `~/.claude/references/` alongside the
+skills.
 
 **Smoke-test:** type `/` in a session and confirm the copied skills appear in
 the slash-command list (or invoke `/<name>` and watch it load). That proves
