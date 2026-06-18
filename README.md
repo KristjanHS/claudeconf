@@ -13,9 +13,7 @@
 
 <b>This is the number you're actually spending - live, every turn.</b>
 
-<img src="docs/statusline2.png" width="720" alt="statusline near the budget cliff">
-
-<img src="docs/statusline.gif" width="720" alt="statusline filling toward the budget cliff">
+<img src="docs/statusline.gif" width="100%" alt="statusline filling toward the budget cliff">
 
 </div>
 
