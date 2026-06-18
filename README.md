@@ -53,7 +53,7 @@ you touch a file its glob matches.
 
 A skeptic should weigh the tax, not just the upside:
 
-- **5 hooks fire on lifecycle events** - every compaction, session start, and (for
+- **4 hooks fire on lifecycle events** - every compaction, session start, and (for
   two of them) Bash/Write/Edit call runs a Python script. They fail open, but
   they're still latency on the hot path.
 - **The bloat gate *refuses* writes.** Two of its three signals (slop phrase,
@@ -95,15 +95,14 @@ deeper prose for the two mechanisms that don't fit a cell is below the table.
 | Piece | Purpose | How it works | Cost |
 |---|---|---|---|
 | `.claude/CLAUDE.md` | Keep rules out of the always-loaded prompt | "References" + "Rules Index" sections *point* at content instead of inlining it | Must keep the index in sync as rules change |
-| Path-gated rules (×4) | Topic rules that load only when relevant | Frontmatter `globs`; harness loads the body on a matching read/edit | Loads on every matching file touch |
+| Path-gated rules (×4) | Topic rules that load only when relevant | Frontmatter `globs`; harness loads the body on a matching read/edit. The `CLAUDE.md` Rules Index is the *awareness* layer - it names the rules so Claude knows they exist before a glob fires (the harness auto-lists skills this way, but not rules) | Loads on every matching file touch |
 | L3 references (×6) | Long checklists/postmortems, on demand | Plain `.md`; loaded only when a `CLAUDE.md` pointer fires | None until triggered |
 | `pre-compact.py` | Insurance copy before a compaction | `PreCompact` hook snapshots transcript + plan/todo to a sidecar | Runs on every compaction |
-| `post-compact-restore.py` | Re-orient cheaply after compaction | `SessionStart` prints the newest snapshot's recovery pointer | Runs on compact/resume |
-| `session-start-health.py` | Catch oversized memory early | `SessionStart` warns when a `MEMORY.md` > 180 lines; GCs stale sentinels | Runs on every startup |
-| `docs-bloat-gate.py` | Block bloated `.md` from entering context | `PreToolUse` on Write/Edit/Bash; 3 signals (slop / density / size) | Refuses writes; 2 signals unbypassable |
-| `impag-budget-check.py` | Stop a long run before the context cliff | `PostToolUse` on Bash; exact token read, hard-stop at 130k | Interrupts mid-run at the threshold |
+| `post-compact-restore.py` | Re-orient cheaply after compaction | `SessionStart` hook prints the newest snapshot's recovery pointer | Runs on compact/resume |
+| `docs-bloat-gate.py` | Block bloated `.md` from entering context | `PreToolUse` hook on Write/Edit/Bash; 3 signals (slop / density / size) | Refuses writes; 2 signals unbypassable |
+| `impag-budget-check.py` | Stop a long run before the context cliff | `PostToolUse` hook on Bash; exact token read, hard-stop at 130k | Interrupts mid-run at the threshold |
 | `statusline.sh` | Show live context %, cost, distance-to-stop | Reads Claude Code's statusline JSON; needs `jq` + `git` | Negligible |
-| `settings.json` | Wire the 5 hooks | Matcher → script entries | One-time hand-merge |
+| `settings.json` | Wire the 4 hooks | Matcher → script entries | One-time hand-merge |
 | Skills (×5) | Context-hygiene, fan-out, and AI-text exemplars | `condense`, `de-bloat`, `claude-md-progressive-disclosurer`, `impag`, `detect-ai-text-humanize` | Skill body loads when matched |
 | `.claudeignore` | Keep archived plans out of context | Lists paths the harness skips | None |
 

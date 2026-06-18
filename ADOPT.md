@@ -48,11 +48,10 @@ chmod +x ~/.claude/hooks/*.py
 
 Then **merge** (do not overwrite) the hook entries from `.claude/settings.json`
 into your own `~/.claude/settings.json`. The shipped file shows exactly the
-five hooks wired:
+four hooks wired:
 
 - `PreCompact` → `pre-compact.py`
-- `SessionStart` → `post-compact-restore.py` (on compact/resume) and
-  `session-start-health.py` (on startup)
+- `SessionStart` → `post-compact-restore.py` (on compact/resume)
 - `PreToolUse` (Write/Edit/Bash) → `docs-bloat-gate.py`
 - `PostToolUse` (Bash) → `impag-budget-check.py`
 

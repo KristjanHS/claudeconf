@@ -46,16 +46,6 @@
             "timeout": 5
           }
         ]
-      },
-      {
-        "matcher": "startup",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "~/.claude/hooks/session-start-health.py",
-            "timeout": 5
-          }
-        ]
       }
     ]
   },

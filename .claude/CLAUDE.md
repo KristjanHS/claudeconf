@@ -55,11 +55,16 @@ turn. Examples (adapt or replace):
 - **Git recon**: `git status --short` + `git log --oneline -5`. Skip a plain `git diff` for in-session edits - the Edit result is the diff.
 - **Code review runs in a fresh sub-agent** so it doesn't inherit the author's rationalizations.
 
-## Rules Index (path-gated - auto-loaded when matching files are read/edited; globs in each file's frontmatter)
+## Rules Index (rules deliver via path globs - reactive; this index makes them discoverable *before* a glob fires, the awareness layer the harness gives skills but not rules)
+
+The blurbs are recognition labels, not the rule - the body loads on a matching
+read/edit (globs in each file's frontmatter). `reading-large-files` earns its
+row most: its glob injects *after* the read, so only this index can shape the
+first one.
 
 | Rule file (`~/.claude/rules/`) | Topic |
 |-----------|-------|
-| `reading-large-files.md` | Force `offset`/`limit` or Grep; ≥800-line threshold for py/md |
-| `claude-md-edits.md` | Batch CLAUDE.md edits to session boundaries - mid-session breaks cache |
-| `testing.md` | Test value gate (5 checks), ratio discipline |
-| `instruction-file-discipline.md` | Tier discipline (L1/L2/L3); keep project-specific incidents out of global rules |
+| `reading-large-files.md` | `offset`/`limit` on large files |
+| `claude-md-edits.md` | Batch edits; don't break cache |
+| `testing.md` | Test value gate |
+| `instruction-file-discipline.md` | Tier discipline (L1/L2/L3) |
