@@ -51,10 +51,15 @@ already holds your hooks. Confirm Claude Code reports no settings errors after.
 ### Budget governor: the portable vs. accurate variant
 
 `impag-budget-check.py` ships as a **portable `bytes/4`** estimator with **no
-external dependency** — it works on any machine immediately, just slightly less
-accurate. If you have a real per-turn token counter, swap it into
-`estimate_tokens()` and keep everything else; the rest of the hook is unchanged.
-The accurate version is the only "upgrade" — no private package is vendored.
+external dependency** — it works on any machine immediately. It is *less*
+accurate, and deliberately so: it over-reads (runs ~1.5× high on live sessions,
+more after a compaction, because the transcript file keeps evicted history that
+the real context window has dropped). The effect is that it wraps up *early* —
+conservative, but it can fire spuriously in long, compacted sessions. If you
+have a real, compaction-aware per-turn token counter, swap it into
+`estimate_tokens()` and keep everything else unchanged. That accurate version is
+the only "upgrade" — no private package is vendored. See the hook's docstring
+for the measured numbers.
 
 ## 4. Statusline
 
@@ -66,7 +71,10 @@ chmod +x ~/.claude/statusline.sh
 Point `statusLine` at it in `settings.json` (see the shipped example). It needs
 only `jq` and `git`. Note the context window is pinned to a personal 200k
 budget with a 130k/160k yellow/red mark — the same 130k the budget governor
-wraps up on. Adjust `WINDOW` / thresholds to taste.
+wraps up on. `WINDOW` is the token budget you choose to treat as your personal
+session cap (here 200k) — deliberately *below* the model's real context limit
+(e.g. 1M), so the bar fills and warns well before any native autocompact. Set it
+to whatever cap you want to pace yourself against; adjust the thresholds to match.
 
 ## 5. Skills
 

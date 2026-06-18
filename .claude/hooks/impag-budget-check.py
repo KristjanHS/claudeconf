@@ -6,10 +6,18 @@ original imports `token_monitor.parser.parse_last_turn` from a private,
 editable-installed package that is NOT on PyPI — copied as-is it raises
 ModuleNotFoundError on anyone else's machine. This version drops that import
 and estimates the token count from the transcript file size (`bytes / 4`),
-the same cheap proxy the fallback path already uses. Slightly less accurate
-than a real tokenizer, but zero dependencies and it teaches the identical
-pattern. (To upgrade to exact accounting, reinstate a real token count in
-`estimate_tokens` — e.g. via your own tokenizer — and keep everything else.)
+the same cheap proxy the fallback path already uses. Zero dependencies, but
+note two real inaccuracies measured against an actual parser:
+  * On a LIVE session bytes/4 runs ~1.4-1.8x high — JSONL structure, escaping,
+    and tool envelopes push bytes-per-token well above the prose ~4. So this
+    hook trips conservatively EARLY (real context ~85-95k when bytes/4 hits
+    130k), which is acceptable for a "wrap up before the cliff" governor.
+  * After a COMPACTION it runs 2.4-3.9x high and KEEPS CLIMBING: the .jsonl
+    retains evicted history while the real context resets down. In a long,
+    compacted session this WILL fire spuriously. A real parser
+    (parse_last_turn().total_context) is compaction-aware and avoids this.
+To upgrade to exact, compaction-aware accounting, reinstate a real token count
+in `estimate_tokens` (e.g. your own tokenizer) and keep everything else.
 
 Primary trigger: Bash `git commit` (the natural /impag task boundary).
 Fallback trigger: any other Bash call once the transcript size proxy exceeds
@@ -36,10 +44,10 @@ from pathlib import Path
 # finish-branch + /retro can run with a clean-enough transcript.
 HARD_STOP_TOKENS = 130_000
 
-# Cheap byte-proxy gate for the fallback path. The bytes/4 estimator
-# over-estimates by ~15% on tool-use-heavy transcripts, so 400k bytes is
-# roughly a 100k-token floor — under which we skip even the stat-based estimate
-# to keep PostToolUse latency negligible on small sessions.
+# Cheap byte-proxy gate for the fallback path. Because bytes/4 runs ~1.5x high
+# on live sessions (see module docstring), 400k bytes is well under the 130k
+# hard-stop — a safe floor below which we skip even the stat-based estimate to
+# keep PostToolUse latency negligible on small sessions.
 FALLBACK_PROBE_BYTES = 400_000
 
 # Portable token estimate: ~4 bytes per token. Same proxy as the fallback gate,
@@ -110,7 +118,11 @@ def main() -> None:
                 return
         except OSError:
             return
-        session_id = payload.get("session_id") or p.stem.split(".")[0]
+        raw_sid = payload.get("session_id") or p.stem.split(".")[0]
+        # Sanitize before using in a filename: stdin-derived values must be
+        # constrained to a safe charset so a malformed session_id can't escape
+        # the transcript directory (path traversal / unexpected write target).
+        session_id = re.sub(r"[^A-Za-z0-9_.-]", "_", str(raw_sid))[:80] or "unknown"
         sentinel = p.parent / f".impag-budget-fired-{session_id}"
         if sentinel.exists():
             return

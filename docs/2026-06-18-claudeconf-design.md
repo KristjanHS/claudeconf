@@ -29,7 +29,7 @@ than design their own. They are assumed to be comfortable editing their own
   `CLAUDE.md`, `settings.json`, `statusline.sh` (primary source)
 - `~/projects/dotfiles/hooks/` + `scripts/check-hardcoded-paths.sh` — the
   secret/hygiene gate logic to reuse
-- `~/projects/stt-faster/` — a *consumer* project; source for the
+- `~/projects/<a-consumer-project>/` — a *consumer* project; source for the
   `.claudeignore` and project-rule examples
 
 ## Chosen approach
@@ -145,7 +145,7 @@ off the same mark — they are taught together.
 ### Portability decision (key)
 
 The author's real hook imports `token_monitor.parser.parse_last_turn`, a
-**private editable install** (`~/projects/token-monitor`, not on PyPI). Copied
+**private editable install** (a local package, not on PyPI). Copied
 as-is it raises `ModuleNotFoundError`.
 
 **Resolution:** ship a **self-contained portable variant** that uses the
@@ -189,7 +189,7 @@ Every curated file is scrubbed before it lands:
 - **Paths** — `/home/<user>/...` → `$HOME/...` or `~/...`
 - **Identity** — email/username removed from `CLAUDE.md`, `settings.json`,
   statusline examples
-- **Private project refs** — drop `stt-faster` / `straiker` / devcontainer /
+- **Private project refs** — drop private consumer-project names / devcontainer /
   WSL-specific incident text; rewrite skill bodies that name private memory
   slugs to generic placeholders
 - **Dependency** — `token_monitor` import swapped for the portable `bytes/4`
@@ -215,7 +215,7 @@ worked: if anything personal slips through, the first commit fails.
 ## Out of scope
 
 - Auto-merging `settings.json` into a co-worker's existing config.
-- Vendoring or publishing the private `token-monitor` package.
+- Vendoring or publishing the private token-counter package.
 - The full set of personal skills/hooks/rules (kaizen suite, forensic
   tooling, devcontainer/WSL specifics, memory internals).
 - Any push to the remote — commits are local; the author pushes from the WSL

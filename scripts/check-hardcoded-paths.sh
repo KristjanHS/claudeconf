@@ -48,7 +48,10 @@ self_exclusions=(
 
 hits=""
 for pat in "${patterns[@]}"; do
-    found=$(git grep -nIE "$pat" -- \
+    # --cached: scan the INDEX (what will actually be committed), not the
+    # working tree — otherwise a `git add`-then-edit could slip PII past the
+    # pre-commit gate. Manual full-tree runs `git add -A` first.
+    found=$(git grep --cached -nIE "$pat" -- \
         "${self_exclusions[@]}" "${exclusions[@]}" 2>/dev/null || true)
     [ -n "$found" ] && hits+="$found"$'\n'
 done

@@ -3,94 +3,94 @@ name: claude-md-progressive-disclosurer
 description: Optimize CLAUDE.md files via progressive disclosure when rules are duplicated or repeatedly ignored.
 ---
 
-### 多入口原则（重要！）
+### Multiple-entry principle (important!)
 
-同一 Level 2 资源可以有**多个入口**，服务于不同查找路径：
+The same Level 2 resource can have **multiple entry points**, serving different lookup paths:
 
-| 入口 | 位置 | 触发场景 | 用户心态 |
+| Entry point | Location | Trigger scenario | User mindset |
 |------|------|----------|----------|
-| Reference 索引 | 开头 | 遇到错误/问题 | "出 bug 了，查哪个文档？" |
-| 修改代码前必读 | 中间 | 准备改代码 | "我要改 X，要注意什么？" |
-| Reference 触发索引 | 末尾 | 长对话定位 | "刚才说的那个文档是哪个？" |
+| Reference index | Beginning | Hitting an error/problem | "Something broke — which doc do I check?" |
+| "Read before changing code" | Middle | About to change code | "I'm about to change X — what should I watch out for?" |
+| Reference trigger index | End | Locating in a long conversation | "That doc we mentioned earlier — which one was it?" |
 
-**这不是重复，是多入口。** 就像书有目录（按章节）、索引（按关键词）、快速参考卡（按任务）。
+**This is not duplication, it's multiple entry points.** Just like a book has a table of contents (by chapter), an index (by keyword), and a quick-reference card (by task).
 
 ---
 
-## 优化工作流
+## Optimization workflow
 
-### Step 1: 备份
+### Step 1: Back up
 
 ```bash
 cp CLAUDE.md CLAUDE.md.bak.$(date +%Y%m%d_%H%M%S)
 ```
 
-### Step 2: 内容分类
+### Step 2: Classify content
 
-对每个章节分类：
+Classify each section:
 
-| 问题 | 是 | 否 |
+| Question | Yes | No |
 |------|----|-----|
-| 高频使用？ | Level 1 | ↓ |
-| 违反后果严重？ | Level 1 | ↓ |
-| 有代码模式需要直接复制？ | Level 1 保留模式 | ↓ |
-| 有明确触发条件？ | Level 2 + 触发条件 | ↓ |
-| 历史/参考资料？ | Level 2 | 考虑删除 |
+| Used frequently? | Level 1 | ↓ |
+| Severe consequences if violated? | Level 1 | ↓ |
+| Has a code pattern that needs to be copied directly? | Level 1, keep the pattern | ↓ |
+| Has a clear trigger condition? | Level 2 + trigger condition | ↓ |
+| Historical/reference material? | Level 2 | Consider deleting |
 
-### Step 3: 创建 Reference 文件
+### Step 3: Create Reference files
 
-命名：`docs/references/{主题}-sop.md`
+Naming: `docs/references/{topic}-sop.md`
 
-**铁律：原样移动，禁止压缩**
+**Iron rule: move verbatim, no compression allowed**
 
-移动内容到 Level 2 时，必须**完整保留原始内容**。不要在移动的同时"顺便精简"。
+When moving content to Level 2, you must **preserve the original content in full**. Do not "tidy it up while you're at it" during the move.
 
 ```
-✅ 正确：把 100 行原封不动搬到 Level 2（100 行 → Level 2 100 行）
-❌ 错误：把 100 行"精简"到 60 行搬到 Level 2（100 行 → Level 2 60 行，40 行消失）
+✅ Correct: move 100 lines untouched to Level 2 (100 lines → Level 2 100 lines)
+❌ Wrong: "trim" 100 lines down to 60 and move to Level 2 (100 lines → Level 2 60 lines, 40 lines gone)
 ```
 
-**为什么**：压缩 = 变相删除。你认为"不重要"而删掉的内容，可能是某个未来 debug session 的关键线索。优化的目标是**改变信息的位置**（Level 1 → Level 2），不是**改变信息的存在**。
+**Why**: compression = deletion in disguise. Content you deem "unimportant" and cut may be the key clue for some future debug session. The goal of optimization is to **change the location of information** (Level 1 → Level 2), not to **change whether the information exists**.
 
-**怎么做**：
-1. 从原始 CLAUDE.md 中精确复制要移动的段落
-2. 原样粘贴到 Level 2 文件中
-3. 可以在 Level 2 中添加结构（标题、分隔线），但**不要删减、改写、合并**原始内容
-4. 如果确实有冗余（同一段话在原文中出现了多次），在 Level 2 中保留一份完整的，注释说明去重
+**How**:
+1. Precisely copy the passage to be moved from the original CLAUDE.md
+2. Paste it verbatim into the Level 2 file
+3. You may add structure within Level 2 (headings, separators), but **do not trim, rewrite, or merge** the original content
+4. If there genuinely is redundancy (the same passage appears multiple times in the original), keep one complete copy in Level 2 and add a note explaining the deduplication
 
-### Step 4: 更新 Level 1
+### Step 4: Update Level 1
 
-1. **在开头添加「信息记录原则」**（项目概述之后，Reference 索引之前）
-2. **添加 Reference 索引**（紧随信息记录原则之后）
-3. 用触发条件格式替换详细内容
-4. 保留代码模式和错误诊断
-5. **添加「修改代码前必读」表格**（按"要改什么"索引）
-6. **在末尾再放一份触发索引表**
+1. **Add the "Information-recording principle" at the top** (after the project overview, before the Reference index)
+2. **Add the Reference index** (right after the information-recording principle)
+3. Replace detailed content with the trigger-condition format
+4. Keep code patterns and error diagnostics
+5. **Add the "Read before changing code" table** (indexed by "what you want to change")
+6. **Place another copy of the trigger index table at the end**
 
-### Step 5: 验证（三项全部通过才算完成）
+### Step 5: Verify (only complete when all three pass)
 
-#### 5a. 引用文件存在性
+#### 5a. Referenced-file existence
 
 ```bash
-# 检查引用文件存在
+# Check that referenced files exist
 grep -oh '`docs/references/[^`]*\.md`' CLAUDE.md | sed 's/`//g' | while read f; do
   test -f "$f" && echo "✓ $f" || echo "✗ MISSING: $f"
 done
 ```
 
-#### 5b. 内容完整性（最关键）
+#### 5b. Content completeness (most critical)
 
-对每个从原始 CLAUDE.md 移走的章节，逐一检查：
+For each section moved out of the original CLAUDE.md, check one by one:
 
-1. **恢复原始文件**：`git show HEAD:CLAUDE.md > /tmp/claude-md-original.md`
-2. **逐节对比**：对原始文件的每个 `##` 章节，确认其内容在以下位置之一完整存在：
-   - 新 CLAUDE.md 中（保留在 Level 1）
-   - 某个 Level 2 reference 文件中（完整移动）
+1. **Restore the original file**: `git show HEAD:CLAUDE.md > /tmp/claude-md-original.md`
+2. **Compare section by section**: for each `##` section in the original file, confirm its content exists in full in one of these places:
+   - In the new CLAUDE.md (kept in Level 1)
+   - In some Level 2 reference file (moved in full)
 
-   **快速暴露遗漏的辅助脚本**：
+   **A helper script to quickly surface omissions**:
 
    ```bash
-   # 对原始文件的每个 ## 章节标题，检查它在新文件或 reference 文件中是否存在
+   # For each ## section heading in the original file, check whether it exists in the new file or a reference file
    grep '^## ' /tmp/claude-md-original.md | while read heading; do
      if grep -q "$heading" CLAUDE.md docs/references/*.md 2>/dev/null; then
        echo "✓ $heading"
@@ -100,155 +100,155 @@ done
    done
    ```
 
-   > ⚠️ 这个脚本**不能替代人工逐节对比**——它只检查章节标题是否存在，不检查内容是否完整。但它能快速暴露**整个章节被遗漏**的情况，作为人工对比前的第一道筛查。
+   > ⚠️ This script **cannot replace manual section-by-section comparison** — it only checks whether section headings exist, not whether the content is complete. But it can quickly surface cases where **an entire section was omitted**, serving as a first screen before manual comparison.
 
-3. **标记所有差异**：
-   - 如果某段内容在新文件中被缩短 → **必须补回被删减的部分**
-   - 如果某段内容在两个位置都不存在 → **必须补回**
-   - 唯一允许删除的情况：**该信息已有独立的 canonical source**（如 `docs/README.md` 已是文档索引的 canonical source），且在 Level 1 中有明确的指向
+3. **Flag every discrepancy**:
+   - If a passage was shortened in the new file → **you must restore the trimmed parts**
+   - If a passage exists in neither location → **you must restore it**
+   - The only case where deletion is allowed: **the information already has an independent canonical source** (e.g. `docs/README.md` is already the canonical source for the doc index), and Level 1 has a clear pointer to it
 
-**禁止将"故意删除"作为分类来掩盖信息丢失。** 每一项"故意删除"都必须说明 canonical source 在哪里。如果说不出来，就不是"故意删除"，而是"遗漏"。
+**Do not use "intentional deletion" as a classification to mask information loss.** Every "intentional deletion" must state where the canonical source is. If you can't name one, it isn't "intentional deletion" — it's "omission".
 
-#### 5c. 禁止行数审计
+#### 5c. Line-count audit prohibited
 
-在验证阶段**不要统计行数**。不要 `wc -l`。不要计算"原始 X 行 vs 新 Y 行"。这些数字会扭曲你的判断。
+During verification, **do not count lines**. No `wc -l`. Do not compute "original X lines vs new Y lines". Those numbers distort your judgment.
 
-验证的标准是：
-- 每段信息都有归属（Level 1 或 Level 2 或 canonical source）
-- 没有信息丢失
-- Level 2 引用都有触发条件
+The standard for verification is:
+- Every piece of information has a home (Level 1, Level 2, or a canonical source)
+- No information is lost
+- Every Level 2 reference has a trigger condition
 
 ---
 
-## Level 1 内容分类
+## Level 1 content classification
 
-### 🔴 绝对不能移走
+### 🔴 Absolutely must not move out
 
-| 内容类型 | 原因 |
+| Content type | Reason |
 |---------|------|
-| **核心命令** | 高频使用 |
-| **铁律/禁令** | 违反后果严重，必须始终可见 |
-| **代码模式** | LLM 需要直接复制，避免重新推导 |
-| **错误诊断** | 完整的症状→原因→修复流程 |
-| **目录映射** | 帮助 LLM 快速定位文件 |
-| **触发索引表** | 帮助 LLM 在长对话中定位 Level 2 |
+| **Core commands** | Used frequently |
+| **Iron rules / prohibitions** | Severe consequences if violated; must always be visible |
+| **Code patterns** | The LLM needs to copy directly; avoid re-deriving |
+| **Error diagnostics** | Complete symptom → cause → fix flow |
+| **Directory map** | Helps the LLM locate files quickly |
+| **Trigger index table** | Helps the LLM locate Level 2 in long conversations |
 
-### 🟡 保留摘要 + 触发条件
+### 🟡 Keep a summary + trigger condition
 
-| 内容类型 | Level 1 | Level 2 |
+| Content type | Level 1 | Level 2 |
 |---------|---------|---------|
-| SOP 流程 | 触发条件 + 关键陷阱 | 完整步骤 |
-| 配置示例 | 最常用的 1-2 个 | 完整配置 |
-| API 文档 | 常用方法签名 | 完整参数说明 |
+| SOP procedures | Trigger condition + key pitfalls | Full steps |
+| Config examples | The 1-2 most common | Full config |
+| API docs | Common method signatures | Full parameter descriptions |
 
-### 🟢 可以完全移走
+### 🟢 Can be moved out entirely
 
-| 内容类型 | 原因 |
+| Content type | Reason |
 |---------|------|
-| 历史决策记录 | 低频访问 |
-| 性能数据 | 参考性质 |
-| 技术债务清单 | 按需查看 |
-| 边缘情况 | 有明确触发条件时再加载 |
+| Historical decision records | Accessed infrequently |
+| Performance data | Reference material |
+| Tech-debt list | Viewed on demand |
+| Edge cases | Loaded only when there's a clear trigger condition |
 
 ---
 
-## 引用格式（四种）
+## Reference formats (four)
 
-### 1. 详细格式（正文中的重要引用）
+### 1. Detailed format (important references in the body)
 
 ```markdown
-**📖 何时读 `docs/references/xxx-sop.md`**：
-- [具体错误信息，如 `ERR_DLOPEN_FAILED`]
-- [具体场景，如"添加新的原生模块时"]
+**📖 When to read `docs/references/xxx-sop.md`**:
+- [Specific error message, e.g. `ERR_DLOPEN_FAILED`]
+- [Specific scenario, e.g. "when adding a new native module"]
 
-> 包含：[关键词 1]、[关键词 2]、[代码模板]。
+> Contains: [keyword 1], [keyword 2], [code template].
 ```
 
-### 2. 问题触发表格（开头/末尾索引）
+### 2. Problem-trigger table (index at beginning/end)
 
 ```markdown
-## Reference 索引（遇到问题先查这里）
+## Reference index (check here first when you hit a problem)
 
-| 触发场景 | 文档 | 核心内容 |
+| Trigger scenario | Doc | Core content |
 |----------|------|---------|
-| `ERR_DLOPEN_FAILED` | `native-modules-sop.md` | ABI 机制、懒加载 |
-| 打包后 `Cannot find module` | `vite-sop.md` | MODULES_TO_COPY |
+| `ERR_DLOPEN_FAILED` | `native-modules-sop.md` | ABI mechanism, lazy loading |
+| `Cannot find module` after packaging | `vite-sop.md` | MODULES_TO_COPY |
 ```
 
-### 3. 任务触发表格（修改代码前必读）
+### 3. Task-trigger table (read before changing code)
 
 ```markdown
-## 修改代码前必读
+## Read before changing code
 
-| 你要改什么 | 先读这个 | 关键陷阱 |
+| What you want to change | Read this first | Key pitfalls |
 |-----------|---------|---------|
-| 原生模块相关 | `native-modules-sop.md` | 必须懒加载；electron-rebuild 会静默失败 |
-| 打包配置 | `packaging-sop.md` | DMG contents 必须用函数形式 |
+| Anything native-module related | `native-modules-sop.md` | Must lazy-load; electron-rebuild fails silently |
+| Packaging config | `packaging-sop.md` | DMG contents must use the function form |
 ```
 
-### 4. 内联格式（简短引用）
+### 4. Inline format (short references)
 
 ```markdown
-完整流程见 `database-sop.md`（FTS5 转义、健康检查）。
+Full flow in `database-sop.md` (FTS5 escaping, health checks).
 ```
 
-**多样性原则**：不要所有引用都用同一格式。
+**Diversity principle**: don't use the same format for every reference.
 
 ---
 
-## 四条核心原则
+## Four core principles
 
-### 原则 1：触发索引表放开头和末尾
+### Principle 1: Put the trigger index table at the beginning and end
 
-**原因**：LLM 注意力呈 U 型分布——开头和末尾强，中间弱。
+**Reason**: LLM attention follows a U-shaped distribution — strong at the beginning and end, weak in the middle.
 
-| 位置 | 作用 |
+| Position | Purpose |
 |------|------|
-| **开头** | 对话开始时建立全局认知："有哪些 Level 2 可用" |
-| **末尾** | 对话变长后复述提醒："现在应该读哪个 Level 2" |
+| **Beginning** | Establish global awareness at the start of the conversation: "which Level 2 resources are available" |
+| **End** | Restate the reminder once the conversation has grown long: "which Level 2 should I read now" |
 
 ```markdown
-<!-- CLAUDE.md 开头（项目概述之后） -->
-## Reference 索引
+<!-- Beginning of CLAUDE.md (after the project overview) -->
+## Reference index
 
-| 触发场景 | 文档 | 核心内容 |
+| Trigger scenario | Doc | Core content |
 |---------|------|---------|
-| ABI 错误 | `native-modules-sop.md` | 懒加载模式 |
-| 打包模块缺失 | `vite-sop.md` | MODULES_TO_COPY |
+| ABI error | `native-modules-sop.md` | Lazy-loading pattern |
+| Module missing after packaging | `vite-sop.md` | MODULES_TO_COPY |
 
-... (正文内容) ...
+... (body content) ...
 
-<!-- CLAUDE.md 末尾（再放一份） -->
-## Reference 触发索引
+<!-- End of CLAUDE.md (another copy) -->
+## Reference trigger index
 
-| 触发场景 | 文档 | 核心内容 |
+| Trigger scenario | Doc | Core content |
 |---------|------|---------|
-| ABI 错误 | `native-modules-sop.md` | 懒加载模式 |
-| 打包模块缺失 | `vite-sop.md` | MODULES_TO_COPY |
+| ABI error | `native-modules-sop.md` | Lazy-loading pattern |
+| Module missing after packaging | `vite-sop.md` | MODULES_TO_COPY |
 ```
 
-### 原则 2：引用必须有触发条件
+### Principle 2: References must have a trigger condition
 
-**错误**：`详见 native-modules-sop.md`
+**Wrong**: `See native-modules-sop.md for details`
 
-**正确**：
+**Correct**:
 ```markdown
-**📖 何时读 `native-modules-sop.md`**：
-- 遇到 `ERR_DLOPEN_FAILED` 错误
-- 需要添加新的原生模块
+**📖 When to read `native-modules-sop.md`**:
+- Hitting an `ERR_DLOPEN_FAILED` error
+- Need to add a new native module
 
-> 包含：ABI 机制、懒加载模式、手动修复命令
+> Contains: ABI mechanism, lazy-loading pattern, manual fix commands
 ```
 
-**原因**：没有触发条件，LLM 不知道什么时候该去读。
+**Reason**: without a trigger condition, the LLM doesn't know when to go read it.
 
-### 原则 3：代码模式必须保留在 Level 1
+### Principle 3: Code patterns must stay in Level 1
 
-**错误**：把代码示例移到 Level 2，Level 1 只写"使用懒加载模式"。
+**Wrong**: move the code example to Level 2, and have Level 1 only say "use the lazy-loading pattern".
 
-**正确**：Level 1 保留完整的可复制代码：
+**Correct**: Level 1 keeps the full copyable code:
 ```javascript
-// ✅ 正确：懒加载，只在需要时加载
+// ✅ Correct: lazy load, only load when needed
 let _Database = null;
 function getDatabase() {
   if (!_Database) {
@@ -258,65 +258,65 @@ function getDatabase() {
 }
 ```
 
-**原因**：LLM 需要直接复制代码，移走后每次都要重新推导或读取 Level 2。
+**Reason**: the LLM needs to copy the code directly; once moved out, it has to re-derive it or read Level 2 every time.
 
 ---
 
-## 信息量检验
+## Information-volume check
 
-### ✅ 正确的信息量
+### ✅ Correct information volume
 
-| 检验项 | 通过标准 |
+| Check item | Passing standard |
 |--------|---------|
-| 日常命令 | 不需要读 Level 2 |
-| 常见错误 | 有完整诊断流程 |
-| 代码编写 | 有可复制的模式 |
-| 特定问题 | 知道读哪个 Level 2 |
-| 触发索引 | 在文档末尾，表格形式 |
+| Everyday commands | No need to read Level 2 |
+| Common errors | Has a complete diagnostic flow |
+| Writing code | Has a copyable pattern |
+| Specific problems | Knows which Level 2 to read |
+| Trigger index | At the end of the doc, in table form |
 
-### ❌ 不足的信号
+### ❌ Signs of too little
 
-- LLM 反复问同样的问题
-- LLM 每次重新推导代码模式
-- 用户需要反复提醒规则
+- The LLM keeps asking the same question
+- The LLM re-derives the code pattern every time
+- The user has to keep reminding it of rules
 
-### ❌ 过多的信号
+### ❌ Signs of too much
 
-- 大段低频详细流程在 Level 1
-- **完全相同的内容**在多处（注意：多入口指向同一资源 ≠ 重复）
-- 边缘情况和常见情况混在一起
+- Large blocks of low-frequency detailed procedures in Level 1
+- **Exactly identical content** in multiple places (note: multiple entry points pointing to the same resource ≠ duplication)
+- Edge cases and common cases mixed together
 
 ---
 
-## 项目级 vs 用户级
+## Project-level vs user-level
 
-| 维度 | 用户级 | 项目级 |
+| Dimension | User-level | Project-level |
 |------|--------|--------|
-| 位置 | `~/.claude/CLAUDE.md` | `项目/CLAUDE.md` |
+| Location | `~/.claude/CLAUDE.md` | `project/CLAUDE.md` |
 | References | `~/.claude/references/` | `docs/references/` |
-| 信息范围 | 个人偏好、全局规则 | 项目架构、团队规范 |
+| Scope of information | Personal preferences, global rules | Project architecture, team conventions |
 
 ---
 
-## 快速检查清单
+## Quick checklist
 
-优化完成后，**必须逐项检查**（不可跳过）：
+After optimization is done, **check every item** (do not skip):
 
-### 信息完整性（最重要）
-- [ ] **原始文件的每个章节都有归属**——在新 Level 1、Level 2、或有明确 canonical source
-- [ ] **Level 2 文件内容与原始内容完全一致**——没有在移动过程中被"精简"
-- [ ] **没有任何内容被静默删除**——每项删除都有用户确认或明确的 canonical source
-- [ ] **没有在任何阶段统计或提及行数变化**
+### Information completeness (most important)
+- [ ] **Every section of the original file has a home** — in the new Level 1, in Level 2, or with a clear canonical source
+- [ ] **Level 2 file content is identical to the original** — not "trimmed" during the move
+- [ ] **Nothing was silently deleted** — every deletion has user confirmation or a clear canonical source
+- [ ] **At no stage did you count or mention line-count changes**
 
-### 结构质量
-- [ ] 「信息记录原则」在文档开头（防止未来膨胀）
-- [ ] Reference 索引在文档开头（入口1：遇到问题查这里）
-- [ ] 核心命令表完整
-- [ ] 铁律/禁令有代码示例
-- [ ] 常见错误有完整诊断流程（症状→原因→修复）
-- [ ] 代码模式可直接复制
-- [ ] 目录映射（功能→文件）
-- [ ] 「修改代码前必读」表格（入口2：按"要改什么"索引）
-- [ ] Reference 触发索引在文档末尾（入口3：长对话后复述）
-- [ ] 每个 Level 2 引用都有触发条件
-- [ ] 引用的文件都存在
+### Structural quality
+- [ ] The "Information-recording principle" is at the top of the doc (prevents future bloat)
+- [ ] The Reference index is at the top of the doc (entry point 1: check here when you hit a problem)
+- [ ] The core command table is complete
+- [ ] Iron rules / prohibitions have code examples
+- [ ] Common errors have a complete diagnostic flow (symptom → cause → fix)
+- [ ] Code patterns are directly copyable
+- [ ] Directory map (feature → file)
+- [ ] The "Read before changing code" table (entry point 2: indexed by "what you want to change")
+- [ ] The Reference trigger index is at the end of the doc (entry point 3: restated after a long conversation)
+- [ ] Every Level 2 reference has a trigger condition
+- [ ] All referenced files exist

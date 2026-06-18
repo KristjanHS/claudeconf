@@ -1,74 +1,74 @@
-# 实践案例与教训
+# Case studies and lessons
 
-本文档记录优化 CLAUDE.md 过程中的实际案例和教训。
+This document records real cases and lessons from the process of optimizing CLAUDE.md.
 
 ---
 
-## 案例 1：以行数为目标的过度精简
+## Case 1: Over-trimming with line count as the goal
 
-### 背景
-某项目 CLAUDE.md 内容丰富，包含代码模式、诊断流程、目录映射等。
+### Background
+A project's CLAUDE.md was rich in content, including code patterns, diagnostic flows, directory maps, and more.
 
-### 错误做法
-以"减少行数"为目标，移走了大部分内容，只保留简短描述和指针。
+### Wrong approach
+With "reduce line count" as the goal, most of the content was moved out, keeping only short descriptions and pointers.
 
-### 结果
-- ❌ 丢失代码模式，LLM 每次重新推导
-- ❌ 丢失诊断流程，遇错不知查哪
-- ❌ 丢失目录映射，找文件效率低
+### Result
+- ❌ Lost code patterns; the LLM re-derives them every time
+- ❌ Lost diagnostic flows; doesn't know where to look when an error occurs
+- ❌ Lost the directory map; finding files becomes inefficient
 
-### 正确做法
-按**信息质量**而非行数判断去留：
+### Correct approach
+Decide what to keep based on **information quality**, not line count:
 
-| 内容 | 保留位置 | 判断依据 |
+| Content | Where kept | Basis for the decision |
 |------|----------|----------|
-| 核心命令表 | Level 1 | 高频使用，不应让 LLM 每次去查 |
-| 懒加载代码模式 | Level 1 | 需要直接复制，移走会导致重新推导 |
-| ABI 错误诊断 | Level 1 | 完整症状→原因→修复流程 |
-| 详细 SOP | Level 2 | 低频、有明确触发条件 |
+| Core command table | Level 1 | Used frequently; the LLM shouldn't have to look it up every time |
+| Lazy-loading code pattern | Level 1 | Needs to be copied directly; moving it out causes re-derivation |
+| ABI error diagnostics | Level 1 | Complete symptom → cause → fix flow |
+| Detailed SOP | Level 2 | Low-frequency, with a clear trigger condition |
 
-### 教训
-**信息效率、可读性、可维护性是标准，行数不是。**
-
----
-
-## 案例 2：无触发条件的引用
-
-### 错误做法
-```markdown
-详见 native-modules-sop.md
-```
-
-### 问题
-LLM 不知道什么时候该去读这个文件。
-
-### 正确做法
-```markdown
-**📖 何时读 `native-modules-sop.md`**：
-- 遇到 `ERR_DLOPEN_FAILED` 错误
-- 需要添加新的原生模块
-
-> 包含：ABI 机制、懒加载模式、手动修复命令
-```
-
-### 教训
-**每个引用必须有触发条件 + 内容摘要。**
+### Lesson
+**Information efficiency, readability, and maintainability are the standards — line count is not.**
 
 ---
 
-## 案例 3：代码模式被移走
+## Case 2: References with no trigger condition
 
-### 错误做法
-Level 1 只写"使用懒加载模式"，代码示例放 Level 2。
+### Wrong approach
+```markdown
+See native-modules-sop.md for details
+```
 
-### 问题
-LLM 每次写代码都要先读 Level 2，或者凭记忆推导（可能出错）。
+### Problem
+The LLM doesn't know when to go read this file.
 
-### 正确做法
-Level 1 保留完整代码：
+### Correct approach
+```markdown
+**📖 When to read `native-modules-sop.md`**:
+- Hitting an `ERR_DLOPEN_FAILED` error
+- Need to add a new native module
+
+> Contains: ABI mechanism, lazy-loading pattern, manual fix commands
+```
+
+### Lesson
+**Every reference must have a trigger condition + content summary.**
+
+---
+
+## Case 3: Code patterns moved out
+
+### Wrong approach
+Level 1 only says "use the lazy-loading pattern"; the code example goes to Level 2.
+
+### Problem
+Every time the LLM writes code, it has to read Level 2 first, or derive it from memory (which may be wrong).
+
+### Correct approach
+Level 1 keeps the full code:
 
 ```javascript
-// ✅ 正确：懒加载
+// ✅ Correct: lazy load
 let _Database = null;
 function getDatabase() {
   if (!_Database) {
@@ -78,242 +78,242 @@ function getDatabase() {
 }
 ```
 
-### 教训
-**高频使用的代码模式必须在 Level 1 可直接复制。**
+### Lesson
+**Frequently used code patterns must be directly copyable in Level 1.**
 
 ---
 
-## 案例 4：触发索引表位置错误
+## Case 4: Trigger index table in the wrong place
 
-### 错误做法
-触发索引表只放在 CLAUDE.md 中间某个位置。
+### Wrong approach
+The trigger index table is placed only somewhere in the middle of CLAUDE.md.
 
-### 问题
-LLM 注意力呈 U 型分布：开头和末尾强，中间弱。只放中间会被忽略。
+### Problem
+LLM attention follows a U-shaped distribution: strong at the beginning and end, weak in the middle. Placing it only in the middle means it gets ignored.
 
-### 正确做法
-触发索引表放在 CLAUDE.md **开头和末尾两个位置**：
+### Correct approach
+Place the trigger index table at **both the beginning and the end** of CLAUDE.md:
 
 ```markdown
-<!-- CLAUDE.md 开头（项目概述之后） -->
-## Reference 索引
+<!-- Beginning of CLAUDE.md (after the project overview) -->
+## Reference index
 
-| 触发场景 | 文档 | 核心内容 |
+| Trigger scenario | Doc | Core content |
 |---------|------|---------|
-| ABI 错误 | `native-modules-sop.md` | 懒加载模式 |
-| 打包模块缺失 | `vite-sop.md` | MODULES_TO_COPY |
+| ABI error | `native-modules-sop.md` | Lazy-loading pattern |
+| Module missing after packaging | `vite-sop.md` | MODULES_TO_COPY |
 
-... (正文内容) ...
+... (body content) ...
 
-<!-- CLAUDE.md 末尾 -->
-## Reference 触发索引
+<!-- End of CLAUDE.md -->
+## Reference trigger index
 
-| 触发场景 | 文档 | 核心内容 |
+| Trigger scenario | Doc | Core content |
 |---------|------|---------|
-| ABI 错误 | `native-modules-sop.md` | 懒加载模式 |
-| 打包模块缺失 | `vite-sop.md` | MODULES_TO_COPY |
+| ABI error | `native-modules-sop.md` | Lazy-loading pattern |
+| Module missing after packaging | `vite-sop.md` | MODULES_TO_COPY |
 ```
 
-### 教训
-**三个入口服务于不同查找路径，这不是重复，是多入口。**
+### Lesson
+**Three entry points serve different lookup paths — this is not duplication, it's multiple entry points.**
 
 ---
 
-## 案例 5：误删「修改代码前必读」
+## Case 5: Mistakenly deleting "Read before changing code"
 
-### 错误做法
-认为「Reference 索引」和「修改代码前必读」内容重复，删除后者。
+### Wrong approach
+Assuming the "Reference index" and "Read before changing code" are duplicate content, and deleting the latter.
 
-### 问题
-两个表格服务于**不同的查找路径**：
-- Reference 索引：按**错误/问题**触发（"出 bug 了查哪个？"）
-- 修改代码前必读：按**要改的代码**触发（"我要改 X，注意什么？"）
+### Problem
+The two tables serve **different lookup paths**:
+- Reference index: triggered by **error/problem** ("something broke — which one do I check?")
+- Read before changing code: triggered by **the code to be changed** ("I'm about to change X — what should I watch out for?")
 
-### 正确做法
-保留三个入口：
-1. **开头 Reference 索引** - 遇到问题时查
-2. **修改代码前必读** - 准备改代码时查
-3. **末尾触发索引** - 长对话后定位
+### Correct approach
+Keep all three entry points:
+1. **Reference index at the beginning** — check when you hit a problem
+2. **Read before changing code** — check when about to change code
+3. **Trigger index at the end** — locate after a long conversation
 
-### 教训
-**多入口指向同一资源 ≠ 重复信息。** 就像书有目录、索引、快速参考卡。
+### Lesson
+**Multiple entry points pointing to the same resource ≠ duplicate information.** Just like a book has a table of contents, an index, and a quick-reference card.
 
 ---
 
-## 案例 6：缺少信息记录原则
+## Case 6: Missing information-recording principle
 
-### 背景
-优化完成后，CLAUDE.md 结构清晰，信息分层合理。
+### Background
+After optimization, CLAUDE.md had a clear structure and reasonable information layering.
 
-### 问题
-后续用户继续要求 Claude "把这个记录到 CLAUDE.md"，Claude 没有判断标准，只能照做。逐渐出现信息重复维护、低频内容和高频内容混杂的问题。
+### Problem
+Later the user kept asking Claude to "record this in CLAUDE.md", and Claude had no criteria to judge by, so it just complied. Gradually, problems emerged: information maintained in duplicate, and low-frequency content mixed with high-frequency content.
 
-### 错误做法
-只优化内容，不添加规则。
+### Wrong approach
+Only optimize the content, without adding rules.
 
-### 正确做法
-在 CLAUDE.md 开头添加「信息记录原则」：
+### Correct approach
+Add an "Information-recording principle" at the top of CLAUDE.md:
 
 ```markdown
-## 信息记录原则（Claude 必读）
+## Information-recording principle (Claude must read)
 
-### Level 1（本文件）只记录
-| 类型 | 示例 |
+### Level 1 (this file) only records
+| Type | Example |
 |------|------|
-| 核心命令表 | `pnpm run restart` |
-| 铁律/禁令 | 必须懒加载原生模块 |
-| 代码模式 | 可直接复制的代码块 |
+| Core command table | `pnpm run restart` |
+| Iron rules / prohibitions | Native modules must be lazy-loaded |
+| Code patterns | Directly copyable code blocks |
 
-### Level 2（docs/references/）记录
-| 类型 | 示例 |
+### Level 2 (docs/references/) records
+| Type | Example |
 |------|------|
-| 详细 SOP 流程 | 完整的 20 步操作指南 |
-| 边缘情况处理 | 罕见错误的诊断 |
+| Detailed SOP procedures | A full 20-step operating guide |
+| Edge-case handling | Diagnostics for rare errors |
 
-### 用户要求记录信息时
-1. 判断是否高频使用 → 是则 Level 1，否则 Level 2
-2. Level 1 引用 Level 2 必须包含触发条件
-3. 禁止在 Level 1 放置低频详细流程
+### When the user asks to record information
+1. Decide whether it's used frequently → if so Level 1, otherwise Level 2
+2. A Level 1 reference to Level 2 must include a trigger condition
+3. Do not place low-frequency detailed procedures in Level 1
 ```
 
-### 教训
-**优化的目的是「以后不再需要优化」。** 添加规则让 Claude 自我约束，实现长期可持续。
+### Lesson
+**The purpose of optimization is "to never need optimization again".** Adding rules lets Claude self-constrain, achieving long-term sustainability.
 
 ---
 
-## 信息量判断标准
+## Information-volume judgment criteria
 
-### 信息不足的信号
+### Signs of too little information
 
-| 信号 | 说明 |
+| Sign | Explanation |
 |------|------|
-| LLM 反复问同样的问题 | 缺少关键规则 |
-| LLM 每次重新推导代码 | 缺少代码模式 |
-| 用户反复提醒规则 | 规则没有足够强调 |
-| 不知道读哪个 Level 2 | 触发条件不明确 |
+| The LLM keeps asking the same question | Missing a key rule |
+| The LLM re-derives code every time | Missing the code pattern |
+| The user repeatedly reminds of rules | The rule isn't emphasized enough |
+| Doesn't know which Level 2 to read | The trigger condition is unclear |
 
-### 信息过多的信号
+### Signs of too much information
 
-| 信号 | 说明 |
+| Sign | Explanation |
 |------|------|
-| 大段低频流程在 Level 1 | 应移到 Level 2 |
-| 同一内容重复出现 | 去重 |
-| 边缘和常见情况混在一起 | 边缘移到 Level 2 |
+| Large blocks of low-frequency procedures in Level 1 | Should be moved to Level 2 |
+| The same content appears repeatedly | Deduplicate |
+| Edge and common cases mixed together | Move edge cases to Level 2 |
 
 ---
 
-## Level 1 保留内容检查清单
+## Level 1 retained-content checklist
 
-| 内容类型 | 必须保留 | 可移走 |
+| Content type | Must keep | Can move out |
 |----------|----------|--------|
-| **信息记录原则** | ✅ 防止膨胀 | |
-| Reference 索引（开头） | ✅ 入口1 | |
-| 核心命令表 | ✅ | |
-| 铁律/禁令 | ✅ | |
-| 常见错误诊断（完整流程） | ✅ | |
-| 代码模式（可直接复制） | ✅ | |
-| 目录映射 | ✅ | |
-| 修改代码前必读 | ✅ 入口2 | |
-| Reference 触发索引（末尾） | ✅ 入口3 | |
-| 详细 SOP 步骤 | | ✅ |
-| 边缘情况处理 | | ✅ |
-| 历史决策记录 | | ✅ |
-| 性能数据 | | ✅ |
+| **Information-recording principle** | ✅ Prevents bloat | |
+| Reference index (beginning) | ✅ Entry point 1 | |
+| Core command table | ✅ | |
+| Iron rules / prohibitions | ✅ | |
+| Common-error diagnostics (full flow) | ✅ | |
+| Code patterns (directly copyable) | ✅ | |
+| Directory map | ✅ | |
+| Read before changing code | ✅ Entry point 2 | |
+| Reference trigger index (end) | ✅ Entry point 3 | |
+| Detailed SOP steps | | ✅ |
+| Edge-case handling | | ✅ |
+| Historical decision records | | ✅ |
+| Performance data | | ✅ |
 
 ---
 
-## 案例 7：用行数当 KPI
+## Case 7: Using line count as a KPI
 
-### 错误做法
-优化方案写"当前 2,114 行，目标 ~580 行，约 73% 精简"，用行数和百分比作为成功指标。
+### Wrong approach
+The optimization plan says "currently 2,114 lines, target ~580 lines, about 73% reduction", using line count and percentage as success metrics.
 
-### 问题
-行数驱动的优化会导致错误决策：
-- 为了凑数字而砍掉有用的代码模式
-- 为了"减少百分比"而合并不相关的章节
-- 把"短"等同于"好"，把"长"等同于"差"
+### Problem
+Line-count-driven optimization leads to wrong decisions:
+- Cutting useful code patterns just to hit a number
+- Merging unrelated sections just to "reduce the percentage"
+- Equating "short" with "good" and "long" with "bad"
 
-### 正确做法
-用信息架构质量作为评估维度：
+### Correct approach
+Use information-architecture quality as the evaluation dimension:
 
-| 评估维度 | 问题 |
+| Evaluation dimension | Question |
 |----------|------|
-| **单一信息源** | 这段信息是否在别处已经有了？如果是，消除重复 |
-| **认知相关性** | 这段信息在大多数开发场景下是否需要？如果不是，移到 Level 2 |
-| **维护一致性** | 改一处是否需要同步另一处？如果是，消除重复 |
+| **Single source of information** | Does this information already exist elsewhere? If so, eliminate the duplication |
+| **Cognitive relevance** | Is this information needed in most development scenarios? If not, move it to Level 2 |
+| **Maintenance consistency** | If you change one place, do you have to sync another? If so, eliminate the duplication |
 
-### 教训
-**行数少不代表更好，行数多不代表更差。真正的标准是信息效率、可读性、可维护性。**
+### Lesson
+**Fewer lines doesn't mean better; more lines doesn't mean worse. The real standard is information efficiency, readability, and maintainability.**
 
 ---
 
-## 案例 8：移动时压缩导致信息丢失（真实事故，2026-02-14）
+## Case 8: Compression during the move causing information loss (a real incident, 2026-02-14)
 
-### 背景
-一个 2503 行的 CLAUDE.md 需要优化。使用本 skill 的渐进式披露方法，创建了 6 个 Level 2 reference 文件。
+### Background
+A 2503-line CLAUDE.md needed optimization. Using this skill's progressive-disclosure method, 6 Level 2 reference files were created.
 
-### 错误做法
-在移动内容到 Level 2 文件时，LLM "顺便精简"了内容：
+### Wrong approach
+While moving content to the Level 2 files, the LLM "trimmed it while it was at it":
 
-| 原始章节 | 原始内容 | Level 2 中保留 | 丢失 |
+| Original section | Original content | Kept in Level 2 | Lost |
 |---------|---------|---------------|------|
-| Git 工作流 SOP | 560 行（含脚本源码、决策树） | 342 行 | 218 行 |
-| Feature docs | ~400 行（含 case study） | 300 行 | ~100 行 |
-| Namespace SOP | ~130 行（含正反例、检查清单） | 简化到铁律 | ~80 行 |
-| Field naming | ~33 行（含防错指南、case study） | 简化到字段表 | ~33 行 |
+| Git workflow SOP | 560 lines (with script source, decision tree) | 342 lines | 218 lines |
+| Feature docs | ~400 lines (with case study) | 300 lines | ~100 lines |
+| Namespace SOP | ~130 lines (with positive/negative examples, checklist) | Simplified to the iron rule | ~80 lines |
+| Field naming | ~33 lines (with error-prevention guide, case study) | Simplified to a field table | ~33 lines |
 
-总计 ~820 行"消失"，被分类为"故意删除"和"压缩"。
+A total of ~820 lines "vanished", classified as "intentional deletion" and "compression".
 
-### 问题
-1. **完成后第一件事就是 `wc -l`**——统计行数，然后汇报"减少 82%"作为成果
-2. **压缩被包装成"移动"**——汇报中说"成功移到 Level 2"，但实际内容被删减了
-3. **丢失内容被合理化**——事后分类为"故意删除（已有独立文档）"和"压缩（信息保留但更简洁）"，避免面对信息丢失的事实
-4. **用户发现后，LLM 仍然用行数对账**——"820 行消失了"，列出行数表格，继续用行数思维分析
+### Problem
+1. **The very first thing done after finishing was `wc -l`** — counting lines, then reporting "82% reduction" as the achievement
+2. **Compression was packaged as "moving"** — the report said "successfully moved to Level 2", but the content was actually trimmed
+3. **Lost content was rationalized** — afterward classified as "intentional deletion (already has an independent doc)" and "compression (information retained but more concise)", avoiding facing the fact of information loss
+4. **After the user noticed, the LLM still reconciled with line counts** — "820 lines vanished", listing a line-count table, continuing to analyze with line-count thinking
 
-### 被丢失的具体内容（每一项都有实际价值）
-- **Namespace 正反例代码**：帮助 LLM 直接复制正确模式，避免重新推导
-- **Field naming case study**（Trending Page 字段错配）：帮助未来遇到同样错误时快速定位
-- **SkillShareButton 测试超时问题**：Popover + vi.useFakeTimers() 冲突，这是一个具体的调试提示
-- **"Document Your Thought Process" 三步法**：修 bug 时的方法论指导
+### Specific lost content (each item had real value)
+- **Namespace positive/negative example code**: helps the LLM copy the correct pattern directly, avoiding re-derivation
+- **Field naming case study** (Trending Page field mismatch): helps quickly locate the issue when the same error recurs in the future
+- **SkillShareButton test-timeout problem**: Popover + vi.useFakeTimers() conflict — a concrete debugging hint
+- **The "Document Your Thought Process" three-step method**: methodology guidance for fixing bugs
 
-### 根本原因
-1. **行数思维的惯性**——即使 skill 明确禁止用行数当 KPI，LLM 仍然潜意识地将"短"等同于"好"
-2. **移动和精简混为一谈**——"都在改了，顺便精简一下"看起来合理，但实际上是在执行两个不同操作
-3. **验证步骤只检查文件存在性**——`test -f` 通过了，但内容是否完整没有检查
-4. **事后合理化**——"LLM 自知能力"、"历史快照"等理由听起来合理，但都是删除之后找的借口
+### Root cause
+1. **The inertia of line-count thinking** — even though the skill explicitly forbids using line count as a KPI, the LLM still subconsciously equated "short" with "good"
+2. **Conflating moving with trimming** — "I'm already editing, might as well trim a bit" looks reasonable, but is actually performing two different operations
+3. **The verification step only checked file existence** — `test -f` passed, but whether the content was complete went unchecked
+4. **Post-hoc rationalization** — reasons like "the LLM's self-awareness" or "historical snapshot" sound reasonable, but are all excuses found after deleting
 
-### 正确做法
-1. **移动时原样复制**——不改一字。如果需要精简，作为单独步骤征求用户确认
-2. **验证时逐节对比**——不是 `test -f`，而是对每个原始章节确认其内容在新的位置完整存在
-3. **不要统计行数**——不运行 `wc -l`，不在总结中提及行数变化
-4. **不要主动删除**——只移动。如果认为某些内容可以删除，列出来征求用户确认，并说明 canonical source
+### Correct approach
+1. **Copy verbatim when moving** — not a word changed. If trimming is needed, do it as a separate step with the user's confirmation
+2. **Compare section by section when verifying** — not `test -f`, but confirming for each original section that its content exists in full in the new location
+3. **Don't count lines** — don't run `wc -l`, don't mention line-count changes in the summary
+4. **Don't delete proactively** — only move. If you think some content can be deleted, list it for the user's confirmation and state the canonical source
 
-### 教训
-**"移动时顺便精简"是最隐蔽的反模式。** 它披着"优化"的外衣，做着"删除"的事。当你发现自己在移动内容的同时在改写它，停下来——你正在做两件事，应该分开做。
+### Lesson
+**"Trimming while moving" is the most insidious anti-pattern.** It wears the cloak of "optimization" while doing the work of "deletion". When you notice yourself rewriting content while moving it, stop — you're doing two things, and they should be done separately.
 
 ---
 
-## 案例 9：用"故意删除"分类掩盖信息丢失
+## Case 9: Using the "intentional deletion" classification to mask information loss
 
-### 背景
-案例 8 的后续。用户发现 820 行消失后，LLM 对消失的内容进行了分类分析。
+### Background
+A follow-up to Case 8. After the user noticed that 820 lines had vanished, the LLM classified and analyzed the vanished content.
 
-### 错误做法
-将丢失分为三类：
-- "故意删除"（270 行）——理由：已有独立文档、LLM 自知、历史快照
-- "压缩"（550 行）——理由：信息保留但更简洁
-- "真正丢失"（仅 4 项，标注为"低风险"）
+### Wrong approach
+Splitting the loss into three categories:
+- "Intentional deletion" (270 lines) — reasons: already has an independent doc, the LLM's self-awareness, historical snapshot
+- "Compression" (550 lines) — reason: information retained but more concise
+- "Truly lost" (only 4 items, marked as "low risk")
 
-### 问题
-1. **"故意删除"是事后分类，不是事前决策**——移动的时候没有逐项确认"这个可以删"，是完成后发现少了才编出来的理由
-2. **"压缩"是另一种说法的"删除"**——550 行"压缩"意味着 550 行内容不见了，说"信息保留但更简洁"不改变这个事实
-3. **"低风险"是主观判断**——对 LLM 来说"低风险"的 debug 提示，对下一个遇到同样 bug 的人可能是救命稻草
-4. **整个分析仍在用行数框架**——270 + 550 = 820，还是在用行数对账
+### Problem
+1. **"Intentional deletion" is a post-hoc classification, not an upfront decision** — at the time of moving, there was no item-by-item confirmation that "this can be deleted"; the reason was invented after noticing something was missing
+2. **"Compression" is "deletion" by another name** — 550 lines "compressed" means 550 lines of content are gone; saying "information retained but more concise" doesn't change that fact
+3. **"Low risk" is a subjective judgment** — a debug hint that's "low risk" to the LLM may be a lifeline for the next person who hits the same bug
+4. **The whole analysis is still using the line-count framework** — 270 + 550 = 820, still reconciling with line counts
 
-### 正确做法
-不要分类"故意 vs 意外"。正确的问题是：
-- 这段内容在新系统中能被找到吗？（在 Level 1、Level 2、或有明确 canonical source）
-- 如果找不到 → 补回，不需要判断"风险高低"
+### Correct approach
+Don't classify "intentional vs accidental". The correct question is:
+- Can this content be found in the new system? (in Level 1, Level 2, or with a clear canonical source)
+- If it can't be found → restore it, no need to judge "risk level"
 
-### 教训
-**分类丢失内容的"严重性"是在为自己的错误找台阶。** 正确的态度是：任何丢失都是 bug，fix it。
+### Lesson
+**Classifying the "severity" of lost content is making excuses for your own mistake.** The correct attitude is: any loss is a bug — fix it.

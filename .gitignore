@@ -4,3 +4,6 @@ memory/
 # Python bytecode cache
 __pycache__/
 *.pyc
+
+# Tool caches
+.ruff_cache/

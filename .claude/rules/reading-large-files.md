@@ -1,3 +1,15 @@
+---
+name: Reading large files
+description: Force offset/limit or Grep on file types/sizes where a full read blows the session budget. Unconditional for lock/csv/min; conditional ≥800-line threshold for py/md.
+paths:
+  - "**/*.lock"
+  - "**/*.csv"
+  - "**/*.min.js"
+  - "**/*.min.css"
+  - "**/*.py"
+  - "**/*.md"
+---
+
 # Reading Large Files
 
 Read tool defaults: 2,000 lines / 2,000 chars/line / 25,000-token hard ceiling. Read also adds ~70% overhead via line-number formatting, so a 1K-line file costs ~8K tokens, a 1.5K-line file ~12K.

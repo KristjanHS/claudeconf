@@ -18,3 +18,8 @@ gitleaks dir . || {
     echo "ERROR: gitleaks found secrets in the working tree. Push blocked." >&2
     exit 1
 }
+
+# Identity/PII layer too — gitleaks catches credentials, not home paths/emails.
+# Mirrors pre-commit so a `--no-verify`'d commit still can't push PII.
+repo_root="$(git rev-parse --show-toplevel)"
+"$repo_root/scripts/check-hardcoded-paths.sh" || exit 1
