@@ -5,6 +5,10 @@
 # THIS clone only. It does not touch your ~/.claude config or any global git
 # settings. Run it once after cloning if you want the secret gate locally; the
 # CI gitleaks workflow runs regardless.
+#
+# Supply-chain note: core.hooksPath -> hooks/ means the in-repo hook scripts
+# execute on every commit/push in this clone. Only run install.sh on a repo
+# whose hooks/ and scripts/ you have reviewed — treat them like any code you run.
 set -Eeuo pipefail
 
 repo_root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"

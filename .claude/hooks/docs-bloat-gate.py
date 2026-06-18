@@ -236,7 +236,14 @@ def load_config(proj: Path | None) -> dict:
             if "audit_root_check" in data:
                 cfg["audit_root_check"] = bool(data["audit_root_check"])
             if "log_path" in data:
-                cfg["log_path"] = (proj / data["log_path"]) if data["log_path"] else None
+                # log_path comes from project-local config (untrusted on a
+                # cloned repo). Resolve and require containment so an absolute
+                # or ../ value can't steer append_log writes outside the project.
+                if data["log_path"]:
+                    cand = (proj / data["log_path"]).resolve()
+                    cfg["log_path"] = cand if cand.is_relative_to(proj) else None
+                else:
+                    cfg["log_path"] = None
             if "claude_md_gated" in data:
                 cfg["claude_md_gated"] = bool(data["claude_md_gated"])
 
@@ -307,9 +314,9 @@ def session_id() -> str:
         return _safe_sid(sid)
     transcript = os.environ.get("CLAUDE_TRANSCRIPT_PATH")
     if transcript:
-        return hashlib.md5(transcript.encode()).hexdigest()[:12]
+        return hashlib.md5(transcript.encode(), usedforsecurity=False).hexdigest()[:12]
     seed = f"{os.environ.get('CLAUDE_PROJECT_DIR', '')}|{datetime.now(timezone.utc).strftime('%Y%m%d%H')}"
-    return hashlib.md5(seed.encode()).hexdigest()[:12]
+    return hashlib.md5(seed.encode(), usedforsecurity=False).hexdigest()[:12]
 
 
 def sentinel_counter_path() -> Path:

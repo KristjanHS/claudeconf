@@ -145,6 +145,10 @@ reason to ship a home path or an email. It matches **generic** patterns
 (`/home/<user>/`, any email), never a hardcoded identity — baking in a real one
 would re-leak the PII being scrubbed.
 
+`./install.sh` sets `core.hooksPath` to the repo's `hooks/`, so those scripts
+run on every commit and push in this clone. Review `hooks/` and `scripts/`
+before running it — treat them like any code you execute.
+
 ## Two `hooks/` directories — don't conflate them
 
 | Directory | What it is | Goes where |
