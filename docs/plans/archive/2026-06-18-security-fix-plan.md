@@ -1,6 +1,6 @@
 # Security fix plan — claudeconf hooks
 
-Status: OPEN. Author: security review, 2026-06-18.
+Status: COMPLETED 2026-06-18 (commit d8411a6 + review fixes). Author: security review.
 
 Source: whole-project security-architect review (not a branch diff). Surface
 covered: the 5 auto-wired Python hooks in `.claude/settings.json`, the 2 git
