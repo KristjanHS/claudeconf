@@ -1,2 +1,6 @@
 # /impag orchestration scratch — not part of the published catalog
 memory/
+
+# Python bytecode cache
+__pycache__/
+*.pyc
