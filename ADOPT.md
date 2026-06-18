@@ -104,13 +104,3 @@ you don't run is written as optional.
 **Smoke-test:** type `/` in a session and confirm the copied skills appear in
 the slash-command list (or invoke `/<name>` and watch it load). That proves
 they're discoverable; whether a skill helps is a per-task judgement.
-
-## 6. The secret gate (reuse in your own repos)
-
-For **this** repo: `./install.sh` points git at `hooks/` (pre-commit +
-pre-push). To reuse the gate in another repo, copy `hooks/`, `scripts/`,
-`.gitleaksignore`, and `.github/workflows/gitleaks.yml`, then run the same
-`git config core.hooksPath hooks`. Install [gitleaks](https://github.com/gitleaks/gitleaks#installing)
-for the credential scan (the hooks warn and skip gracefully without it). The
-PII check blocks any `/home/<user>/` path or email in tracked files - widen or
-relax the patterns in `scripts/check-hardcoded-paths.sh` for your needs.
