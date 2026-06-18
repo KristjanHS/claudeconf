@@ -173,18 +173,20 @@ Three layers:
 ### One deliberate change from dotfiles
 
 In dotfiles, `check-hardcoded-paths.sh` is **advisory** (`exit 0`, never
-blocks) because dotfiles legitimately pins some `/home/kristjans/` paths. In a
+blocks) because dotfiles legitimately pins some absolute home paths. In a
 public teaching repo there is **no legitimate reason** for a home path or
-email to ship, so the check is **blocking (`exit 1`)** in pre-commit and the
-pattern is widened to catch `/home/kristjans/`, `kristjan.h.s@gmail.com`, and
-bare-username references. gitleaks catches *credentials*; this catches
-*identity/PII leakage*, which is the dominant risk for this repo.
+email to ship, so the check is **blocking (`exit 1`)** in pre-commit. The
+patterns are **generic categories** — any `/home/<user>/` or `/Users/<user>/`
+path, any email address — rather than the author's literal identity: baking a
+real email/username into a public checker would re-leak the very PII being
+scrubbed. gitleaks catches *credentials*; this catches *identity/PII leakage*,
+which is the dominant risk for this repo.
 
 ## Sanitization (one-time pass before first commit)
 
 Every curated file is scrubbed before it lands:
 
-- **Paths** — `/home/kristjans/...` → `$HOME/...` or `~/...`
+- **Paths** — `/home/<user>/...` → `$HOME/...` or `~/...`
 - **Identity** — email/username removed from `CLAUDE.md`, `settings.json`,
   statusline examples
 - **Private project refs** — drop `stt-faster` / `straiker` / devcontainer /

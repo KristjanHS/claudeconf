@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+# claudeconf git pre-commit secret gate (two layers):
+#   1. gitleaks scan of staged changes  — catches credentials/secrets
+#   2. BLOCKING identity/PII check       — catches home paths & emails
+#
+# Activate with `./install.sh` (sets core.hooksPath to this directory).
+set -Eeuo pipefail
+
+repo_root="$(git rev-parse --show-toplevel)"
+
+# --- Layer 1: gitleaks (credentials) — graceful warn if not installed ---
+if command -v gitleaks >/dev/null 2>&1; then
+    gitleaks git --pre-commit --staged || {
+        echo "ERROR: gitleaks found staged secrets (above). Commit blocked." >&2
+        exit 1
+    }
+else
+    echo "WARNING: gitleaks not installed — skipping credential scan." >&2
+    echo "  Install: https://github.com/gitleaks/gitleaks#installing" >&2
+fi
+
+# --- Layer 2: identity/PII check (BLOCKING) ---
+"$repo_root/scripts/check-hardcoded-paths.sh" || exit 1

@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+# claudeconf git pre-push secret gate:
+#   full working-tree gitleaks scan (broader than the staged pre-commit pass —
+#   catches anything already committed locally before it leaves the machine).
+#
+# Activate with `./install.sh` (sets core.hooksPath to this directory).
+set -Eeuo pipefail
+
+if ! command -v gitleaks >/dev/null 2>&1; then
+    echo "WARNING: gitleaks not installed — skipping pre-push secret scan." >&2
+    echo "  Install: https://github.com/gitleaks/gitleaks#installing" >&2
+    exit 0
+fi
+
+# `gitleaks dir` scans the working tree (committed + untracked) rather than just
+# the staged diff, so a secret that slipped past pre-commit is still caught here.
+gitleaks dir . || {
+    echo "ERROR: gitleaks found secrets in the working tree. Push blocked." >&2
+    exit 1
+}

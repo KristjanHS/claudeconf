@@ -1,0 +1,3 @@
+# gitleaks false-positive allowlist.
+# One `commit:path:rule:line` fingerprint (or a path/regex) per line.
+# Document why each entry is a false positive. Empty is the healthy default.
