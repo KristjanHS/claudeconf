@@ -96,6 +96,13 @@ weighs - but they ship here so the catalog is the whole kit, grouped by purpose:
 - **Design & critique** - general-purpose thinking tools: `senior-architect`,
   `brutal-honesty-review`, `deep-research`, `architecture-diagram-creator`,
   `mybrain`.
+- **Code quality & dev workflow** - test integrity and branch/debug discipline:
+  `testing-anti-patterns`, `systematic-debugging`, `python-simplifier`,
+  `finishing-a-development-branch`.
+- **Kaizen improvement** - a continuous-improvement family (all-or-nothing set):
+  `kaizen-analyse`, `kaizen-analyse-problem`, `kaizen-cause-and-effect`,
+  `kaizen-kaizen`, `kaizen-plan-do-check-act`, `kaizen-root-cause-tracing`,
+  `kaizen-why`.
 - **Writing & AI-text** - `detect-ai-text-humanize`: detect AI-sounding prose or
   rewrite it to read human.
 
@@ -228,8 +235,10 @@ exemplar set):
   action plan.
 - **`kaizen-cause-and-effect`** - fishbone diagram across the 6M cause categories.
 - **`kaizen-plan-do-check-act`** - PDCA iterative experimentation cycle.
-- **`kaizen-root-cause-tracing`** - trace a bug backward through the call stack to
-  its original trigger.
+- **`kaizen-root-cause-tracing`** - walk a single bug backward up the call chain
+  to where the bad value or wrong decision first entered - the narrow,
+  call-stack-tracing complement to `systematic-debugging`'s broad reproduce →
+  isolate → hypothesize → verify protocol.
 - **`kaizen-why`** - Five Whys: drill from symptom to fundamental cause.
 
 **Writing & AI-text** - detection and rewriting of AI-sounding prose:
