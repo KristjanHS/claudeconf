@@ -2,16 +2,20 @@
 
 # claudeconf
 
-**Context-first Claude Code config — lean sessions, grouped by purpose.**
+**Context-first Claude Code config - lean sessions, grouped by purpose.**
 
 [![Secret scan](https://github.com/KristjanHS/claudeconf/actions/workflows/gitleaks.yml/badge.svg)](https://github.com/KristjanHS/claudeconf/actions/workflows/gitleaks.yml)
 [![Tests](https://github.com/KristjanHS/claudeconf/actions/workflows/tests.yml/badge.svg)](https://github.com/KristjanHS/claudeconf/actions/workflows/tests.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![Built for Claude Code](https://img.shields.io/badge/built%20for-Claude%20Code-d97757)](https://claude.com/claude-code)
 
-[Problem](#-the-problem) · [What it is](#-what-this-is) · [Does it work?](#-does-this-actually-work) · [Catalog](#-the-catalog) · [Quick start](#-quick-start) · [ADOPT](ADOPT.md)
+[Problem](#-the-problem) · [What it is](#-what-this-is) · [Does it work?](#-does-this-actually-work) · [Catalog](#-the-catalog) · [Quick start](#-quick-start) · [Adopt](ADOPT.md)
 
-![statusline near the budget cliff](docs/statusline2.png)
+<b>This is the number you're actually spending - live, every turn.</b>
+
+<img src="docs/statusline2.png" width="720" alt="statusline near the budget cliff">
+
+<img src="docs/statusline.gif" width="720" alt="statusline filling toward the budget cliff">
 
 </div>
 
@@ -208,7 +212,7 @@ tasks to memory, then review the code, close the branch, and run a retro.
   change and carried on closing the branch and writing the retro.
 
 Either way the run lands what's in flight and stops, so the next session opens on
-a committed, written-down state — instead of auto-compaction eventually kicking
+a committed, written-down state - instead of auto-compaction eventually kicking
 in and silently dropping detail that mattered.
 
 ## 🧠 The skills (detail)
@@ -312,5 +316,5 @@ git clone https://github.com/KristjanHS/claudeconf
 cd claudeconf
 ```
 
-Then see **[ADOPT.md](ADOPT.md)** for how to copy each piece into your own
+Then see **[Adopt.md](ADOPT.md)** for how to copy each piece into your own
 `~/.claude/`.
