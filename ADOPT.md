@@ -6,7 +6,7 @@ by hand, one piece at a time. **Back up anything you overwrite**, and **never
 blind-overwrite your own `~/.claude/settings.json`** — merge the hooks block
 instead. Everything below assumes your config lives at `~/.claude/`.
 
-Each step ends with a **smoke-test**: it confirms the piece is *wired and fires*,
+Most steps end with a **smoke-test**: it confirms the piece is *wired and fires*,
 not that it improved your session. (The value question is the README's job.)
 
 ## 1. The progressive-disclosure `CLAUDE.md`
@@ -33,10 +33,11 @@ when a matching file is read/edited. Keep the frontmatter. The four shipped
 rules are good as-is, but tune them to your stack. List each in your
 `CLAUDE.md` Rules Index table.
 
-**Smoke-test:** open or edit a file the glob matches (e.g. a `*.md` over 800
-lines for `reading-large-files.md`) and confirm the rule body appears in the
-session's loaded context — it should be absent before the match and present
-after. This proves the gating fires, not that the rule changed an outcome.
+**Smoke-test:** confirm the file is in `~/.claude/rules/` with its `globs`
+frontmatter intact — that frontmatter is what the harness keys the gating on.
+There's no context-inspector to *watch* a rule load; the only observable effect
+is behavioral (Claude following the rule once you touch a matching file), which
+proves wiring, not that the rule changed an outcome.
 
 ## 3. Runtime hooks + `settings.json` wiring
 
@@ -81,6 +82,10 @@ wraps up on. `WINDOW` is the token budget you choose to treat as your personal
 session cap (here 200k) — deliberately *below* the model's real context limit
 (e.g. 1M), so the bar fills and warns well before any native autocompact. Set it
 to whatever cap you want to pace yourself against; adjust the thresholds to match.
+
+**Smoke-test:** start a session and confirm the status line renders (context %,
+cost, distance-to-stop). If it's blank, check `jq`/`git` are on `PATH` and the
+`statusLine` path in `settings.json` is correct.
 
 ## 5. Skills
 

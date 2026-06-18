@@ -6,12 +6,14 @@
 
 ## Goal
 
-A public, shareable repo that helps co-workers **adopt the Claude Code
-context-optimization tricks** developed in the author's private dotfiles —
+A public, shareable repo that helps someone **already running Claude Code adopt
+the context-optimization tricks** developed in the author's private dotfiles —
 custom skills, hooks, rules, statusline, and the config patterns that keep a
-session's context window lean. It is both a **drop-in catalog** (co-workers
-copy what they want into their own `~/.claude`) and a **teaching artifact**
-(each piece ships with a short "why it saves context" writeup).
+session's context window lean. It is both a **drop-in catalog** (the reader
+copies what they want into their own `~/.claude`) and a **teaching artifact**
+(each piece ships with a short "why it saves context" writeup). The reader is
+not assumed to already believe the catalog pays off — see **Audience** below for
+the precisified target.
 
 A hard requirement: the repo enforces an **automated secret-check before
 commit and before push**, reusing the gitleaks-based checking logic from the
@@ -148,7 +150,7 @@ cache_creation_input_tokens + cache_read_input_tokens`, so a co-worker gets the
 *visual* warning and the *automated* wrap-up off the same number — taught
 together, and exact by construction.
 
-### Portability decision (key)
+### Portability decision
 
 The budget hook reads exact, compaction-aware token usage by inlining a ~40-LOC
 stdlib tail-reader (`read_last_turn_context`) that parses the last assistant
@@ -156,8 +158,9 @@ turn's `message.usage` — zero dependencies, no private package vendored, no
 accuracy tradeoff. `statusline.sh` has no such dependency and ships unchanged.
 The full design saga behind that conclusion (the original `bytes/4` portable
 variant, the discovery that the `token_monitor` import was trivially inlinable,
-and the reversal) lives in the archived plan
-[`docs/plans/archive/2026-06-18-budget-hook-exact-portable-tokens.md`](plans/archive/2026-06-18-budget-hook-exact-portable-tokens.md).
+and the reversal) lives in the
+[archived plan](plans/archive/2026-06-18-budget-hook-exact-portable-tokens.md)
+(`docs/plans/archive/2026-06-18-budget-hook-exact-portable-tokens.md`).
 
 ## The secret gate (reused dotfiles logic, hardened for public)
 
