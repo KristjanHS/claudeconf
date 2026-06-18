@@ -4,9 +4,13 @@
 Drives .claude/statusline.sh with crafted Claude-Code JSON at rising token
 counts, parses its ANSI output, and paints each frame in the Windows Terminal
 "Campbell" palette (the scheme the docs/statusline*.png screenshots were shot
-in). The final frame matches docs/statusline2.png exactly ($8.03 / 77% / 154k).
+in).
 
-Reproduce:  python3 docs/make_statusline_gif.py
+The "| $cost" segment is stripped from each frame: once "← /clear soon" appears
+it pushes the trailing "5h:" limit off the frame edge, so dropping the spend
+keeps the rate-limit indicator visible end-to-end.
+
+Reproduce:  python3 scripts/make_statusline_gif.py
 Output:     docs/statusline.gif
 """
 import json
@@ -31,6 +35,11 @@ W, H = 1595, 110
 FONT_SIZE = 28
 PAD_X = 44
 
+# White frame baked around the dark terminal panel (renders on GitHub).
+FRAME = (250, 250, 250)
+MARGIN = 22       # frame thickness on every side
+RADIUS = 16       # rounded corners on the inner dark panel
+
 # (used_tokens, cost_usd, five_hour_pct) — the story: green -> amber+/clear -> red
 FRAMES = [
     (18000, 0.42, 31),
@@ -42,13 +51,13 @@ FRAMES = [
     (168000, 9.30, 53),   # crosses 160k: bar turns red
 ]
 # Per-frame duration (ms); hold the cliff frame longer so the eye lands on it.
-DURATIONS = [650, 650, 650, 700, 900, 1900, 1400]
+DURATIONS = [1100, 1100, 1100, 1200, 1500, 3000, 2400]
 
 
 def render_line(used, cost, five_h):
     """Run the real statusline script and return its raw ANSI string."""
     payload = {
-        "model": {"display_name": "Opus 4.8 (1M context)"},
+        "model": {"display_name": "Opus 4.8"},
         "context_window": {"current_usage": {"input_tokens": used}},
         "cost": {"total_cost_usd": cost},
         "rate_limits": {"five_hour": {"used_percentage": five_h}},
@@ -62,6 +71,14 @@ def render_line(used, cost, five_h):
 
 
 SGR = re.compile(r"\033\[([0-9;]*)m")
+
+# The " | $cost" spend segment: leading space, DIM, "| $N.NN", RESET.
+COST_SEG = re.compile(r" \033\[2m\| \$[0-9.]+\033\[0m")
+
+
+def strip_cost(s):
+    """Drop the spend segment so the trailing 5h: limit stays on-frame."""
+    return COST_SEG.sub("", s)
 
 
 def parse_ansi(s):
@@ -95,16 +112,22 @@ def main():
     y = (H - (ascent + descent)) // 2
     frames = []
     for used, cost, five_h in FRAMES:
-        img = Image.new("RGB", (W, H), BG)
+        img = Image.new("RGB", (W + 2 * MARGIN, H + 2 * MARGIN), FRAME)
         draw = ImageDraw.Draw(img)
-        x = PAD_X
-        for text, rgb in parse_ansi(render_line(used, cost, five_h)):
-            draw.text((x, y), text, font=font, fill=rgb)
+        draw.rounded_rectangle(
+            [MARGIN, MARGIN, MARGIN + W - 1, MARGIN + H - 1], radius=RADIUS, fill=BG,
+        )
+        x = MARGIN + PAD_X
+        for text, rgb in parse_ansi(strip_cost(render_line(used, cost, five_h))):
+            draw.text((x, MARGIN + y), text, font=font, fill=rgb)
             x += draw.textlength(text, font=font)
         frames.append(img)
     frames[0].save(
         OUT, save_all=True, append_images=frames[1:],
-        duration=DURATIONS, loop=0, optimize=True, disposal=2,
+        # disposal=1 (leave prior frame) keeps the static white border visible:
+        # optimize stores only the changed region per frame, so the unchanged
+        # border must persist rather than be wiped to background (disposal=2).
+        duration=DURATIONS, loop=0, optimize=True, disposal=1,
     )
     print(f"wrote {OUT} ({len(frames)} frames)")
 
