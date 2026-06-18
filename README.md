@@ -129,6 +129,32 @@ commit. Why it and `statusline.sh` are pinned to the *same* 130k mark and
 measurement is explained in
 **[`.claude/hooks/README.md`](.claude/hooks/README.md)**.
 
+## The skills (detail)
+
+Five `/<name>` skills ship in `.claude/skills/`. The first three are the
+context-hygiene set this repo is really about; the last two are bundled
+exemplars. Skill bodies load only when you invoke them, so they cost nothing
+until used.
+
+- **`condense`** - deduplicate and consolidate `CLAUDE.md`, rules, and project
+  docs (spec.md, plans, runbooks) across the hierarchy. The periodic-cleanup
+  arm for when the same guidance has drifted into several files.
+- **`claude-md-progressive-disclosurer`** - restructure a `CLAUDE.md` so it
+  *points* at heavy content instead of inlining it. Reach for it when rules are
+  duplicated or keep getting ignored - it's how the `CLAUDE.md` in this repo got
+  its lean shape.
+- **`de-bloat`** (invoke only via `/de-bloat`) - audit skill files across
+  `~/.claude/skills/` and any project `.claude/skills/` for bloat and
+  duplication, then emit a plan executed via `impag`. Two passes: a content pass
+  (dedupe/compact) and a root-cause pass (which rules/refs/skills drove the
+  bloat). Makes no edits itself.
+- **`impag`** - implement a plan using parallel subagents, full-auto, never
+  stopping to ask. Takes a plan file path (defaults to the newest in
+  `docs/plans/`). The fan-out executor the other skills hand their plans to.
+- **`detect-ai-text-humanize`** - two modes: Detection (analyze whether text is
+  AI-generated, with passage-level highlighting and reasoning) or Humanization
+  (rewrite AI-sounding text to read as human, surfacing no detection output).
+
 ## The secret gate
 
 A three-layer check that no credential or personal identity ships - this is the
