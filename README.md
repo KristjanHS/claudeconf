@@ -11,7 +11,7 @@
 
 [Problem](#-the-problem) · [What it is](#-what-this-is) · [Does it work?](#-does-this-actually-work) · [Catalog](#-the-catalog) · [Quick start](#-quick-start) · [Adopt](ADOPT.md)
 
-<p align="left"><b>A Claude Code statusline to track context usage - available in this repo.</b></p>
+<p align="left">A Claude Code statusline to track context usage - available in this repo:</p>
 
 <img src="docs/statusline.gif" width="100%" alt="statusline filling toward the budget cliff">
 
