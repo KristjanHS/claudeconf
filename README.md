@@ -2,7 +2,7 @@
 
 # claudeconf
 
-**Context-first Claude Code config - lean sessions, grouped by purpose.**
+**Context-first Claude Code config - plus the practices and conventions I've built around it, grouped by purpose.**
 
 [![Secret scan](https://github.com/KristjanHS/claudeconf/actions/workflows/gitleaks.yml/badge.svg)](https://github.com/KristjanHS/claudeconf/actions/workflows/gitleaks.yml)
 [![Tests](https://github.com/KristjanHS/claudeconf/actions/workflows/tests.yml/badge.svg)](https://github.com/KristjanHS/claudeconf/actions/workflows/tests.yml)
@@ -16,9 +16,6 @@
 <img src="docs/statusline.gif" width="100%" alt="statusline filling toward the budget cliff">
 
 </div>
-
-*Context-first Claude Code config - plus the wider set of practices and
-conventions I've built around it, grouped by purpose.*
 
 ## Contents
 
