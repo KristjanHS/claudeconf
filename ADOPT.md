@@ -93,12 +93,18 @@ cp -r .claude/skills/* ~/.claude/skills/
 ```
 
 `condense`, `de-bloat`, and `claude-md-progressive-disclosurer` are the
-context-hygiene trio; `impag` showcases the parallel-subagent fan-out.
-`detect-ai-text-humanize` is the odd one out: it flags AI-sounding prose and
-rewrites it to read human, with a detection mode (full report) and a
-humanization mode (rewrite only). Point it at a doc with "humanize the AI text
-in X" or "check X for AI". They are self-contained, and any reference to tooling
-you don't run is written as optional.
+context-hygiene trio; `impag` showcases the parallel-subagent fan-out. The rest
+are bundled exemplars: `config-reuse`, `install-skill`, and `skills-discovery`
+manage Claude config and skills (the acquisition side of a copy-in catalog);
+`reflect` and `retro` are end-of-session hygiene; `senior-architect`,
+`brutal-honesty-review`, `deep-research`, `architecture-diagram-creator`, and
+`mybrain` are general-purpose design/critique tools; `detect-ai-text-humanize`
+flags AI-sounding prose and rewrites it human (point it at a doc with "humanize
+the AI text in X" or "check X for AI"). They are self-contained, and any
+reference to tooling you don't run is written as optional - except `mybrain`,
+which reads `~/.claude/references/ideation-techniques-library.md`; copy that
+file from `.claude/references/` into your `~/.claude/references/` alongside the
+skill.
 
 **Smoke-test:** type `/` in a session and confirm the copied skills appear in
 the slash-command list (or invoke `/<name>` and watch it load). That proves

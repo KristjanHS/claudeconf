@@ -26,6 +26,7 @@ adapt or extend them:
 - `~/.claude/references/pre-ship-sweeps.md` - pre-ship checklists (deny/path-block/permission/threshold/feature-removal/repo-sanitization).
 - `~/.claude/references/recording-principles.md` - "record this" / "remember this", or organizing docs (L1/L2/L3 routing).
 - `~/.claude/references/anti-patterns-common-rationalizations.md` - naming the rationalizations behind skipping a process gate (debugging/design).
+- `~/.claude/references/ideation-techniques-library.md` - structured ideation techniques (paired with the `mybrain` skill).
 
 ## Iron Rules
 

@@ -39,10 +39,10 @@ warning and the automated stop fire off one number:
 ![statusline near the budget cliff](docs/statusline2.png)
 
 **Progressive disclosure keeps ~8k tokens out of every turn.** The 4 path-gated
-rules (~18 KB) and 6 L3 references (~16 KB) total ~35 KB - **~8k tokens**. A
+rules (~18 KB) and 7 L3 references (~19 KB) total ~37 KB - **~8k tokens**. A
 flat `CLAUDE.md` that inlined all of them
-would carry that on *every* turn; here they cost 10 deferred-load pointer lines
-(6 references + 4 rules) in a 4.4 KB `CLAUDE.md`, and a rule body loads only when
+would carry that on *every* turn; here they cost 11 deferred-load pointer lines
+(7 references + 4 rules) in a 4.4 KB `CLAUDE.md`, and a rule body loads only when
 you touch a file its glob matches.
 
 - **The dollars are modest; the window is the point.** Cached, those tokens bill
@@ -96,14 +96,14 @@ deeper prose for the two mechanisms that don't fit a cell is below the table.
 |---|---|---|---|
 | `.claude/CLAUDE.md` | Keep rules out of the always-loaded prompt | "References" + "Rules Index" sections *point* at content instead of inlining it | Must keep the index in sync as rules change |
 | Path-gated rules (×4) | Topic rules that load only when relevant | Frontmatter `globs`; harness loads the body on a matching read/edit. The `CLAUDE.md` Rules Index is the *awareness* layer - it names the rules so Claude knows they exist before a glob fires (the harness auto-lists skills this way, but not rules) | Loads on every matching file touch |
-| L3 references (×6) | Long checklists/postmortems, on demand | Plain `.md`; loaded only when a `CLAUDE.md` pointer fires | None until triggered |
+| L3 references (×7) | Long checklists/postmortems, on demand | Plain `.md`; loaded only when a `CLAUDE.md` pointer fires | None until triggered |
 | `pre-compact.py` | Insurance copy before a compaction | `PreCompact` hook snapshots transcript + plan/todo to a sidecar | Runs on every compaction |
 | `post-compact-restore.py` | Re-orient cheaply after compaction | `SessionStart` hook prints the newest snapshot's recovery pointer | Runs on compact/resume |
 | `docs-bloat-gate.py` | Block bloated `.md` from entering context | `PreToolUse` hook on Write/Edit/Bash; 3 signals (slop / density / size) | Refuses writes; 2 signals unbypassable |
 | `impag-budget-check.py` | Stop a long run before the context cliff | `PostToolUse` hook on Bash; exact token read, hard-stop at 130k | Interrupts mid-run at the threshold |
 | `statusline.sh` | Show live context %, cost, distance-to-stop | Reads Claude Code's statusline JSON; needs `jq` + `git` | Negligible |
 | `settings.json` | Wire the 4 hooks | Matcher → script entries | One-time hand-merge |
-| Skills (×5) | Context-hygiene, fan-out, and AI-text exemplars | `condense`, `de-bloat`, `claude-md-progressive-disclosurer`, `impag`, `detect-ai-text-humanize` | Skill body loads when matched |
+| Skills (×15) | Context-hygiene core + config/session/thinking exemplars | Hygiene: `condense`, `de-bloat`, `claude-md-progressive-disclosurer`; executor: `impag`; config/skill mgmt: `config-reuse`, `install-skill`, `skills-discovery`; session hygiene: `reflect`, `retro`; design & critique: `senior-architect`, `brutal-honesty-review`, `deep-research`, `architecture-diagram-creator`, `mybrain`; standalone: `detect-ai-text-humanize` | Skill body loads when matched |
 | `.claudeignore` | Keep archived plans out of context | Lists paths the harness skips | None |
 
 ## The budget governor (detail)
@@ -119,10 +119,12 @@ measurement is explained in
 
 ## The skills (detail)
 
-Five `/<name>` skills ship in `.claude/skills/`. The first three are the
-context-hygiene set this repo is really about; the last two are bundled
-exemplars. Skill bodies load only when you invoke them, so they cost nothing
-until used.
+Fifteen `/<name>` skills ship in `.claude/skills/`. The first group is the
+context-hygiene set this repo is really about; the rest are bundled exemplars
+across config management, session hygiene, and general thinking tools. Skill
+bodies load only when you invoke them, so they cost nothing until used.
+
+**Context-hygiene core** - the leanness toolkit:
 
 - **`condense`** - deduplicate and consolidate `CLAUDE.md`, rules, and project
   docs (spec.md, plans, runbooks) across the hierarchy. The periodic-cleanup
@@ -139,6 +141,40 @@ until used.
 - **`impag`** - implement a plan using parallel subagents, full-auto, never
   stopping to ask. Takes a plan file path (defaults to the newest in
   `docs/plans/`). The fan-out executor the other skills hand their plans to.
+
+**Config & skill management** - the acquisition side of a copy-in catalog:
+
+- **`config-reuse`** - copy or sync Claude configs, rules, and settings from
+  another project into the current one; auto-detects the stack.
+- **`install-skill`** - install a skill from a GitHub URL or repo path into
+  `~/.claude/skills/`.
+- **`skills-discovery`** - search for and install a skill that handles the
+  current task better than base knowledge.
+
+**Session hygiene** - end-of-session pruning that feeds the leanness loop:
+
+- **`reflect`** - analyze the session and propose skill improvements (only on
+  explicit `/reflect`, or from a retro).
+- **`retro`** - session retrospective: reflect on what was learned, update
+  memories and project docs.
+
+**Design & critique** - general-purpose thinking tools, outside the
+context-engineering theme:
+
+- **`senior-architect`** - system-architecture work: ADRs, tech-stack
+  evaluation, design review, dependency analysis, diagrams.
+- **`brutal-honesty-review`** - unfiltered technical critique when code, tests,
+  or claims need a harsh reality check.
+- **`deep-research`** - multi-source web research and critical analysis for
+  non-trivial investigative questions.
+- **`architecture-diagram-creator`** - generate HTML architecture diagrams
+  (data flow, components, deployment) for a system.
+- **`mybrain`** - refine rough ideas into designs via questioning and ideation,
+  before creative or strategic work. Pairs with the
+  `ideation-techniques-library.md` reference.
+
+**Standalone exemplar** - outside the context-engineering theme:
+
 - **`detect-ai-text-humanize`** - two modes: Detection (analyze whether text is
   AI-generated, with passage-level highlighting and reasoning) or Humanization
   (rewrite AI-sounding text to read as human, surfacing no detection output).
