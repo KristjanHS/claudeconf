@@ -1,7 +1,7 @@
 # Budget hook: exact *and* portable token accounting
 
 **Date:** 2026-06-18
-**Status:** Proposed
+**Status:** Implemented (claudeconf, tasks 1–5); dotfiles follow-up (tasks 6–7) pending a dotfiles-cwd session
 **Topic:** Replace the `bytes/4` proxy in `impag-budget-check.py` with inlined,
 exact, compaction-aware token counting — with zero new dependencies.
 

@@ -21,7 +21,7 @@ FALLBACK_PROBE_BYTES floor — guards working-tree-only sessions where no commit
 ever fires. The fallback writes a per-session sentinel so it emits at most once
 per session; the git-commit path is unthrottled.
 
-Emits a single terse reminder only when the estimate crosses 130k. Below that
+Emits a single terse reminder only when the count crosses 130k. Below that
 band the hook is silent; the statusline turns yellow at the same 130k mark, so
 there is no soft-band signal before hard-stop by design.
 

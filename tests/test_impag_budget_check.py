@@ -91,6 +91,19 @@ def test_block_path_fires_at_or_above_threshold(budget_hook_path, tmp_path):
     assert _fired(_run_hook(budget_hook_path, t)) is True
 
 
+def test_block_path_fires_exactly_at_threshold(budget_hook_path, tmp_path):
+    """Boundary: 130k exactly must fire (guards against >= drifting to >)."""
+    t = _write_jsonl(tmp_path / "t.jsonl",
+                     [_assistant_turn(130_000, 0, 0)])  # exactly HARD_STOP_TOKENS
+    assert _fired(_run_hook(budget_hook_path, t)) is True
+
+
+def test_silent_just_below_threshold(budget_hook_path, tmp_path):
+    """Boundary: 129,999 must stay silent."""
+    t = _write_jsonl(tmp_path / "t.jsonl", [_assistant_turn(129_999, 0, 0)])
+    assert _fired(_run_hook(budget_hook_path, t)) is False
+
+
 def test_silent_path_below_threshold(budget_hook_path, tmp_path):
     t = _write_jsonl(tmp_path / "t.jsonl",
                      [_assistant_turn(40_000, 30_000, 20_000)])  # 90k
