@@ -17,10 +17,15 @@
 ## References (read when triggered)
 
 L3 references live in `~/.claude/references/` and load only when one of these
-pointers fires. Replace these examples with your own:
+pointers fires. These are real, working examples shipped with this catalog —
+adapt or extend them:
 
-- `~/.claude/references/<topic>.md` — <one-line trigger: when to read it>.
-- `~/.claude/references/<workflow>.md` — <one-line trigger>.
+- `~/.claude/references/2026-04-11-context-optimization-research.md` — optimizing CLAUDE.md/skills/rules for token usage; startup-token + compaction reference.
+- `~/.claude/references/reading-large-files-outline-first.md` — about to queue 2+ overlapping offset Reads on one file, or the `reading-large-files` rule points here.
+- `~/.claude/references/subagent-dispatch.md` — sub-agent dispatch (parallelization, Plan/Explore/general-purpose, background Bash, worktrees).
+- `~/.claude/references/pre-ship-sweeps.md` — pre-ship checklists (deny/path-block/permission/threshold/feature-removal/repo-sanitization).
+- `~/.claude/references/recording-principles.md` — "record this" / "remember this", or organizing docs (L1/L2/L3 routing).
+- `~/.claude/references/anti-patterns-common-rationalizations.md` — naming the rationalizations behind skipping a process gate (debugging/design).
 
 ## Iron Rules
 

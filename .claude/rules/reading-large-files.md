@@ -38,5 +38,6 @@ Check line count with `wc -l` if unsure — quick and free.
 - **Targeted range** → once Grep tells you a symbol is at line N, `Read(offset=N-10, limit=60)`.
 - **Comparing two lock files** → `Bash` with `diff <(jq -S . a.lock) <(jq -S . b.lock)` or similar — let the tool emit only the delta.
 - **Must scan end-of-file** → `Read` with explicit `offset` at the tail, not a full read.
+- **Multi-section structural understanding** → outline-first tree: `~/.claude/references/reading-large-files-outline-first.md`.
 
 **Declare intent before reading.** One sentence — "reading X to find Y" — before Read/Grep on a large file. The declaration forces the Grep-vs-Read decision before spending tokens.
