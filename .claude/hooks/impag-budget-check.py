@@ -1,29 +1,25 @@
 #!/usr/bin/env python3
-"""PostToolUse hook — /impag context-budget hard-stop checkpoint (PORTABLE).
+"""PostToolUse hook — /impag context-budget hard-stop checkpoint.
 
-This is the self-contained variant of the author's budget governor. The
-original imports `token_monitor.parser.parse_last_turn` from a private,
-editable-installed package that is NOT on PyPI — copied as-is it raises
-ModuleNotFoundError on anyone else's machine. This version drops that import
-and estimates the token count from the transcript file size (`bytes / 4`),
-the same cheap proxy the fallback path already uses. Zero dependencies, but
-note two real inaccuracies measured against an actual parser:
-  * On a LIVE session bytes/4 runs ~1.4-1.8x high — JSONL structure, escaping,
-    and tool envelopes push bytes-per-token well above the prose ~4. So this
-    hook trips conservatively EARLY (real context ~85-95k when bytes/4 hits
-    130k), which is acceptable for a "wrap up before the cliff" governor.
-  * After a COMPACTION it runs 2.4-3.9x high and KEEPS CLIMBING: the .jsonl
-    retains evicted history while the real context resets down. In a long,
-    compacted session this WILL fire spuriously. A real parser
-    (parse_last_turn().total_context) is compaction-aware and avoids this.
-To upgrade to exact, compaction-aware accounting, reinstate a real token count
-in `estimate_tokens` (e.g. your own tokenizer) and keep everything else.
+Reads the EXACT context-token count from the transcript tail with zero
+dependencies. The last `assistant` turn's `message.usage` carries the token
+counts the Anthropic API reported for that turn; summing
+`input_tokens + cache_creation_input_tokens + cache_read_input_tokens` is the
+real context size. This is the same formula `statusline.sh` uses (it reads
+`current_usage` from the harness), so the hook and statusline agree by
+construction — same measurement, not just the same 130k mark.
+
+The read is compaction-aware: a post-compact assistant turn reports the reset
+context, so this never false-fires the way a file-size proxy does (the .jsonl
+retains evicted history while real context resets down). It is also bounded —
+only the final 64 KB of the transcript is read, so peak memory is independent
+of transcript size.
 
 Primary trigger: Bash `git commit` (the natural /impag task boundary).
-Fallback trigger: any other Bash call once the transcript size proxy exceeds
-the FALLBACK_PROBE_BYTES floor — guards working-tree-only sessions where no
-commit ever fires. The fallback writes a per-session sentinel so it emits at
-most once per session; the git-commit path is unthrottled.
+Fallback trigger: any other Bash call once the transcript exceeds the
+FALLBACK_PROBE_BYTES floor — guards working-tree-only sessions where no commit
+ever fires. The fallback writes a per-session sentinel so it emits at most once
+per session; the git-commit path is unthrottled.
 
 Emits a single terse reminder only when the estimate crosses 130k. Below that
 band the hook is silent; the statusline turns yellow at the same 130k mark, so
@@ -44,23 +40,57 @@ from pathlib import Path
 # finish-branch + /retro can run with a clean-enough transcript.
 HARD_STOP_TOKENS = 130_000
 
-# Cheap byte-proxy gate for the fallback path. Because bytes/4 runs ~1.5x high
-# on live sessions (see module docstring), 400k bytes is well under the 130k
-# hard-stop — a safe floor below which we skip even the stat-based estimate to
-# keep PostToolUse latency negligible on small sessions.
+# Latency floor for the fallback path only — NOT an accuracy device. A session
+# whose transcript is smaller than this cannot hold 130k tokens of context, so
+# we skip the tail-read entirely to keep PostToolUse latency negligible on every
+# non-commit Bash call in small sessions. (130k tokens is many MB of JSONL;
+# 400k bytes is a comfortably safe floor.) The git-commit path always reads.
 FALLBACK_PROBE_BYTES = 400_000
 
-# Portable token estimate: ~4 bytes per token. Same proxy as the fallback gate,
-# now reused as the actual measure (no private token_monitor dependency).
-BYTES_PER_TOKEN = 4
+# The last assistant turn's reported usage is virtually always in the final few
+# KB; reading the last 64 KB keeps peak memory independent of transcript size.
+_TAIL_CHUNK = 65536
 
 
 _GIT_COMMIT_RE = re.compile(r"\bgit\b[^|&;]*?\bcommit(?![A-Za-z0-9_-])")
 
 
-def estimate_tokens(transcript_path: Path) -> int:
-    """Estimate context tokens from transcript byte size (portable proxy)."""
-    return transcript_path.stat().st_size // BYTES_PER_TOKEN
+def read_last_turn_context(transcript_path: Path) -> int:
+    """Exact context tokens = the last assistant turn's reported usage.
+
+    Reads only the tail of the transcript. Returns 0 if the tail has no
+    assistant turn (fresh/empty session) -> hook stays silent. Compaction-aware:
+    a post-compact assistant turn reports the reset context, unlike file size.
+    """
+    try:
+        size = transcript_path.stat().st_size
+    except OSError:
+        return 0
+    if size == 0:
+        return 0
+    with open(transcript_path, "rb") as f:
+        if size > _TAIL_CHUNK:
+            f.seek(size - _TAIL_CHUNK)
+            f.readline()  # discard possibly-partial first line
+        tail = f.read().decode("utf-8", errors="replace")
+    for line in reversed(tail.splitlines()):
+        if not line.strip():
+            continue
+        try:
+            obj = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        if obj.get("type") != "assistant":
+            continue
+        usage = (obj.get("message") or {}).get("usage")
+        if not usage:
+            continue
+        return (
+            usage.get("input_tokens", 0)
+            + usage.get("cache_creation_input_tokens", 0)
+            + usage.get("cache_read_input_tokens", 0)
+        )
+    return 0
 
 
 def is_git_commit(tool_name: str, tool_input: dict) -> bool:
@@ -127,7 +157,7 @@ def main() -> None:
         if sentinel.exists():
             return
 
-    tokens = estimate_tokens(p)
+    tokens = read_last_turn_context(p)
     if tokens < HARD_STOP_TOKENS:
         return
 

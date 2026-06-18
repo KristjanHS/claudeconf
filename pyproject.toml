@@ -1,0 +1,6 @@
+# Minimal config so `pytest` discovers the hook test suite from the repo root.
+# This repo is a curated config catalog, not a packaged library — the only
+# Python here is the .claude/hooks/*.py scripts, and `tests/` exercises them so
+# regressions are caught in-repo instead of with throwaway scripts in /tmp.
+[tool.pytest.ini_options]
+testpaths = ["tests"]

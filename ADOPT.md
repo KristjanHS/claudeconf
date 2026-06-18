@@ -48,18 +48,17 @@ five hooks wired:
 If you keep separate `settings.json` files, add the matchers to whichever one
 already holds your hooks. Confirm Claude Code reports no settings errors after.
 
-### Budget governor: the portable vs. accurate variant
+### Budget governor: exact, compaction-aware, zero dependencies
 
-`impag-budget-check.py` ships as a **portable `bytes/4`** estimator with **no
-external dependency** — it works on any machine immediately. It is *less*
-accurate, and deliberately so: it over-reads (runs ~1.5× high on live sessions,
-more after a compaction, because the transcript file keeps evicted history that
-the real context window has dropped). The effect is that it wraps up *early* —
-conservative, but it can fire spuriously in long, compacted sessions. If you
-have a real, compaction-aware per-turn token counter, swap it into
-`estimate_tokens()` and keep everything else unchanged. That accurate version is
-the only "upgrade" — no private package is vendored. See the hook's docstring
-for the measured numbers.
+`impag-budget-check.py` reads the **exact** context-token count straight from the
+transcript: it parses the last `assistant` turn's `message.usage` and sums
+`input_tokens + cache_creation_input_tokens + cache_read_input_tokens` — the
+counts the Anthropic API reported for that turn. This is compaction-aware (a
+post-compact turn reports the reset context) and **dependency-free** — it reads
+only the final 64 KB of the transcript with stdlib `json`, so it works on any
+machine immediately with no over-read and no spurious firing in long, compacted
+sessions. It is the **same measurement** the statusline uses. Nothing to swap or
+upgrade. See the hook's docstring for details.
 
 ## 4. Statusline
 

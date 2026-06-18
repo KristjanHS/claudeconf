@@ -66,7 +66,7 @@ claudeconf/
 │   │   ├── post-compact-restore.py
 │   │   ├── session-start-health.py
 │   │   ├── docs-bloat-gate.py
-│   │   └── impag-budget-check.py   # PORTABLE variant (no token_monitor dep)
+│   │   └── impag-budget-check.py   # exact tail-parse, zero deps
 │   └── skills/                # 3-4 flagship, sanitized
 │       ├── condense/
 │       ├── de-bloat/
@@ -127,10 +127,11 @@ fan-out pattern.
 `/impag` stop taking new work before the session hits its context cliff:
 
 1. **Triggers** — primary: a `git commit` (the natural `/impag` task
-   boundary). Fallback: any Bash call once a cheap `transcript_bytes / 4`
-   proxy crosses ~100k, so a working-tree-only session that never commits is
-   still caught.
-2. **Measures** current context usage from the transcript.
+   boundary). Fallback: any Bash call once the transcript exceeds a byte floor
+   (a pure latency guard, not an accuracy device), so a working-tree-only
+   session that never commits is still caught.
+2. **Measures** exact context usage by parsing the last assistant turn's
+   reported `usage` from the transcript tail (compaction-aware, bounded read).
 3. **Hard-stop at 130k tokens** — silent below that by design; at ≥130k it
    injects (via the `additionalContext` JSON envelope — plain stdout would
    only reach the Ctrl-R transcript, not Claude's context) a wrap-up
@@ -138,21 +139,30 @@ fan-out pattern.
    then run code review → finishing-a-development-branch → retro.*
 4. **Fail-open** — any error exits 0; never blocks a commit.
 
-The **130k threshold is shared with `statusline.sh`** (yellow at 130k, red at
-160k), so a co-worker gets the *visual* warning and the *automated* wrap-up
-off the same mark — they are taught together.
+The hook and `statusline.sh` **share the 130k mark _and_ the measurement**
+(yellow at 130k, red at 160k): both sum `input_tokens +
+cache_creation_input_tokens + cache_read_input_tokens`, so a co-worker gets the
+*visual* warning and the *automated* wrap-up off the same number — taught
+together, and exact by construction.
 
-### Portability decision (key)
+### Portability decision (key) — superseded 2026-06-18
 
-The author's real hook imports `token_monitor.parser.parse_last_turn`, a
-**private editable install** (a local package, not on PyPI). Copied
-as-is it raises `ModuleNotFoundError`.
+The author's real hook imported `token_monitor.parser.parse_last_turn`, which
+*looked* like a **private editable install** (a local package, not on PyPI), so
+copied as-is it raised `ModuleNotFoundError`.
 
-**Resolution:** ship a **self-contained portable variant** that uses the
-`transcript_bytes / 4` estimator for the actual token count too — no external
-import, slightly less accurate, teaches the identical pattern. The accurate
-`token_monitor`-backed version is documented as an optional upgrade; the
-private package is **not** vendored.
+**Original resolution (now reverted):** ship a portable variant using a
+`transcript_bytes / 4` estimator — no import, but it over-read (~1.5× live,
+worse post-compaction) and could false-fire in long compacted sessions.
+
+**Final resolution:** `parse_last_turn` does not tokenize anything — it is ~40
+lines of pure stdlib (`json`) that seeks the transcript tail and reads the last
+assistant turn's `message.usage`. Those are the **exact** counts the API
+reported. So the function is **inlined** as `read_last_turn_context`: exact,
+compaction-aware, zero dependencies, ~40 LOC, bounded 64 KB read. The
+portable-vs-accurate tradeoff that motivated `bytes/4` was false — there is no
+tradeoff, and no private package is vendored. (Plan:
+`docs/plans/2026-06-18-budget-hook-exact-portable-tokens.md`.)
 
 By contrast, `statusline.sh` has **no** such dependency and ships unchanged.
 
@@ -192,8 +202,9 @@ Every curated file is scrubbed before it lands:
 - **Private project refs** — drop private consumer-project names / devcontainer /
   WSL-specific incident text; rewrite skill bodies that name private memory
   slugs to generic placeholders
-- **Dependency** — `token_monitor` import swapped for the portable `bytes/4`
-  variant
+- **Dependency** — `token_monitor.parser.parse_last_turn` import replaced by an
+  inlined stdlib tail-reader (`read_last_turn_context`); exact and portable, no
+  tradeoff (see Portability decision above)
 - **`settings.json`** — trimmed to just the curated hooks block; no
   marketplace / plugin / personal paths
 
@@ -206,8 +217,10 @@ worked: if anything personal slips through, the first commit fails.
    high-value tricks (not all 25 skills / 9 hooks).
 2. **Copy-in adoption, not auto-install** — avoids clobbering a co-worker's
    `settings.json`. Only script is the secret-hook activator.
-3. **Portable budget-hook variant** — `bytes/4`, no private `token_monitor`
-   dependency; accurate version documented as optional.
+3. **Inlined exact budget-hook** — the `token_monitor` import is ~40 lines of
+   stdlib, inlined as `read_last_turn_context`; exact, compaction-aware, zero
+   dependencies. (Originally shipped as a `bytes/4` portable variant, superseded
+   same-day once the import was found to be trivially inlinable.)
 4. **Path/identity check is blocking here** (advisory in dotfiles) — PII
    leakage is the real risk for a public repo.
 5. **CI gitleaks backstop** — server-side, un-bypassable, because it's public.

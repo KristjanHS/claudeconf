@@ -33,9 +33,13 @@ check.
 `/impag` run stop taking new work before the session hits its context cliff:
 
 1. **Triggers** — primary: a `git commit` (the natural task boundary). Fallback:
-   any `Bash` call once a cheap `transcript_bytes / 4` proxy crosses a floor, so
-   a working-tree-only session that never commits is still caught.
-2. **Measures** current context usage from the transcript size.
+   any `Bash` call once the transcript exceeds a byte floor (a pure latency
+   guard — small sessions can't be near 130k), so a working-tree-only session
+   that never commits is still caught.
+2. **Measures** exact context usage by parsing the last assistant turn's
+   reported `usage` from the transcript tail (`input_tokens +
+   cache_creation_input_tokens + cache_read_input_tokens`). Compaction-aware and
+   bounded — reads only the final 64 KB, never the whole file.
 3. **Hard-stop at 130k tokens** — silent below that by design; at >=130k it
    injects (via the `additionalContext` JSON envelope, because plain
    `PostToolUse` stdout reaches only the Ctrl-R transcript, not Claude's context)
@@ -43,18 +47,19 @@ check.
    state, then run code review then finishing-a-development-branch then retro.
 4. **Fail-open** — any error exits 0; never blocks a commit.
 
-The **130k threshold is shared with `statusline.sh`** (yellow at 130k, red at
-160k), so you get the *visual* warning and the *automated* wrap-up off the same
-mark.
+The hook and `statusline.sh` **share the 130k mark _and_ the measurement**
+(yellow at 130k, red at 160k): both sum `input_tokens +
+cache_creation_input_tokens + cache_read_input_tokens`, so the *visual* warning
+and the *automated* wrap-up fire off the same number, not just the same
+threshold.
 
-### Portability note
+### Dependency note
 
-The author's private version imports `token_monitor.parser.parse_last_turn`
-from an editable-installed package that is not on PyPI; copied as-is it raises
-`ModuleNotFoundError`. The variant shipped here drops that import and uses the
-`transcript_bytes / 4` estimate for the token count too — slightly less
-accurate, zero dependencies, same pattern. To upgrade to exact accounting,
-reinstate a real token count in `estimate_tokens` and keep everything else.
+None. The hook reads exact, compaction-aware usage from the transcript tail with
+stdlib `json` only. (The author's private repo once imported
+`token_monitor.parser.parse_last_turn` for this; that function is ~40 lines of
+pure stdlib and is inlined here as `read_last_turn_context`, so there is no
+private dependency to reinstate and no accuracy caveat.)
 
 ## Trying a hook in isolation
 
@@ -65,3 +70,10 @@ echo '{"tool_name":"Write","tool_input":{"file_path":"/tmp/scratch.md","content"
   | python3 ~/.claude/hooks/docs-bloat-gate.py
 echo "exit code: $?"   # 2 = blocked, 0 = allowed; stderr carries the reason
 ```
+
+## Automated tests
+
+Hook behaviour is pinned by a pytest suite in `tests/` (run `pytest` from the
+repo root). `tests/test_impag_budget_check.py` covers the budget governor:
+the exact tail-reader, the block/silent thresholds, the compaction regression,
+and fail-open. Add cases there rather than scripting throwaway checks.

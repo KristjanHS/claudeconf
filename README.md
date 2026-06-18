@@ -40,14 +40,17 @@ only script is a one-liner that activates this repo's git **secret gate**.
    docs from entering context in the first place. Self-contained (its
    docs-quality helpers are inlined).
 5. **Budget governor** — `impag-budget-check.py`: a PostToolUse hook that makes
-   long `/impag` runs stop taking new work before the context cliff. **Portable
-   `bytes/4` variant** — no private dependency (see below).
+   long `/impag` runs stop taking new work before the context cliff. Reads the
+   **exact, compaction-aware** context size by parsing the last assistant turn's
+   reported `usage` from the transcript tail — zero dependencies (see below).
 6. **Statusline** — `statusline.sh`: live context %, distance-to-stop, cost, and
    5h-limit. Needs only `jq` + `git`; ships unchanged.
 
-The budget governor's **130k wrap-up threshold is shared with the statusline**
-(yellow at 130k, red at 160k), so the *visual* warning and the *automated*
-wrap-up fire off the same mark.
+The budget governor and the statusline **share the same 130k mark _and_ the same
+measurement** (yellow at 130k, red at 160k): both sum
+`input_tokens + cache_creation_input_tokens + cache_read_input_tokens`, so the
+*visual* warning and the *automated* wrap-up fire off the same number, not just
+the same threshold.
 
 ### Flagship skills (`.claude/skills/`)
 
