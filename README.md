@@ -161,6 +161,4 @@ cd claudeconf
 ```
 
 Then see **[ADOPT.md](ADOPT.md)** for how to copy each piece into your own
-`~/.claude/`. The full design rationale (every decision and rejected
-alternative) is in
-[`docs/plans/archive/2026-06-18-claudeconf-design.md`](docs/plans/archive/2026-06-18-claudeconf-design.md).
+`~/.claude/`.
