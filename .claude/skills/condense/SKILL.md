@@ -13,7 +13,7 @@ Canonical rule: "Delta-update, never rewrite" (keep this as a rule in your own `
 
 - `/retro` ran or a section accumulated ≥3 overlapping bullets (existing).
 - A project's bloat-override / sentinel-bypass log accumulated ≥3 entries since the last condense run (NEW).
-- `<project>/docs/spec.md` crossed a 100-line growth boundary — 600, 700, 800… (NEW).
+- `<project>/docs/spec.md` crossed a 100-line growth boundary - 600, 700, 800… (NEW).
 
 These are *reminders surfaced during `/retro`*, never auto-fire. Same posture as the "≥3 overlapping bullets" rule.
 
@@ -30,13 +30,13 @@ Use Glob to search for both instruction files and project-doc reference files. T
 1. `**/CLAUDE.md` and `**/CLAUDE.local.md` in the project root
 2. `.claude/rules/*.md` in the project root
 3. `~/.claude/CLAUDE.md` (global personal instructions)
-4. `docs/spec.md` (NEW — project reference doc)
-5. `docs/human/*.md` (NEW — human-facing runbooks, e.g. cloud-env-setup)
-6. `docs/plans/*.md` (NEW — top level only; see non-targets below)
+4. `docs/spec.md` (NEW - project reference doc)
+5. `docs/human/*.md` (NEW - human-facing runbooks, e.g. cloud-env-setup)
+6. `docs/plans/*.md` (NEW - top level only; see non-targets below)
 
 **Explicit non-targets** (skip even when matched by broader globs):
-- `docs/plans/archived/**` — frozen post-mortems, never modified.
-- `docs/analysis/**` — `.claudeignore`'d one-off audits.
+- `docs/plans/archived/**` - frozen post-mortems, never modified.
+- `docs/analysis/**` - `.claudeignore`'d one-off audits.
 
 **Read all discovered files and analyze for:**
 1. Intra-file duplication (same instruction repeated within a file)
@@ -69,12 +69,12 @@ Use Glob to search for both instruction files and project-doc reference files. T
 - Flag rows whose target heading no longer exists or was renamed. Default action: flag-only with the closest existing heading shown side-by-side; promote to propose-and-apply only if the user repeatedly takes the obvious fix.
 
 **Plan supersession:**
-- For each `docs/plans/*.md` (top level only — archived plans excluded), grep for `SHIPPED`, `DONE`, `landed`, `archived to`.
-- When a marker appears next to verbose pre-ship phase prose, flag the section above as a collapse-candidate. Proposed Edit replaces N lines of phase prose with one done-line citing the marker (e.g. `*Shipped 2026-04-28 in commit `abc1234` — see `docs/plans/archived/<file>.md`.*`).
+- For each `docs/plans/*.md` (top level only - archived plans excluded), grep for `SHIPPED`, `DONE`, `landed`, `archived to`.
+- When a marker appears next to verbose pre-ship phase prose, flag the section above as a collapse-candidate. Proposed Edit replaces N lines of phase prose with one done-line citing the marker (e.g. `*Shipped 2026-04-28 in commit `abc1234` - see `docs/plans/archived/<file>.md`.*`).
 
 **Section-size flagging:**
 - For `docs/spec.md`, walk L2 headings and measure char count per section.
-- Flag any section >1500 chars. If you run a docs-bloat gate (a hook that blocks oversized doc sections), mirror its per-section character threshold here — sections that would no longer qualify for a heading exemption are dedup/split candidates.
+- Flag any section >1500 chars. If you run a docs-bloat gate (a hook that blocks oversized doc sections), mirror its per-section character threshold here - sections that would no longer qualify for a heading exemption are dedup/split candidates.
 
 ### Phase 3: Interaction
 
@@ -104,14 +104,14 @@ For approved changes:
 3. **Merge similar items** - Combine semantically similar instructions into one
 4. **Replace duplicates with pointers** - When two files held the same point and one is now canonical, replace the other with `→ see <path> §<heading>`
 
-**Gate-aware pre-check (advisory, not blocking).** If your project runs a docs-quality gate (a hook that blocks low-quality or oversized doc edits), pre-check each approved Edit on `docs/spec.md` (or any other gated path) against the same rules the hook uses *before* applying — so you reword ahead of the block rather than after it:
+**Gate-aware pre-check (advisory, not blocking).** If your project runs a docs-quality gate (a hook that blocks low-quality or oversized doc edits), pre-check each approved Edit on `docs/spec.md` (or any other gated path) against the same rules the hook uses *before* applying - so you reword ahead of the block rather than after it:
 
 1. Compute the proposed `new_text`.
-2. Run the gate's "slop term" / banned-phrase check on `new_text` — if it would trip, surface to the user: "This Edit would trip the docs gate with terms: [...]. Reword?"
-3. For longer additions, run the gate's lexical-density / readability check — if it would fall below the threshold, surface to the user.
+2. Run the gate's "slop term" / banned-phrase check on `new_text` - if it would trip, surface to the user: "This Edit would trip the docs gate with terms: [...]. Reword?"
+3. For longer additions, run the gate's lexical-density / readability check - if it would fall below the threshold, surface to the user.
 4. A pure char-delta size cap is usually **not** pre-checked. Condense Edits are usually subtractive; on rare additive cases the sentinel bypass is the right escape hatch.
 
-Pre-check failures are advisory — the user can proceed (and the hook stays the unbypassable line of defence). The point is to reword *before* the hook blocks rather than after.
+Pre-check failures are advisory - the user can proceed (and the hook stays the unbypassable line of defence). The point is to reword *before* the hook blocks rather than after.
 
 **Hierarchy rules:**
 - `./CLAUDE.md` - Project-wide instructions (highest priority)
@@ -129,4 +129,4 @@ This skill is self-contained. If you also keep a `reflect`-style skill, it may s
 - A memory-locations reference (the memory hierarchy details).
 - An anti-patterns reference (what to avoid when writing instructions).
 
-None are required — Phase 1's Glob discovery and the hierarchy rules above cover the mechanism on their own.
+None are required - Phase 1's Glob discovery and the hierarchy rules above cover the mechanism on their own.

@@ -29,13 +29,13 @@ Most of the original Tier 1/2/3 theory has been baked into the live system (`~/.
 Observations from an optimization pass on a live codebase (~8.8K → ~7.9K editable baseline, ~10%):
 
 ### 1. "Tail-echo" reference indexes are waste
-A second copy of a trigger table at the bottom of CLAUDE.md — placed there for "long-conversation recall" — is pure duplication. The top copy is in the system prompt and never ages out, so the bottom copy pays tokens for no benefit.
+A second copy of a trigger table at the bottom of CLAUDE.md - placed there for "long-conversation recall" - is pure duplication. The top copy is in the system prompt and never ages out, so the bottom copy pays tokens for no benefit.
 
 ### 2. Split path-gated rule files by *subsystem*, not by file-pattern
 A single `openpyxl-patterns.md` gated on 8 builder files loaded chart-specific tips for files that have no charts. Split into `openpyxl-charts.md` (gated on the one file with charts), `openpyxl-readers.md` (gated on reader files), and a narrower `openpyxl-patterns.md` core. Saved ~600 tok per typical builder session.
 
 ### 3. Critical Rules must carry their causal chain inline
-Rule like "after generation, run pytest" that silently depends on a separate "Key Commands" block for the `recalc` prerequisite is fragile — a future agent can drop the block without seeing the silent-failure consequence. Fold load-bearing prerequisites (+ their failure mode) directly into the rule text.
+Rule like "after generation, run pytest" that silently depends on a separate "Key Commands" block for the `recalc` prerequisite is fragile - a future agent can drop the block without seeing the silent-failure consequence. Fold load-bearing prerequisites (+ their failure mode) directly into the rule text.
 
 ### 4. Shell scripts beat single-command skills
 A skill whose SKILL.md is one command costs ~85 tok of always-loaded description. A shell script on PATH (`~/bin/<name>`) costs 0. Reserve skills for multi-step workflows, not command aliases.

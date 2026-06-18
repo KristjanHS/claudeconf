@@ -18,4 +18,4 @@ Excuses people (and Claude) reach for when tempted to skip systematic debugging 
 
 ## Design Anti-Pattern: "This Is Too Simple To Need A Design"
 
-Every project goes through the design process. A config change, a one-page proposal, a simple script — all of them. "Simple" projects are where unexamined assumptions cause the most wasted work. The design can be short (a few sentences for truly simple projects), but present it and get approval.
+Every project goes through the design process. A config change, a one-page proposal, a simple script - all of them. "Simple" projects are where unexamined assumptions cause the most wasted work. The design can be short (a few sentences for truly simple projects), but present it and get approval.

@@ -9,9 +9,9 @@ The same Level 2 resource can have **multiple entry points**, serving different 
 
 | Entry point | Location | Trigger scenario | User mindset |
 |------|------|----------|----------|
-| Reference index | Beginning | Hitting an error/problem | "Something broke — which doc do I check?" |
-| "Read before changing code" | Middle | About to change code | "I'm about to change X — what should I watch out for?" |
-| Reference trigger index | End | Locating in a long conversation | "That doc we mentioned earlier — which one was it?" |
+| Reference index | Beginning | Hitting an error/problem | "Something broke - which doc do I check?" |
+| "Read before changing code" | Middle | About to change code | "I'm about to change X - what should I watch out for?" |
+| Reference trigger index | End | Locating in a long conversation | "That doc we mentioned earlier - which one was it?" |
 
 **This is not duplication, it's multiple entry points.** Just like a book has a table of contents (by chapter), an index (by keyword), and a quick-reference card (by task).
 
@@ -100,14 +100,14 @@ For each section moved out of the original CLAUDE.md, check one by one:
    done
    ```
 
-   > ⚠️ This script **cannot replace manual section-by-section comparison** — it only checks whether section headings exist, not whether the content is complete. But it can quickly surface cases where **an entire section was omitted**, serving as a first screen before manual comparison.
+   > ⚠️ This script **cannot replace manual section-by-section comparison** - it only checks whether section headings exist, not whether the content is complete. But it can quickly surface cases where **an entire section was omitted**, serving as a first screen before manual comparison.
 
 3. **Flag every discrepancy**:
    - If a passage was shortened in the new file → **you must restore the trimmed parts**
    - If a passage exists in neither location → **you must restore it**
    - The only case where deletion is allowed: **the information already has an independent canonical source** (e.g. `docs/README.md` is already the canonical source for the doc index), and Level 1 has a clear pointer to it
 
-**Do not use "intentional deletion" as a classification to mask information loss.** Every "intentional deletion" must state where the canonical source is. If you can't name one, it isn't "intentional deletion" — it's "omission".
+**Do not use "intentional deletion" as a classification to mask information loss.** Every "intentional deletion" must state where the canonical source is. If you can't name one, it isn't "intentional deletion" - it's "omission".
 
 #### 5c. Line-count audit prohibited
 
@@ -200,7 +200,7 @@ Full flow in `database-sop.md` (FTS5 escaping, health checks).
 
 ### Principle 1: Put the trigger index table at the beginning and end
 
-**Reason**: LLM attention follows a U-shaped distribution — strong at the beginning and end, weak in the middle.
+**Reason**: LLM attention follows a U-shaped distribution - strong at the beginning and end, weak in the middle.
 
 | Position | Purpose |
 |------|------|
@@ -303,9 +303,9 @@ function getDatabase() {
 After optimization is done, **check every item** (do not skip):
 
 ### Information completeness (most important)
-- [ ] **Every section of the original file has a home** — in the new Level 1, in Level 2, or with a clear canonical source
-- [ ] **Level 2 file content is identical to the original** — not "trimmed" during the move
-- [ ] **Nothing was silently deleted** — every deletion has user confirmation or a clear canonical source
+- [ ] **Every section of the original file has a home** - in the new Level 1, in Level 2, or with a clear canonical source
+- [ ] **Level 2 file content is identical to the original** - not "trimmed" during the move
+- [ ] **Nothing was silently deleted** - every deletion has user confirmation or a clear canonical source
 - [ ] **At no stage did you count or mention line-count changes**
 
 ### Structural quality
