@@ -9,6 +9,12 @@ instead. Everything below assumes your config lives at `~/.claude/`.
 Most steps end with a **smoke-test**: it confirms the piece is *wired and fires*,
 not that it improved your session. (The value question is the README's job.)
 
+Steps 1-4 are the **context-management core** - the repo's primary focus. Step 5
+(skills) is a mix: the context-hygiene trio plus the **secondary** practices and
+conventions grouped by purpose (config & skill management, session hygiene,
+design & critique, writing & AI-text). Adopt the core first; pull in the rest as
+they're useful.
+
 ## 1. The progressive-disclosure `CLAUDE.md`
 
 `.claude/CLAUDE.md` is an **example skeleton**, not a config to copy verbatim.

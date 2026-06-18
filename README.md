@@ -1,5 +1,8 @@
 # claudeconf
 
+*Context-first Claude Code config - plus the wider set of practices and
+conventions I've built around it, grouped by purpose.*
+
 ## The problem
 
 A long Claude Code session gets slow, expensive, and forgetful. The context
@@ -20,6 +23,11 @@ This is written for someone **already running Claude Code who doubts the
 hook/rule/budget sprawl earns its keep.** The honest question - "does this
 scaffolding cost me less than it saves?" - is what the rest of this page tries
 to answer, including where the answer is "no."
+
+Context management stays the **primary focus**, but the repo has grown into the
+wider set of Claude Code practices and conventions I've settled on - skills,
+rules, and references, grouped by purpose. Those are secondary to the context
+core; see [Beyond context](#beyond-context-the-rest-of-the-kit).
 
 ## Does this actually work?
 
@@ -74,6 +82,28 @@ A skeptic should weigh the tax, not just the upside:
   anyway.** The whole catalog presupposes sessions long enough for context to
   become the bottleneck.
 
+## Beyond context: the rest of the kit
+
+Context management is the core; the rest of the repo collects the other Claude
+Code practices and conventions I've found worth keeping. They're **secondary** -
+they load only when invoked, and none of them are what the cost argument above
+weighs - but they ship here so the catalog is the whole kit, grouped by purpose:
+
+- **Config & skill management** - acquiring and reusing Claude config:
+  `config-reuse`, `install-skill`, `skills-discovery`.
+- **Session hygiene** - end-of-session pruning that feeds the leanness loop:
+  `reflect`, `retro`.
+- **Design & critique** - general-purpose thinking tools: `senior-architect`,
+  `brutal-honesty-review`, `deep-research`, `architecture-diagram-creator`,
+  `mybrain`.
+- **Writing & AI-text** - `detect-ai-text-humanize`: detect AI-sounding prose or
+  rewrite it to read human.
+
+A few rules and references are general conventions too, not context tooling -
+`testing.md` (the test value gate), `pre-ship-sweeps.md`, and
+`subagent-dispatch.md` encode habits I reuse across projects. Per-piece detail
+is in [The skills (detail)](#the-skills-detail) and [The catalog](#the-catalog).
+
 ## Glossary
 
 - **Compaction** - when Claude Code summarizes a full context window to free
@@ -103,7 +133,7 @@ deeper prose for the two mechanisms that don't fit a cell is below the table.
 | `impag-budget-check.py` | Stop a long run before the context cliff | `PostToolUse` hook on Bash; exact token read, hard-stop at 130k | Interrupts mid-run at the threshold |
 | `statusline.sh` | Show live context %, cost, distance-to-stop | Reads Claude Code's statusline JSON; needs `jq` + `git` | Negligible |
 | `settings.json` | Wire the 4 hooks | Matcher → script entries | One-time hand-merge |
-| Skills (×15) | Context-hygiene core + config/session/thinking exemplars | Hygiene: `condense`, `de-bloat`, `claude-md-progressive-disclosurer`; executor: `impag`; config/skill mgmt: `config-reuse`, `install-skill`, `skills-discovery`; session hygiene: `reflect`, `retro`; design & critique: `senior-architect`, `brutal-honesty-review`, `deep-research`, `architecture-diagram-creator`, `mybrain`; standalone: `detect-ai-text-humanize` | Skill body loads when matched |
+| Skills (×15) | Context-hygiene core + config/session/thinking exemplars | Hygiene: `condense`, `de-bloat`, `claude-md-progressive-disclosurer`; executor: `impag`; config/skill mgmt: `config-reuse`, `install-skill`, `skills-discovery`; session hygiene: `reflect`, `retro`; design & critique: `senior-architect`, `brutal-honesty-review`, `deep-research`, `architecture-diagram-creator`, `mybrain`; writing & AI-text: `detect-ai-text-humanize` | Skill body loads when matched |
 | `.claudeignore` | Keep archived plans out of context | Lists paths the harness skips | None |
 
 ## The budget governor (detail)
@@ -173,7 +203,7 @@ context-engineering theme:
   before creative or strategic work. Pairs with the
   `ideation-techniques-library.md` reference.
 
-**Standalone exemplar** - outside the context-engineering theme:
+**Writing & AI-text** - outside the context-engineering theme:
 
 - **`detect-ai-text-humanize`** - two modes: Detection (analyze whether text is
   AI-generated, with passage-level highlighting and reasoning) or Humanization
