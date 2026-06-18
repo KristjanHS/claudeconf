@@ -34,11 +34,11 @@ reports for the turn — the same number the budget governor stops on:
 ![statusline render](docs/statusline.png)
 
 **Progressive disclosure keeps ~8k tokens out of every turn.** The 4 path-gated
-rules (~19 KB) and 6 L3 references (~16 KB) total ~35 KB — **~8k tokens** by the
-same byte estimate the tools use as a floor. A flat `CLAUDE.md` that inlined all
-of them would carry that on *every* turn; here they cost ~19 one-line pointers
-in a 4.4 KB `CLAUDE.md` and a rule body loads only when you touch a file its
-glob matches.
+rules (~18 KB) and 6 L3 references (~16 KB) total ~35 KB — **~8k tokens** by a
+rough 4-byte-per-token estimate. A flat `CLAUDE.md` that inlined all of them
+would carry that on *every* turn; here they cost 10 deferred-load pointer lines
+(6 references + 4 rules) in a 4.4 KB `CLAUDE.md`, and a rule body loads only when
+you touch a file its glob matches.
 
 - **In dollars this is modest, and mostly cached.** Once in the prompt those
   tokens bill as `cache_read` (~$1.50/M tok on Opus), not full input
@@ -126,9 +126,9 @@ deeper prose for the two mechanisms that don't fit a cell is below the table.
 reads the **exact, compaction-aware** token count from the transcript tail
 (no estimate, no dependency) and hard-stops at 130k: silent below, a wrap-up
 reminder at or above. It fails open — any error exits 0 and never blocks a
-commit. It is deliberately tied to the same 130k mark and the same measurement
-as `statusline.sh`, so the visual warning and the automated wrap-up fire off one
-number — explained in **[`.claude/hooks/README.md`](.claude/hooks/README.md)**.
+commit. Why it and `statusline.sh` are pinned to the *same* 130k mark and
+measurement is explained in
+**[`.claude/hooks/README.md`](.claude/hooks/README.md)**.
 
 ## The secret gate
 

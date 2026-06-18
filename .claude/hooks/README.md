@@ -22,7 +22,7 @@ check.
 | `post-compact-restore.py` | `SessionStart` (`compact\|resume`) | Reads the newest snapshot and prints its recovery pointer (active plan, current task, where the full pre-compact transcript lives). Claude re-orients from a cheap pointer instead of re-deriving lost state. |
 | `session-start-health.py` | `SessionStart` (`startup`) | Warns when any `MEMORY.md` exceeds 180 lines (Claude Code silently drops memory past ~200, so the warning lands early) and garbage-collects stale budget-hook sentinels. |
 | `docs-bloat-gate.py` | `PreToolUse` (`Write\|Edit\|Bash`) | Blocks bloated `.md` writes at write time, so they never enter context in a future session. Three signals (any blocks): **S2** AI-slop stoplist phrase in net-added text (unbypassable); **S3** lexical density < 0.45 on a >100-char addition (unbypassable); **S1** char-delta over a tier cap (rule<50 lines=150, doc=800, spec=2000 chars) — bypassable, opt-in per project. Memory paths are exempt. Self-contained: the slop list and density tokenizer are inlined, no external import. |
-| `impag-budget-check.py` | `PostToolUse` (`Bash`) | The budget governor (see below). Already present in this repo. |
+| `impag-budget-check.py` | `PostToolUse` (`Bash`) | Injects a wrap-up reminder when accumulated context exceeds 130k tokens; detail below. |
 
 ## The budget governor — `impag-budget-check.py`
 
