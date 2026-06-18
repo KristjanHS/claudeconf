@@ -113,7 +113,7 @@ deeper prose for the two mechanisms that don't fit a cell is below the table.
 | `impag-budget-check.py` | Stop a long run before the context cliff | `PostToolUse` on Bash; exact token read, hard-stop at 130k | Wired via `settings.json`; fires at a `git commit` past 130k | Interrupts mid-run at the threshold | 13 passing tests |
 | `statusline.sh` | Show live context %, cost, distance-to-stop | Reads Claude Code's statusline JSON; needs `jq` + `git` | `cp` + point `statusLine` at it | Negligible | Screenshot above |
 | `settings.json` | Wire the 5 hooks | Matcher → script entries | **Merge**, don't overwrite, into yours | One-time hand-merge | — |
-| Skills (×4) | Context-hygiene + fan-out exemplars | `condense`, `de-bloat`, `claude-md-progressive-disclosurer`, `impag` | `cp -r .claude/skills/* ~/.claude/skills/`; invoke `/<name>` | Skill body loads when matched | Self-contained |
+| Skills (×5) | Context-hygiene, fan-out, and AI-text exemplars | `condense`, `de-bloat`, `claude-md-progressive-disclosurer`, `impag`, `detect-ai-text-humanize` | `cp -r .claude/skills/* ~/.claude/skills/`; invoke `/<name>` | Skill body loads when matched | Self-contained |
 | Secret gate | No secret/PII ships | git hooks + blocking PII check + CI (below) | `./install.sh`; try a commit with a fake home path | Blocks commits/pushes that leak | Blocking by design |
 | `.claudeignore` | Keep archived plans out of context | Lists paths the harness skips | Add closed plans to it | None | — |
 
@@ -163,4 +163,4 @@ cd claudeconf
 Then see **[ADOPT.md](ADOPT.md)** for how to copy each piece into your own
 `~/.claude/`. The full design rationale (every decision and rejected
 alternative) is in
-[`docs/2026-06-18-claudeconf-design.md`](docs/2026-06-18-claudeconf-design.md).
+[`docs/plans/archive/2026-06-18-claudeconf-design.md`](docs/plans/archive/2026-06-18-claudeconf-design.md).

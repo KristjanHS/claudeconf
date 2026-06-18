@@ -94,8 +94,12 @@ cp -r .claude/skills/* ~/.claude/skills/
 ```
 
 `condense`, `de-bloat`, and `claude-md-progressive-disclosurer` are the
-context-hygiene trio; `impag` showcases the parallel-subagent fan-out. They are
-self-contained — any reference to tooling you don't run is written as optional.
+context-hygiene trio; `impag` showcases the parallel-subagent fan-out.
+`detect-ai-text-humanize` is the odd one out: it flags AI-sounding prose and
+rewrites it to read human, with a detection mode (full report) and a
+humanization mode (rewrite only). Point it at a doc with "humanize the AI text
+in X" or "check X for AI". They are self-contained, and any reference to tooling
+you don't run is written as optional.
 
 **Smoke-test:** type `/` in a session and confirm the copied skills appear in
 the slash-command list (or invoke `/<name>` and watch it load). That proves
