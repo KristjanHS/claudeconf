@@ -222,7 +222,8 @@ discipline:
 - **`python-simplifier`** - simplify or refactor complex Python: code smells,
   duplication, coupling, readability (not Django).
 - **`finishing-a-development-branch`** - close out a stage or branch: verify
-  tests, report branch state, hand back (no merge or push).
+  tests, report branch state, then merge the work into `main` and leave `main`
+  active (merges only if not already on it; never pushes).
 
 **Kaizen improvement** - a coherent continuous-improvement family (all-or-nothing
 exemplar set):
