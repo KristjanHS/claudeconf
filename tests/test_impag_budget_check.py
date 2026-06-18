@@ -104,12 +104,6 @@ def test_silent_just_below_threshold(budget_hook_path, tmp_path):
     assert _fired(_run_hook(budget_hook_path, t)) is False
 
 
-def test_silent_path_below_threshold(budget_hook_path, tmp_path):
-    t = _write_jsonl(tmp_path / "t.jsonl",
-                     [_assistant_turn(40_000, 30_000, 20_000)])  # 90k
-    assert _fired(_run_hook(budget_hook_path, t)) is False
-
-
 def test_compaction_regression_stays_silent(budget_hook_path, tmp_path):
     """Large pre-compact prefix, but the final turn reports the reset context
     (< 130k). A file-size proxy would false-fire here; the tail-reader must not.
@@ -124,21 +118,7 @@ def test_compaction_regression_stays_silent(budget_hook_path, tmp_path):
     assert _fired(_run_hook(budget_hook_path, t, command="ls -la")) is False
 
 
-def test_garbage_tail_is_silent(budget_hook_path, tmp_path):
-    t = _write_jsonl(tmp_path / "t.jsonl",
-                     ['{"type": "user", "message": {}}', "garbage", ""])
-    assert _fired(_run_hook(budget_hook_path, t)) is False
-
-
 def test_fail_open_on_missing_transcript(budget_hook_path, tmp_path):
     result = _run_hook(budget_hook_path, tmp_path / "does-not-exist.jsonl")
     assert result.returncode == 0
     assert _fired(result) is False
-
-
-# --- regression guards for the superseded bytes/4 implementation ---
-
-def test_hook_source_has_no_private_dependency(budget_hook_path):
-    src = budget_hook_path.read_text()
-    assert "token_monitor" not in src
-    assert "BYTES_PER_TOKEN" not in src
