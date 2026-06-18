@@ -34,6 +34,12 @@ reports for the turn — the same number the budget governor stops on:
 
 ![statusline render](docs/statusline.png)
 
+The bar turns amber and a red `/clear soon` nudge appears as the turn nears the
+130k mark — the same threshold the budget governor enforces, so the visual
+warning and the automated stop fire off one number:
+
+![statusline near the budget cliff](docs/statusline2.png)
+
 **Progressive disclosure keeps ~8k tokens out of every turn.** The 4 path-gated
 rules (~18 KB) and 6 L3 references (~16 KB) total ~35 KB — **~8k tokens** by a
 rough 4-byte-per-token estimate. A flat `CLAUDE.md` that inlined all of them
