@@ -5,12 +5,9 @@ lifecycle events (compaction, session start, tool use). They are wired in
 `.claude/settings.json`. Copy the ones you want into your own `~/.claude/hooks/`
 and merge the matching `settings.json` block by hand.
 
-> **Two `hooks/` directories — don't conflate them.**
-> - `.claude/hooks/` (this directory) = Claude Code runtime hooks — the
->   context-optimization content.
-> - the repo-root `hooks/` = **git hooks** (the secret gate: gitleaks +
->   identity/path check, wired via `core.hooksPath`). Different mechanism,
->   different trigger.
+> **Two `hooks/` directories — don't conflate them.** This directory is Claude
+> Code **runtime** hooks; the repo-root `hooks/` is **git** hooks (the secret
+> gate). Full table in the [README](../../README.md#two-hooks-directories--dont-conflate-them).
 
 **Every hook here fails open** (`try: main(); except Exception: pass;
 sys.exit(0)`). A hook bug must never block compaction, session start, or a tool
