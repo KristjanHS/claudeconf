@@ -126,7 +126,7 @@ Every curated file is scrubbed before it lands:
 
 - **Paths**: `/home/<user>/...` becomes `$HOME/...` or `~/...`
 - **Identity**: email and username removed from `CLAUDE.md`, `settings.json`, statusline examples
-- **Private project refs**: drop private consumer-project names, devcontainer and WSL-specific incident text; rewrite skill bodies that name private memory slugs to generic placeholders
+- **Private project refs**: drop private consumer-project names, devcontainer- and environment-specific incident text; rewrite skill bodies that name private memory slugs to generic placeholders
 - **Dependency**: the `token_monitor.parser.parse_last_turn` import is replaced by an inlined stdlib tail-reader (`read_last_turn_context`), exact and portable, no tradeoff (see Portability decision above)
 - **`settings.json`**: trimmed to just the curated hooks block; no marketplace, plugin, or personal paths
 
@@ -144,8 +144,8 @@ The blocking path-check is the safety net that *proves* the sanitization pass wo
 
 - Auto-merging `settings.json` into a co-worker's existing config.
 - Vendoring or publishing the private token-counter package.
-- The full set of personal skills, hooks, and rules (kaizen suite, forensic tooling, devcontainer/WSL specifics, memory internals).
-- Any push to the remote. Commits are local; the author pushes from the WSL host per their git-push policy.
+- The full set of personal skills, hooks, and rules (kaizen suite, forensic tooling, devcontainer/host-environment specifics, memory internals).
+- Any push to the remote. Commits are local; the author pushes from their host per their git-push policy.
 
 ## Build plan (next session/turn)
 

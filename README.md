@@ -189,8 +189,7 @@ them, so they cost nothing until used.
 - **`retro`** - session retrospective: reflect on what was learned, update
   memories and project docs.
 
-**Design & critique** - general-purpose thinking tools, outside the
-context-engineering theme:
+**Design & critique** - general-purpose thinking tools:
 
 - **`senior-architect`** - system-architecture work: ADRs, tech-stack
   evaluation, design review, dependency analysis, diagrams.
@@ -233,7 +232,7 @@ exemplar set):
   its original trigger.
 - **`kaizen-why`** - Five Whys: drill from symptom to fundamental cause.
 
-**Writing & AI-text** - outside the context-engineering theme:
+**Writing & AI-text** - detection and rewriting of AI-sounding prose:
 
 - **`detect-ai-text-humanize`** - two modes: Detection (analyze whether text is
   AI-generated, with passage-level highlighting and reasoning) or Humanization

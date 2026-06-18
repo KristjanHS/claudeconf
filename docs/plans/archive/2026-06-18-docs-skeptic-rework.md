@@ -135,4 +135,4 @@ No remaining blockers; ready to execute.
 - Changing any hook/skill/rule *behavior*. This is a docs-only rework.
 - **Re-curating which pieces ship.** Deliberately deferred (Finding 12). The catalog was selected for an enthusiast; a true skeptic-first repo might ship fewer pieces, or a single "the one thing that matters." Docs-only is defensible because the *content is sound and the framing is the load-bearing problem*. If the reframed README still can't justify a piece to the narrowed skeptic (Decision 0), that's the signal to revisit selection in a follow-up. Note it, don't fix it here.
 - Auto-installer / settings.json auto-merge (already rejected in design doc).
-- Pushing to the remote (commits local; user pushes from the WSL host).
+- Pushing to the remote (commits local; user pushes from their host).
