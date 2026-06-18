@@ -154,6 +154,26 @@ commit. Why it and `statusline.sh` are pinned to the *same* 130k mark and
 measurement is explained in
 **[`.claude/hooks/README.md`](.claude/hooks/README.md)**.
 
+**The message it sends.** At the threshold, the hook drops one instruction into
+the conversation:
+
+```
+WRAP UP: do not start a new task. Finish what's in flight, save any remaining
+tasks to memory, then review the code, close the branch, and run a retro.
+```
+
+**What actually happened** when it fired in two real runs:
+
+- *Mid-task:* "fired at 130k, current task is done and tests pass" → committed
+  that task, wrote the leftover work to a notes file, ran a code review, closed
+  the branch, did the retro. It did **not** pick up anything new.
+- *Already finishing up:* "noted, already wrapping up" → committed the last
+  change and carried on closing the branch and writing the retro.
+
+Either way the run lands what's in flight and stops, so the next session opens on
+a committed, written-down state — instead of auto-compaction eventually kicking
+in and silently dropping detail that mattered.
+
 ## The skills (detail)
 
 Twenty-six `/<name>` skills ship in `.claude/skills/`. The first group is the
