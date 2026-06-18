@@ -1,8 +1,13 @@
 # Adopting the pieces
 
-Copy-in, by hand, one piece at a time. **Back up anything you overwrite**, and
-**never blind-overwrite your own `~/.claude/settings.json`** — merge the hooks
-block instead. Everything below assumes your config lives at `~/.claude/`.
+This is the **"I'm convinced, now how do I adopt it"** path — the why for each
+piece (and where it isn't worth it) lives in the [README](README.md). Copy-in,
+by hand, one piece at a time. **Back up anything you overwrite**, and **never
+blind-overwrite your own `~/.claude/settings.json`** — merge the hooks block
+instead. Everything below assumes your config lives at `~/.claude/`.
+
+Each step ends with a **smoke-test**: it confirms the piece is *wired and fires*,
+not that it improved your session. (The value question is the README's job.)
 
 ## 1. The progressive-disclosure `CLAUDE.md`
 
@@ -28,6 +33,11 @@ when a matching file is read/edited. Keep the frontmatter. The four shipped
 rules are good as-is, but tune them to your stack. List each in your
 `CLAUDE.md` Rules Index table.
 
+**Smoke-test:** open or edit a file the glob matches (e.g. a `*.md` over 800
+lines for `reading-large-files.md`) and confirm the rule body appears in the
+session's loaded context — it should be absent before the match and present
+after. This proves the gating fires, not that the rule changed an outcome.
+
 ## 3. Runtime hooks + `settings.json` wiring
 
 ```sh
@@ -48,17 +58,14 @@ five hooks wired:
 If you keep separate `settings.json` files, add the matchers to whichever one
 already holds your hooks. Confirm Claude Code reports no settings errors after.
 
-### Budget governor: exact, compaction-aware, zero dependencies
+How the budget governor measures context (exact, compaction-aware, zero-dep) and
+why it shares the statusline's 130k mark is documented once in
+**[`.claude/hooks/README.md`](.claude/hooks/README.md#the-budget-governor--impag-budget-checkpy)** — read it there.
 
-`impag-budget-check.py` reads the **exact** context-token count straight from the
-transcript: it parses the last `assistant` turn's `message.usage` and sums
-`input_tokens + cache_creation_input_tokens + cache_read_input_tokens` — the
-counts the Anthropic API reported for that turn. This is compaction-aware (a
-post-compact turn reports the reset context) and **dependency-free** — it reads
-only the final 64 KB of the transcript with stdlib `json`, so it works on any
-machine immediately with no over-read and no spurious firing in long, compacted
-sessions. It is the **same measurement** the statusline uses. Nothing to swap or
-upgrade. See the hook's docstring for details.
+**Smoke-test (hooks):** run a hook against a synthetic stdin payload and check
+its exit code — the bloat-gate example is in the
+[hooks README](.claude/hooks/README.md#trying-a-hook-in-isolation). A non-error
+exit (or exit 2 = blocked, for the gate) confirms it's installed and runs.
 
 ## 4. Statusline
 
@@ -84,6 +91,10 @@ cp -r .claude/skills/* ~/.claude/skills/
 `condense`, `de-bloat`, and `claude-md-progressive-disclosurer` are the
 context-hygiene trio; `impag` showcases the parallel-subagent fan-out. They are
 self-contained — any reference to tooling you don't run is written as optional.
+
+**Smoke-test:** type `/` in a session and confirm the copied skills appear in
+the slash-command list (or invoke `/<name>` and watch it load). That proves
+they're discoverable; whether a skill helps is a per-task judgement.
 
 ## 6. The secret gate (reuse in your own repos)
 

@@ -19,9 +19,12 @@ source dotfiles repo.
 
 ## Audience
 
-Co-workers already using Claude Code who want to copy proven configs rather
-than design their own. They are assumed to be comfortable editing their own
-`~/.claude/` and merging a `settings.json` hooks block by hand.
+Someone **already running Claude Code who doubts the hook/rule/budget sprawl
+earns its keep** — not yet sold that this scaffolding costs less than it saves.
+The docs lead with that doubt and justify each piece (or name where it isn't
+worth it). The reader is assumed comfortable editing their own `~/.claude/` and
+merging a `settings.json` hooks block by hand, but **not** assumed to already
+believe the catalog pays off.
 
 ## Sources
 
@@ -145,26 +148,16 @@ cache_creation_input_tokens + cache_read_input_tokens`, so a co-worker gets the
 *visual* warning and the *automated* wrap-up off the same number — taught
 together, and exact by construction.
 
-### Portability decision (key) — superseded 2026-06-18
+### Portability decision (key)
 
-The author's real hook imported `token_monitor.parser.parse_last_turn`, which
-*looked* like a **private editable install** (a local package, not on PyPI), so
-copied as-is it raised `ModuleNotFoundError`.
-
-**Original resolution (now reverted):** ship a portable variant using a
-`transcript_bytes / 4` estimator — no import, but it over-read (~1.5× live,
-worse post-compaction) and could false-fire in long compacted sessions.
-
-**Final resolution:** `parse_last_turn` does not tokenize anything — it is ~40
-lines of pure stdlib (`json`) that seeks the transcript tail and reads the last
-assistant turn's `message.usage`. Those are the **exact** counts the API
-reported. So the function is **inlined** as `read_last_turn_context`: exact,
-compaction-aware, zero dependencies, ~40 LOC, bounded 64 KB read. The
-portable-vs-accurate tradeoff that motivated `bytes/4` was false — there is no
-tradeoff, and no private package is vendored. (Plan:
-`docs/plans/2026-06-18-budget-hook-exact-portable-tokens.md`.)
-
-By contrast, `statusline.sh` has **no** such dependency and ships unchanged.
+The budget hook reads exact, compaction-aware token usage by inlining a ~40-LOC
+stdlib tail-reader (`read_last_turn_context`) that parses the last assistant
+turn's `message.usage` — zero dependencies, no private package vendored, no
+accuracy tradeoff. `statusline.sh` has no such dependency and ships unchanged.
+The full design saga behind that conclusion (the original `bytes/4` portable
+variant, the discovery that the `token_monitor` import was trivially inlinable,
+and the reversal) lives in the archived plan
+[`docs/plans/archive/2026-06-18-budget-hook-exact-portable-tokens.md`](plans/archive/2026-06-18-budget-hook-exact-portable-tokens.md).
 
 ## The secret gate (reused dotfiles logic, hardened for public)
 
