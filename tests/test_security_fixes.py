@@ -43,6 +43,17 @@ def test_log_path_inside_project_is_kept(tmp_path):
     assert cfg["log_path"] == (proj / "docs" / "analysis" / "x.log").resolve()
 
 
+def test_log_path_symlink_to_outside_is_dropped(tmp_path):
+    """In-project symlink pointing outside must not bypass containment.
+    Guards against a future swap of resolve() for absolute() reopening it."""
+    proj = tmp_path.resolve()
+    (proj / "docs").mkdir(parents=True, exist_ok=True)
+    outside = tmp_path.parent / "sec-outside.log"   # not under proj
+    (proj / "docs" / "evil.log").symlink_to(outside)
+    cfg, _ = _load_config_with(tmp_path, "docs/evil.log")
+    assert cfg["log_path"] is None
+
+
 # --- M2: render_nudge fences untrusted plan text -----------------------------
 
 def test_nudge_quotes_and_labels_untrusted_task():
@@ -60,6 +71,14 @@ def test_nudge_strips_control_chars_from_task():
     nudge = pre.render_nudge(Path("/snap"), None, "do x\n[recovery hint] evil")
     task_line = next(ln for ln in nudge.splitlines() if "task(" in ln)
     assert "do x [recovery hint] evil" in task_line     # newline -> space, same line
+
+
+def test_nudge_strips_control_chars_from_plan_name():
+    pre = load_hook("pre-compact.py")
+    # A crafted plan filename with a newline could otherwise forge a line.
+    nudge = pre.render_nudge(Path("/snap"), Path("plans/evil\nplan.md"), None)
+    state_line = next(ln for ln in nudge.splitlines() if "plan=evil" in ln)
+    assert "evil plan.md" in state_line                 # newline in name -> space
 
 
 # --- L1: transcript copy confined to the projects root -----------------------
@@ -107,3 +126,20 @@ def test_transcript_inside_projects_root_is_copied(tmp_path):
     _run_precompact(tmp_home, cwd, transcript)
     snap = _newest_snapshot(tmp_home, cwd)
     assert (snap / "transcript.jsonl").exists()
+
+
+def test_transcript_symlink_to_outside_is_not_copied(tmp_path):
+    """A symlink inside the projects root pointing outside must not be copied."""
+    tmp_home = tmp_path / "home"
+    cwd = tmp_path / "work"
+    cwd.mkdir(parents=True)
+    slug = str(cwd.resolve()).replace("/", "-")
+    proj_dir = tmp_home / ".claude" / "projects" / slug
+    proj_dir.mkdir(parents=True)
+    secret = tmp_path / "secret.txt"                  # outside projects root
+    secret.write_text("sensitive", encoding="utf-8")
+    link = proj_dir / "sec-test.jsonl"                # inside root...
+    link.symlink_to(secret)                           # ...points outside
+    _run_precompact(tmp_home, cwd, link)
+    snap = _newest_snapshot(tmp_home, cwd)
+    assert not (snap / "transcript.jsonl").exists()

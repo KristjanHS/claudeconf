@@ -239,9 +239,14 @@ def load_config(proj: Path | None) -> dict:
                 # log_path comes from project-local config (untrusted on a
                 # cloned repo). Resolve and require containment so an absolute
                 # or ../ value can't steer append_log writes outside the project.
+                # A malformed value (embedded null, etc.) drops to None rather
+                # than raising out and disabling the whole config load.
                 if data["log_path"]:
-                    cand = (proj / data["log_path"]).resolve()
-                    cfg["log_path"] = cand if cand.is_relative_to(proj) else None
+                    try:
+                        cand = (proj / data["log_path"]).resolve()
+                        cfg["log_path"] = cand if cand.is_relative_to(proj) else None
+                    except (OSError, ValueError):
+                        cfg["log_path"] = None
                 else:
                     cfg["log_path"] = None
             if "claude_md_gated" in data:

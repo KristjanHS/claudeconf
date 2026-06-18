@@ -20,6 +20,7 @@ git config core.hooksPath hooks
 echo "ok: git hooks activated (core.hooksPath -> hooks/)"
 echo "  pre-commit: gitleaks --staged + blocking identity/PII check"
 echo "  pre-push:   full working-tree gitleaks scan"
+echo "  note: these in-repo scripts run on every commit/push — review hooks/ and scripts/ before trusting an unfamiliar clone."
 if ! command -v gitleaks >/dev/null 2>&1; then
     echo "note: gitleaks is not installed — the hooks will warn and skip the"
     echo "      credential scan until you install it:"
