@@ -4,8 +4,9 @@
 
 A long Claude Code session gets slow, expensive, and forgetful. The context
 window fills with rule text you rarely need, stale docs, and re-derived state;
-once it's full the agent compacts and loses the reasoning that got it there.
-You pay for every token of that bloat on every turn.
+once it's full the agent compacts to ~12% of the window — and the reasoning
+that lived only in the conversation doesn't come back. You pay for every token
+of that bloat on every turn.
 
 ## What this is
 
@@ -40,16 +41,13 @@ would carry that on *every* turn; here they cost 10 deferred-load pointer lines
 (6 references + 4 rules) in a 4.4 KB `CLAUDE.md`, and a rule body loads only when
 you touch a file its glob matches.
 
-- **In dollars this is modest, and mostly cached.** Once in the prompt those
-  tokens bill as `cache_read` (~$1.50/M tok on Opus), not full input
-  (~$15/M tok) — so the raw-token figure overstates the *dollar* saving by up to
-  10×. Call it ~$0.01/turn, ~$1 over a 100-turn session, plus one uncached
-  cache-write. The real win is the window filling slower, so you hit compaction
-  (and its lost reasoning) later.
-- **This is an illustrative reading, n=1.** ~8k tokens is a byte estimate of
-  shipped files, and the "flat `CLAUDE.md`" baseline is a worst case — most
-  non-adopters just run a shorter `CLAUDE.md` with no rules at all, not an
-  inlined 35 KB one. It's a sense of scale, not a controlled result.
+- **The dollars are modest; the window is the point.** Cached, those tokens bill
+  as `cache_read` (~$1.50/M on Opus), not full input (~$15/M) — ~$0.01/turn, ~$1
+  over 100 turns. The real win is the window filling slower, so compaction (which
+  keeps ~12% and doesn't restore conversation-only reasoning) comes later.
+- **n=1 — a sense of scale, not a result.** The ~8k is a byte estimate, and the
+  flat-`CLAUDE.md` baseline is a worst case: most non-adopters run a short
+  `CLAUDE.md` with no rules, not an inlined 35 KB one.
 
 **13 passing tests pin the budget governor's *measurement*** (run `pytest` from
 the repo root) — the exact 130k count, the compaction regression, fail-open.
