@@ -1,9 +1,46 @@
+<div align="center">
+
 # claudeconf
+
+**Context-first Claude Code config — lean sessions, grouped by purpose.**
+
+[![Secret scan](https://github.com/KristjanHS/claudeconf/actions/workflows/gitleaks.yml/badge.svg)](https://github.com/KristjanHS/claudeconf/actions/workflows/gitleaks.yml)
+[![Tests](https://github.com/KristjanHS/claudeconf/actions/workflows/tests.yml/badge.svg)](https://github.com/KristjanHS/claudeconf/actions/workflows/tests.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+[![Built for Claude Code](https://img.shields.io/badge/built%20for-Claude%20Code-d97757)](https://claude.com/claude-code)
+
+[Problem](#-the-problem) · [What it is](#-what-this-is) · [Does it work?](#-does-this-actually-work) · [Catalog](#-the-catalog) · [Quick start](#-quick-start) · [ADOPT](ADOPT.md)
+
+![statusline near the budget cliff](docs/statusline2.png)
+
+</div>
 
 *Context-first Claude Code config - plus the wider set of practices and
 conventions I've built around it, grouped by purpose.*
 
-## The problem
+## Contents
+
+**The case for (and against) adopting**
+
+- 🎯 [The problem](#-the-problem)
+- 📦 [What this is](#-what-this-is)
+- 📊 [Does this actually work?](#-does-this-actually-work)
+- 💸 [What it costs you](#-what-it-costs-you)
+- 🛑 [When this isn't worth it](#-when-this-isnt-worth-it)
+
+**The kit**
+
+- 🧩 [Beyond context: the rest of the kit](#-beyond-context-the-rest-of-the-kit)
+- 🧰 [The catalog](#-the-catalog)
+- 🚦 [The budget governor (detail)](#-the-budget-governor-detail)
+- 🧠 [The skills (detail)](#-the-skills-detail)
+
+**Reference**
+
+- 📖 [Glossary](#-glossary)
+- 🚀 [Quick start](#-quick-start)
+
+## 🎯 The problem
 
 A long Claude Code session gets slow, expensive, and forgetful. The context
 window fills with rule text you rarely need, stale docs, and re-derived state;
@@ -11,7 +48,7 @@ once it's full the agent compacts to ~12% of the window - and the reasoning
 that lived only in the conversation doesn't come back. You pay for every token
 of that bloat on every turn.
 
-## What this is
+## 📦 What this is
 
 A **copy-in catalog** of the Claude Code config that keeps a session's context
 window lean: a progressive-disclosure `CLAUDE.md`, path-gated rules, compaction
@@ -27,9 +64,9 @@ to answer, including where the answer is "no."
 Context management stays the **primary focus**, but the repo has grown into the
 wider set of Claude Code practices and conventions I've settled on - skills,
 rules, and references, grouped by purpose. Those are secondary to the context
-core; see [Beyond context](#beyond-context-the-rest-of-the-kit).
+core; see [Beyond context](#-beyond-context-the-rest-of-the-kit).
 
-## Does this actually work?
+## 📊 Does this actually work?
 
 Scoped honestly: the evidence below shows **cost reduction for an existing
 Claude Code user**.
@@ -57,7 +94,7 @@ you touch a file its glob matches.
   as `cache_read`. The real win is the window filling slower, so compaction (which
   keeps ~12% and doesn't restore conversation-only reasoning) comes later.
 
-## What it costs you
+## 💸 What it costs you
 
 A skeptic should weigh the tax, not just the upside:
 
@@ -72,7 +109,7 @@ A skeptic should weigh the tax, not just the upside:
   maintain the pytest suite. There is no auto-merge, by design (it's the most
   likely thing to break your config).
 
-## When this isn't worth it
+## 🛑 When this isn't worth it
 
 - The bloat gate **false-positives** on legitimately dense writing - a genuinely
   information-rich doc can trip the density floor.
@@ -82,7 +119,7 @@ A skeptic should weigh the tax, not just the upside:
   anyway.** The whole catalog presupposes sessions long enough for context to
   become the bottleneck.
 
-## Beyond context: the rest of the kit
+## 🧩 Beyond context: the rest of the kit
 
 Context management is the core; the rest of the repo collects the other Claude
 Code practices and conventions I've found worth keeping. They're **secondary** -
@@ -109,9 +146,9 @@ weighs - but they ship here so the catalog is the whole kit, grouped by purpose:
 A few rules and references are general conventions too, not context tooling -
 `testing.md` (the test value gate), `pre-ship-sweeps.md`, and
 `subagent-dispatch.md` encode habits I reuse across projects. Per-piece detail
-is in [The skills (detail)](#the-skills-detail) and [The catalog](#the-catalog).
+is in [The skills (detail)](#-the-skills-detail) and [The catalog](#-the-catalog).
 
-## Glossary
+## 📖 Glossary
 
 - **Compaction** - when Claude Code summarizes a full context window to free
   space; load-bearing reasoning can be lost in the summary.
@@ -124,7 +161,7 @@ is in [The skills (detail)](#the-skills-detail) and [The catalog](#the-catalog).
 - **Fan-out** - splitting work across parallel subagents, each with its own
   context window.
 
-## The catalog
+## 🧰 The catalog
 
 Every piece and what it's for. Terse by design;
 deeper prose for the two mechanisms that don't fit a cell is below the table.
@@ -143,7 +180,7 @@ deeper prose for the two mechanisms that don't fit a cell is below the table.
 | Skills (×26) | Context-hygiene core + config/session/quality/thinking exemplars | Hygiene core (`condense`, `de-bloat`, `claude-md-progressive-disclosurer`, `impag`); exemplar groups: config & skill mgmt, session hygiene, design & critique, code quality & dev workflow, Kaizen improvement, writing & AI-text | Skill body loads when matched |
 | `.claudeignore` | Keep archived plans out of context | Lists paths the harness skips | None |
 
-## The budget governor (detail)
+## 🚦 The budget governor (detail)
 
 `impag-budget-check.py` is a `PostToolUse` hook on `Bash` that makes a long
 `/impag` run stop taking new work before the session hits its context cliff. It
@@ -174,7 +211,7 @@ Either way the run lands what's in flight and stops, so the next session opens o
 a committed, written-down state — instead of auto-compaction eventually kicking
 in and silently dropping detail that mattered.
 
-## The skills (detail)
+## 🧠 The skills (detail)
 
 Twenty-six `/<name>` skills ship in `.claude/skills/`. The first group is the
 context-hygiene set this repo is really about; the rest are bundled exemplars
@@ -268,7 +305,7 @@ exemplar set):
   AI-generated, with passage-level highlighting and reasoning) or Humanization
   (rewrite AI-sounding text to read as human, surfacing no detection output).
 
-## Quick start
+## 🚀 Quick start
 
 ```sh
 git clone https://github.com/KristjanHS/claudeconf

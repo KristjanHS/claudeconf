@@ -7,3 +7,7 @@ __pycache__/
 
 # Tool caches
 .ruff_cache/
+
+# Personal local settings (excludes the project CLAUDE.md from double-loading
+# atop the global one); not part of the published catalog
+.claude/settings.local.json
