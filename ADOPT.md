@@ -1,0 +1,124 @@
+# Adopting the pieces
+
+This is the **"I'm convinced, now how do I adopt it"** path - the why for each
+piece (and where it isn't worth it) lives in the [README](README.md). Copy-in,
+by hand, one piece at a time. **Back up anything you overwrite**, and **never
+blind-overwrite your own `~/.claude/settings.json`** - merge the hooks block
+instead. Everything below assumes your config lives at `~/.claude/`.
+
+Most steps end with a **smoke-test**: it confirms the piece is *wired and fires*,
+not that it improved your session. (The value question is the README's job.)
+
+Steps 1-4 are the **context-management core** - the repo's primary focus. Step 5
+(skills) is a mix: the context-hygiene trio plus the **secondary** practices and
+conventions grouped by purpose (config & skill management, session hygiene,
+design & critique, writing & AI-text). Adopt the core first; pull in the rest as
+they're useful.
+
+## 1. The progressive-disclosure `CLAUDE.md`
+
+`.claude/CLAUDE.md` is an **example skeleton**, not a config to copy verbatim.
+Adopt the *structure*, not the contents:
+
+- A **"References (read when triggered)"** section - point at L3 docs that load
+  only when a trigger fires.
+- A path-gated **"Rules Index"** table - one row per rule file, so the rule
+  body stays out of context until a matching file is touched.
+
+Merge that structure into your existing `CLAUDE.md`; fill the rows with your own
+rules.
+
+## 2. Path-gated rules
+
+```sh
+cp .claude/rules/*.md ~/.claude/rules/
+```
+
+Each rule's frontmatter `globs` is the gating mechanism - it auto-loads only
+when a matching file is read/edited. Keep the frontmatter. The four shipped
+rules are good as-is, but tune them to your stack. List each in your
+`CLAUDE.md` Rules Index table.
+
+**Smoke-test:** confirm the file is in `~/.claude/rules/` with its `globs`
+frontmatter intact - that frontmatter is what the harness keys the gating on.
+There's no context-inspector to *watch* a rule load; the only observable effect
+is behavioral (Claude following the rule once you touch a matching file), which
+proves wiring, not that the rule changed an outcome.
+
+## 3. Runtime hooks + `settings.json` wiring
+
+```sh
+cp .claude/hooks/*.py ~/.claude/hooks/
+chmod +x ~/.claude/hooks/*.py
+```
+
+Then **merge** (do not overwrite) the hook entries from `.claude/settings.json`
+into your own `~/.claude/settings.json`. The shipped file shows exactly the
+four hooks wired:
+
+- `PreCompact` → `pre-compact.py`
+- `SessionStart` → `post-compact-restore.py` (on compact/resume)
+- `PreToolUse` (Write/Edit/Bash) → `docs-bloat-gate.py`
+- `PostToolUse` (Bash) → `impag-budget-check.py`
+
+If you keep separate `settings.json` files, add the matchers to whichever one
+already holds your hooks. Confirm Claude Code reports no settings errors after.
+
+How the budget governor measures context (exact, compaction-aware, zero-dep) and
+why it shares the statusline's 130k mark is documented once in
+**[`.claude/hooks/README.md`](.claude/hooks/README.md#the-budget-governor--impag-budget-checkpy)** - read it there.
+
+**Smoke-test (hooks):** run a hook against a synthetic stdin payload and check
+its exit code - the bloat-gate example is in the
+[hooks README](.claude/hooks/README.md#trying-a-hook-in-isolation). A non-error
+exit (0, plus a JSON advisory nudge on stdout for the gate's slop/density
+signals; only its opt-in S1 size ratchet exits 2 = blocked) confirms it's
+installed and runs.
+
+## 4. Statusline
+
+```sh
+cp .claude/statusline.sh ~/.claude/statusline.sh
+chmod +x ~/.claude/statusline.sh
+```
+
+Point `statusLine` at it in `settings.json` (see the shipped example). It needs
+only `jq` and `git`. Note the context window is pinned to a personal 200k
+budget with a 130k/160k yellow/red mark - the same 130k the budget governor
+wraps up on. `WINDOW` is the token budget you choose to treat as your personal
+session cap (here 200k) - deliberately *below* the model's real context limit
+(e.g. 1M), so the bar fills and warns well before any native autocompact. Set it
+to whatever cap you want to pace yourself against; adjust the thresholds to match.
+
+**Smoke-test:** start a session and confirm the status line renders (context %,
+cost, distance-to-stop). If it's blank, check `jq`/`git` are on `PATH` and the
+`statusLine` path in `settings.json` is correct.
+
+## 5. Skills
+
+```sh
+cp -r .claude/skills/* ~/.claude/skills/
+```
+
+`condense`, `de-bloat`, and `claude-md-progressive-disclosurer` are the
+context-hygiene trio; `impag` showcases the parallel-subagent fan-out. The rest
+are bundled exemplars: `config-reuse`, `install-skill`, and `skills-discovery`
+manage Claude config and skills (the acquisition side of a copy-in catalog);
+`reflect` and `retro` are end-of-session hygiene; `senior-architect`,
+`brutal-honesty-review`, `deep-research`, `architecture-diagram-creator`, and
+`mybrain` are general-purpose design/critique tools; `testing-anti-patterns`,
+`systematic-debugging`, `python-simplifier`, and `finishing-a-development-branch`
+are code-quality & dev-workflow exemplars; the seven `kaizen-*` skills are a
+coherent continuous-improvement family (copy them as a set or skip them);
+`detect-ai-text-humanize` flags AI-sounding prose and rewrites it human (point it
+at a doc with "humanize the AI text in X" or "check X for AI"). They are
+self-contained, and any reference to tooling you don't run is written as optional
+- except two with a non-optional reference dep: `mybrain` reads
+`~/.claude/references/ideation-techniques-library.md`, and `systematic-debugging`
+reads `~/.claude/references/anti-patterns-common-rationalizations.md`; copy those
+files from `.claude/references/` into your `~/.claude/references/` alongside the
+skills.
+
+**Smoke-test:** type `/` in a session and confirm the copied skills appear in
+the slash-command list (or invoke `/<name>` and watch it load). That proves
+they're discoverable; whether a skill helps is a per-task judgement.

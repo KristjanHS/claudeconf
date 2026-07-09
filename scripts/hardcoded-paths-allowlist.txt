@@ -1,0 +1,7 @@
+# Pathspecs allowed to contain otherwise-blocked PII patterns
+# (absolute home paths, email addresses). One git pathspec per line;
+# lines starting with '#' and blank lines are ignored.
+#
+# Add a file here ONLY after documenting *in the file itself* why the literal
+# is unavoidable. A public teaching repo should almost never need an entry —
+# an empty allowlist is the healthy default.
