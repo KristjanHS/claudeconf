@@ -100,8 +100,11 @@ A skeptic should weigh the tax, not just the upside:
 - **4 hooks fire on lifecycle events** - every compaction, session start, and (for
   two of them) Bash/Write/Edit call runs a Python script. They fail open, but
   they're still latency on the hot path.
-- **The bloat gate *refuses* writes.** Two of its three signals (slop phrase,
-  low density) are unbypassable - it will block a `.md` write you wanted.
+- **The bloat gate nudges, and (opt-in) ratchets size.** Three of its signals
+  (slop phrase, low density, new audit-style file) are *advisory* - the write
+  proceeds and a one-line nudge is fed back, throttled to once per signal per
+  session. Only the S1 size ratchet blocks, and only on projects that opt in;
+  it's bypassable (N=3 override sentinels per session).
 - **The budget governor interrupts.** At 130k tokens it injects a wrap-up
   reminder mid-run, whether or not you were ready to stop.
 - **Setup is hand-work.** You merge a `settings.json` hooks block yourself and
@@ -172,7 +175,7 @@ deeper prose for the two mechanisms that don't fit a cell is below the table.
 | L3 references (×7) | Long checklists/postmortems, on demand | Plain `.md`; loaded only when a `CLAUDE.md` pointer fires | None until triggered |
 | `pre-compact.py` | Insurance copy before a compaction | `PreCompact` hook snapshots transcript + plan/todo to a sidecar | Runs on every compaction |
 | `post-compact-restore.py` | Re-orient cheaply after compaction | `SessionStart` hook prints the newest snapshot's recovery pointer | Runs on compact/resume |
-| `docs-bloat-gate.py` | Block bloated `.md` from entering context | `PreToolUse` hook on Write/Edit/Bash; 3 signals (slop / density / size) | Refuses writes; 2 signals unbypassable |
+| `docs-bloat-gate.py` | Keep bloated `.md` from entering context | `PreToolUse` hook on Write/Edit/Bash; signals (slop / density / new-audit-file advisory, size ratchet blocks) | Slop/density/new-file warn via a throttled nudge; only the opt-in size ratchet blocks (bypassable) |
 | `impag-budget-check.py` | Stop a long run before the context cliff | `PostToolUse` hook on Bash; exact token read, hard-stop at 130k | Interrupts mid-run at the threshold |
 | `statusline.sh` | Show live context %, cost, distance-to-stop | Reads Claude Code's statusline JSON; needs `jq` + `git` | Negligible |
 | `settings.json` | Wire the 4 hooks | Matcher → script entries | One-time hand-merge |

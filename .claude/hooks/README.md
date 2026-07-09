@@ -20,7 +20,7 @@ check.
 |---|---|---|
 | `pre-compact.py` | `PreCompact` | Just before compaction, snapshots the transcript plus the active plan and todo state to a sidecar under `~/.claude/projects/<cwd-slug>/snapshots/`. Compaction keeps ~12% of the window and the 9-section summary can drop load-bearing reasoning; the sidecar is the full insurance copy. |
 | `post-compact-restore.py` | `SessionStart` (`compact\|resume`) | Reads the newest snapshot and prints its recovery pointer (active plan, current task, where the full pre-compact transcript lives). Compaction doesn't re-inject the startup skill listing or subdirectory `CLAUDE.md` files, so Claude re-orients from a cheap pointer instead of re-deriving lost state. |
-| `docs-bloat-gate.py` | `PreToolUse` (`Write\|Edit\|Bash`) | Blocks bloated `.md` writes at write time, so they never enter context in a future session. Three signals (any blocks): **S2** AI-slop stoplist phrase in net-added text (unbypassable); **S3** lexical density < 0.45 on a >100-char addition (unbypassable); **S1** char-delta over a tier cap (rule<50 lines=150, doc=800, spec=2000 chars) - bypassable, opt-in per project. Memory paths are exempt. Self-contained: the slop list and density tokenizer are inlined, no external import. |
+| `docs-bloat-gate.py` | `PreToolUse` (`Write\|Edit\|Bash`) | Watches `.md` writes so bloat never enters context in a future session. Signals: **S2** AI-slop stoplist phrase in net-added text and **S3** lexical density < 0.45 on a >100-char addition are *advisory* - the write proceeds and a one-line nudge is fed back via `additionalContext`, throttled to once per signal per session; **W1** a new audit-style `docs/*.md` root file is likewise advisory. Only **S1** (char-delta over a tier cap: rule<50 lines=150, doc=800, spec=2000 chars) *blocks* - bypassable (N=3 override sentinels/session, brand-new gated file, or L2-heading carve-out), opt-in per project. Every fire is logged for tuning. Memory paths are exempt. Self-contained: the slop list and density tokenizer are inlined, no external import. |
 | `impag-budget-check.py` | `PostToolUse` (`Bash`) | Injects a wrap-up reminder when accumulated context exceeds 130k tokens; detail below. |
 
 ## The budget governor - `impag-budget-check.py`
@@ -64,7 +64,9 @@ Each hook reads a JSON event payload on stdin. Example for the bloat gate:
 ```sh
 echo '{"tool_name":"Write","tool_input":{"file_path":"/tmp/scratch.md","content":"We should leverage this approach."}}' \
   | python3 ~/.claude/hooks/docs-bloat-gate.py
-echo "exit code: $?"   # 2 = blocked, 0 = allowed; stderr carries the reason
+echo "exit code: $?"   # slop is advisory now: exit 0 + a JSON additionalContext
+                       # nudge on stdout (write allowed). Only the opt-in S1 size
+                       # ratchet exits 2 (blocked); its reason goes to stderr.
 ```
 
 ## Automated tests

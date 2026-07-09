@@ -71,7 +71,9 @@ why it shares the statusline's 130k mark is documented once in
 **Smoke-test (hooks):** run a hook against a synthetic stdin payload and check
 its exit code - the bloat-gate example is in the
 [hooks README](.claude/hooks/README.md#trying-a-hook-in-isolation). A non-error
-exit (or exit 2 = blocked, for the gate) confirms it's installed and runs.
+exit (0, plus a JSON advisory nudge on stdout for the gate's slop/density
+signals; only its opt-in S1 size ratchet exits 2 = blocked) confirms it's
+installed and runs.
 
 ## 4. Statusline
 

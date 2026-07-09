@@ -3,19 +3,25 @@
 docs-bloat-gate — PreToolUse hook on Write/Edit/Bash.
 
 Why it saves context: docs and rules that grow unchecked get read into context
-on every future session. This gate blocks the bloat at write time. Three signals
-on .md writes (any blocks):
-  S2: AI-slop stoplist phrase in net-added text         UNBYPASSABLE, always-on
-  S3: lexical density < 0.45 on >100-char addition      UNBYPASSABLE, always-on
+on every future session. This gate watches .md writes and nudges (or, for the
+opt-in size ratchet, blocks) the bloat at write time. Signals:
+  S2: AI-slop stoplist phrase in net-added text         ADVISORY (warns, never blocks)
+  S3: lexical density < 0.45 on >100-char addition      ADVISORY (warns, never blocks)
+  W1: new docs/*.md root file with audit/analysis/report/research keywords
+      (Write only, requires project's docs/ dir to exist) ADVISORY (warns, never blocks)
   S1: char-delta exceeds tier cap (rule<50ln=150,
-      doc=800, spec=2000)                               bypassable, opt-in per project
+      doc=800, spec=2000)                               BLOCKS, bypassable, opt-in per project
 
-W1.1: new docs/*.md root file with audit/analysis/report/research keywords
-      (Write only, requires project's docs/ dir to exist)               bypassable
+S2/S3/W1 are advisory: the write proceeds and a one-line nudge is fed back via
+PreToolUse additionalContext, throttled to once per signal per session so the
+nudge itself can't become a token drain. Every fire is logged (unthrottled):
+S2/S3 always to ~/.claude/state/docs-bloat-blocks.log (cfg isn't resolved at
+detection time); W1 to the project log when configured (cfg is resolved), else
+the same global log; S1 block/bypass likewise. Tune from that log.
 
-S1 bypasses: brand-new L2 heading (<=30 lines / 1500 chars exempt) or
-override sentinel (hard cap N=1 per session, reason >=30 chars, no
-anti-stopwords).
+S1 bypasses: brand-new L2 heading (<=30 lines / 1500 chars exempt), a brand-new
+gated file (creation isn't bloat-growth), or override sentinel (hard cap N=3 per
+session, reason >=30 chars, no anti-stopwords).
 
 Override sentinel: <!-- docs-bloat-gate-override: <reason >=30 chars> -->
 
@@ -158,9 +164,13 @@ MEMORY_PATH_RE = re.compile(r"/\.claude/projects/[^/]+/memory/[^/]+\.md$")
 AUDIT_KEYWORDS_RE = re.compile(r"\b(audit|analysis|report|research)\b", re.IGNORECASE)
 OVERRIDE_RE = re.compile(r"<!--\s*docs-bloat-gate-override:\s*(.+?)\s*-->", re.DOTALL)
 ANTI_STOPWORDS = {"update", "rewrite", "improvement", "cleanup", "fix"}
-SENTINEL_CAP = 1
+SENTINEL_CAP = 3
 SENTINEL_REASON_MIN = 30
 STATE_DIR = Path.home() / ".claude" / "state"
+
+# Fallback log for signal fires when no project log_path is configured
+# (S2/S3 fire even outside projects). Keeps frequency data complete for tuning.
+GLOBAL_BLOCK_LOG = STATE_DIR / "docs-bloat-blocks.log"
 
 # --- Tier thresholds -----------------------------------------------------
 TIER_CAPS = {"rule": 150, "doc": 800, "spec": 2000}
@@ -229,19 +239,28 @@ def load_config(proj: Path | None) -> dict:
         except (json.JSONDecodeError, OSError):
             data = None
         if isinstance(data, dict):
+            # Malformed values (non-list, or non-string members) keep the
+            # convention default instead of raising into the fail-open
+            # wrapper — an uncaught TypeError here would silently disable
+            # the ENTIRE gate for the call (same policy as log_path below).
             if "gated_docs" in data:
-                cfg["gated_docs"] = set(data["gated_docs"])
+                v = data["gated_docs"]
+                if isinstance(v, list) and all(isinstance(x, str) for x in v):
+                    cfg["gated_docs"] = set(v)
             if "gated_rule_prefixes" in data:
-                cfg["gated_rule_prefixes"] = list(data["gated_rule_prefixes"])
+                v = data["gated_rule_prefixes"]
+                if isinstance(v, list) and all(isinstance(x, str) for x in v):
+                    cfg["gated_rule_prefixes"] = v
             if "audit_root_check" in data:
                 cfg["audit_root_check"] = bool(data["audit_root_check"])
             if "log_path" in data:
                 # log_path comes from project-local config (untrusted on a
                 # cloned repo). Resolve and require containment so an absolute
                 # or ../ value can't steer append_log writes outside the project.
-                # A malformed value (embedded null, etc.) drops to None rather
-                # than raising out and disabling the whole config load.
-                if data["log_path"]:
+                # A malformed value (embedded null, or a non-string such as an
+                # int/list) drops to None rather than raising out and disabling
+                # the whole config load.
+                if isinstance(data["log_path"], str) and data["log_path"]:
                     try:
                         cand = (proj / data["log_path"]).resolve()
                         cfg["log_path"] = cand if cand.is_relative_to(proj) else None
@@ -276,6 +295,20 @@ def is_gated_path(rel: str, cfg: dict) -> bool:
     if rel == "CLAUDE.md" and cfg["claude_md_gated"]:
         return True
     return False
+
+
+# Heredoc bodies are inert text (commit messages, embedded docs) — a gated path
+# mentioned inside one is not a write. Strip the body before pattern matching,
+# but KEEP the intro line: a real redirect rides there (`cat <<EOF > docs/spec.md`).
+# No terminator found → no match → command scanned as-is (conservative).
+HEREDOC_BODY_RE = re.compile(
+    r"(<<-?\s*(['\"]?)(\w+)\2[^\n]*\n).*?^[ \t]*\3[ \t]*$",
+    re.DOTALL | re.MULTILINE,
+)
+
+
+def strip_heredoc_bodies(cmd: str) -> str:
+    return HEREDOC_BODY_RE.sub(r"\1\3", cmd)
 
 
 def build_bash_patterns(cfg: dict) -> list[re.Pattern[str]]:
@@ -347,6 +380,24 @@ def increment_sentinel_count() -> int:
     return new
 
 
+# --- Advisory throttle (once per signal per session) ---------------------
+def advisory_marker_path(signal: str) -> Path:
+    return STATE_DIR / f"docs-bloat-advisory-{signal}-{session_id()}"
+
+
+def advisory_fired(signal: str) -> bool:
+    return advisory_marker_path(signal).exists()
+
+
+def mark_advisory_fired(signal: str) -> None:
+    p = advisory_marker_path(signal)
+    try:
+        p.parent.mkdir(parents=True, exist_ok=True)
+        p.touch()
+    except OSError:
+        pass
+
+
 # --- L2-heading carve-out ------------------------------------------------
 def l2_headings(text: str) -> set[str]:
     return {ln[3:].rstrip() for ln in text.splitlines() if ln.startswith("## ")}
@@ -362,10 +413,17 @@ def carved_char_delta(added: str, removed: str, current: str) -> int:
     in_exempt = False
     exempt_lines = 0
     exempt_chars = 0
+    granted: set[str] = set()  # each new heading gets its budget exactly once
     for line in added.splitlines(keepends=True):
         if line.startswith("## "):
-            head_text = line[3:].rstrip("\r\n")
-            if head_text in new_h:
+            # Same .rstrip() as l2_headings — trailing spaces on the heading
+            # line must not defeat the new_h membership match.
+            head_text = line[3:].rstrip()
+            # Grant once per heading text: a repeated occurrence of the same
+            # "new" heading must NOT reset the budget, else chunking content
+            # under N copies of one heading bypasses the S1 cap entirely.
+            if head_text in new_h and head_text not in granted:
+                granted.add(head_text)
                 in_exempt = True
                 exempt_lines = 0
                 exempt_chars = 0
@@ -395,7 +453,7 @@ def _write_schema_header(log: Path, fields: str) -> None:
     try:
         log.parent.mkdir(parents=True, exist_ok=True)
         with log.open("a", encoding="utf-8") as fh:
-            fh.write(f"# JSONL fields: {fields}\n")
+            fh.write(f"# JSONL fields: {fields} (since 2026-05-08)\n")
     except OSError:
         pass
 
@@ -417,6 +475,36 @@ def append_log(entry: dict, log_path: Path | None) -> None:
         pass
 
 
+def log_signal(entry: dict, log_path: Path | None) -> None:
+    """Log a signal fire to the project log, else the global block log."""
+    append_log(entry, log_path if log_path is not None else GLOBAL_BLOCK_LOG)
+
+
+def emit_advisory(notes: dict[str, str]) -> None:
+    """Feed throttled S2/S3 nudges to Claude via PreToolUse additionalContext.
+
+    No-op when notes is empty (keeps stdout empty per hook I/O rules). Marks each
+    emitted signal fired so it stays silent for the rest of the session — at most
+    one short line per signal per session, so the advisory can't itself drain
+    tokens. Marking happens here, not at detection, so a write that is later
+    BLOCKED by S1 (no emit) doesn't burn the throttle.
+    """
+    if not notes:
+        return
+    msg = (
+        "docs-bloat-gate (advisory — write allowed, not blocked): "
+        + " | ".join(notes.values())
+    )
+    print(json.dumps({
+        "hookSpecificOutput": {
+            "hookEventName": "PreToolUse",
+            "additionalContext": msg,
+        }
+    }))
+    for sig in notes:
+        mark_advisory_fired(sig)
+
+
 def validate_reason(reason: str) -> str | None:
     r = reason.strip()
     if len(r) < SENTINEL_REASON_MIN:
@@ -429,39 +517,24 @@ def validate_reason(reason: str) -> str | None:
 
 
 # --- Signal checks -------------------------------------------------------
-def check_s2(added: str, removed: str) -> int:
-    """S2 — net-added slop phrases. Returns 0 (pass) or 2 (block)."""
+def detect_s2(added: str, removed: str) -> list[str]:
+    """S2 — net-added slop terms. Returns the new terms (empty = clean)."""
     added_counts = slop_hit_counts(added)
     removed_counts = slop_hit_counts(removed)
-    new_hits = sorted(
+    return sorted(
         p for p, n in added_counts.items() if n > removed_counts.get(p, 0)
     )
-    if not new_hits:
-        return 0
-    sys.stderr.write(
-        f"docs-bloat-gate: AI-slop phrases detected: {', '.join(new_hits)}. "
-        "UNBYPASSABLE.\nRemove these phrases - they signal LLM-generated "
-        "bloat regardless of edit size.\n"
-    )
-    return 2
 
 
-def check_s3(added: str, removed: str) -> int:
-    """S3 — lexical density on >100-char additions. Returns 0 or 2."""
+def detect_s3(added: str, removed: str) -> float | None:
+    """S3 — lexical density on >guard additions. Returns density if it trips, else None."""
     char_delta = len(added) - len(removed)
     if char_delta <= DENSITY_DELTA_GUARD:
-        return 0
+        return None
     density = lexical_density(added)
     if density >= DENSITY_THRESHOLD:
-        return 0
-    sys.stderr.write(
-        f"docs-bloat-gate: lexical density {density:.2f} below "
-        f"{DENSITY_THRESHOLD} on {char_delta}-char addition. "
-        "Function-word ratio too high - prose is filler-dense. "
-        "UNBYPASSABLE.\nTighten by removing hedges, articles, and "
-        "transition phrases.\n"
-    )
-    return 2
+        return None
+    return density
 
 
 def gate_s1(
@@ -480,7 +553,7 @@ def gate_s1(
     if new_h:
         carved = carved_char_delta(added, removed, current)
         if carved <= cap:
-            append_log({
+            log_signal({
                 "ts": now_iso(),
                 "file": rel,
                 "signal": "S1",
@@ -514,7 +587,7 @@ def gate_s1(
             )
             return 2
         new_count = increment_sentinel_count()
-        append_log({
+        log_signal({
             "ts": now_iso(),
             "file": rel,
             "signal": "S1",
@@ -530,6 +603,15 @@ def gate_s1(
         )
         return 0
 
+    log_signal({
+        "ts": now_iso(),
+        "file": rel,
+        "signal": "S1",
+        "bypass_type": "block",
+        "char_delta": char_delta,
+        "session_id": session_id(),
+        "tool": tool,
+    }, cfg["log_path"])
     sys.stderr.write(
         f"docs-bloat-gate: char_delta={char_delta} exceeds cap={cap} "
         f"({tier} tier, file={rel}).\nOptions:\n"
@@ -539,7 +621,7 @@ def gate_s1(
         f"{NEW_SECTION_CHAR_EXEMPT} chars exempt)\n"
         "  3. Override: <!-- docs-bloat-gate-override: "
         f"<reason >={SENTINEL_REASON_MIN} chars, no stopwords> -->\n"
-        f"     WARNING: {SENTINEL_CAP} sentinel per session. After use, all "
+        f"     WARNING: {SENTINEL_CAP} sentinels per session. After the cap, all "
         "further edits\n"
         "     to gated docs hard-block until next session.\n"
         f"Sentinels used this session: {used}/{SENTINEL_CAP}.\n"
@@ -573,26 +655,68 @@ def handle_write_edit(payload: dict, tool: str) -> int:
         except (OSError, UnicodeDecodeError):
             removed = ""
 
-    # S2 + S3 always run on .md writes regardless of project.
-    rc = check_s2(added, removed)
-    if rc:
-        return rc
-    rc = check_s3(added, removed)
-    if rc:
-        return rc
-
-    # Below: opt-in checks (S1, W1.1) — require project_dir.
+    # Resolve project up front so S2/S3 log entries use a project-relative path
+    # consistent with S1 entries that share the global block log (cheap: env +
+    # is_dir, no config read). load_config is still deferred to the S1 path.
     proj = project_dir_or_none()
+    log_file = (relpath_in(proj, file_path) or file_path) if proj else file_path
+
+    # S2 + S3 are advisory: detect, log every fire (unthrottled), collect a
+    # throttled one-line nudge per signal. They never block — the write proceeds
+    # and notes are emitted via additionalContext on whichever exit path allows.
+    notes: dict[str, str] = {}
+    s2_hits = detect_s2(added, removed)
+    if s2_hits:
+        log_signal({
+            "ts": now_iso(),
+            "file": log_file,
+            "signal": "S2",
+            "bypass_type": "advisory",
+            "char_delta": len(added) - len(removed),
+            "hits": s2_hits,
+            "session_id": session_id(),
+            "tool": tool,
+        }, None)
+        if not advisory_fired("S2"):
+            notes["S2"] = (
+                f"slop term(s) added: {', '.join(s2_hits)} — trim on a later pass."
+            )
+    s3_density = detect_s3(added, removed)
+    if s3_density is not None:
+        log_signal({
+            "ts": now_iso(),
+            "file": log_file,
+            "signal": "S3",
+            "bypass_type": "advisory",
+            "char_delta": len(added) - len(removed),
+            "density": round(s3_density, 2),
+            "session_id": session_id(),
+            "tool": tool,
+        }, None)
+        if not advisory_fired("S3"):
+            notes["S3"] = (
+                f"lexical density {s3_density:.2f} below {DENSITY_THRESHOLD} "
+                "(filler-dense prose) — tighten on a later pass."
+            )
+
+    # Below: opt-in BLOCKING checks (S1, W1.1) — require project_dir (resolved above).
     if proj is None:
+        emit_advisory(notes)
         return 0
 
     rel = relpath_in(proj, file_path)
     if rel is None:
+        emit_advisory(notes)
         return 0
 
     cfg = load_config(proj)
 
-    # W1.1 — block new audit-style files at docs/ root (depth=1, not gated).
+    # W1.1 — advisory nudge on a new audit-style file at docs/ root (depth=1,
+    # not gated). Formerly BLOCKED: to clear the block you had to re-Write the
+    # whole file with an override sentinel, so a one-word body mention of
+    # "analysis"/"report"/… cost a full-file re-emit. Now warns once/session
+    # like S2/S3 — the write proceeds and the fire is logged (unthrottled) so
+    # the convention stays tunable from the log.
     if (
         tool == "Write"
         and cfg["audit_root_check"]
@@ -602,17 +726,29 @@ def handle_write_edit(payload: dict, tool: str) -> int:
         and rel not in cfg["gated_docs"]
     ):
         content = ti.get("content", "")
-        if AUDIT_KEYWORDS_RE.search(content) and not OVERRIDE_RE.search(content):
-            sys.stderr.write(
-                "docs-bloat-gate: new docs/*.md root file with "
-                "audit/analysis/report/research keywords. Move to "
-                "docs/analysis/ (gitignored), use a docs/ subdir, or add "
-                f"<!-- docs-bloat-gate-override: <reason >={SENTINEL_REASON_MIN} "
-                "chars> -->.\n"
-            )
-            return 2
+        if AUDIT_KEYWORDS_RE.search(content):
+            log_signal({
+                "ts": now_iso(),
+                "file": rel,
+                "signal": "W1",
+                "bypass_type": "advisory",
+                "char_delta": len(added) - len(removed),
+                "session_id": session_id(),
+                "tool": tool,
+            }, cfg["log_path"])
+            if not advisory_fired("W1"):
+                notes["W1"] = (
+                    "new audit-style docs/ root file — consider docs/analysis/ "
+                    "(gitignored) or a docs/ subdir on a later pass."
+                )
 
     if not is_gated_path(rel, cfg):
+        emit_advisory(notes)
+        return 0
+
+    # Brand-new gated file: creation isn't bloat-growth — exempt from the S1 cap.
+    if tool == "Write" and not (proj / rel).exists():
+        emit_advisory(notes)
         return 0
 
     try:
@@ -620,7 +756,11 @@ def handle_write_edit(payload: dict, tool: str) -> int:
     except (OSError, UnicodeDecodeError):
         current = ""
 
-    return gate_s1(rel, added, removed, current, tool, cfg)
+    rc = gate_s1(rel, added, removed, current, tool, cfg)
+    if rc:
+        return rc
+    emit_advisory(notes)
+    return 0
 
 
 def handle_bash(payload: dict) -> int:
@@ -637,7 +777,8 @@ def handle_bash(payload: dict) -> int:
     if not patterns:
         return 0
 
-    matches = [m for pat in patterns for m in pat.findall(cmd)]
+    scan_cmd = strip_heredoc_bodies(cmd)
+    matches = [m for pat in patterns for m in pat.findall(scan_cmd)]
     if not matches:
         return 0
 
@@ -658,7 +799,7 @@ def handle_bash(payload: dict) -> int:
             )
             return 2
         new_count = increment_sentinel_count()
-        append_log({
+        log_signal({
             "ts": now_iso(),
             "file": "|".join(sorted(set(matches))),
             "signal": "S1",
