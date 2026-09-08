@@ -4,6 +4,7 @@ Covers the plan's Verification section: the exact tail-reader, the block/silent
 paths, the headline compaction regression (the case the old `bytes/4` proxy
 false-fired on), empty/garbage tails, and fail-open. Run with `pytest`.
 """
+
 from __future__ import annotations
 
 import json
@@ -12,16 +13,21 @@ import sys
 from pathlib import Path
 
 
-def _assistant_turn(input_tokens: int = 0, cache_creation: int = 0,
-                    cache_read: int = 0) -> str:
-    return json.dumps({
-        "type": "assistant",
-        "message": {"usage": {
-            "input_tokens": input_tokens,
-            "cache_creation_input_tokens": cache_creation,
-            "cache_read_input_tokens": cache_read,
-        }},
-    })
+def _assistant_turn(
+    input_tokens: int = 0, cache_creation: int = 0, cache_read: int = 0
+) -> str:
+    return json.dumps(
+        {
+            "type": "assistant",
+            "message": {
+                "usage": {
+                    "input_tokens": input_tokens,
+                    "cache_creation_input_tokens": cache_creation,
+                    "cache_read_input_tokens": cache_read,
+                }
+            },
+        }
+    )
 
 
 def _write_jsonl(path: Path, lines: list[str]) -> Path:
@@ -29,48 +35,73 @@ def _write_jsonl(path: Path, lines: list[str]) -> Path:
     return path
 
 
-def _run_hook(hook_path: Path, transcript: Path, command: str = "git commit -m x",
-              session_id: str = "test-session") -> subprocess.CompletedProcess[str]:
-    payload = json.dumps({
-        "tool_name": "Bash",
-        "tool_input": {"command": command},
-        "transcript_path": str(transcript),
-        "session_id": session_id,
-    })
-    return subprocess.run([sys.executable, str(hook_path)], input=payload,
-                          capture_output=True, text=True)
+def _run_hook(
+    hook_path: Path,
+    transcript: Path,
+    command: str = "git commit -m x",
+    session_id: str = "test-session",
+) -> subprocess.CompletedProcess[str]:
+    payload = json.dumps(
+        {
+            "tool_name": "Bash",
+            "tool_input": {"command": command},
+            "transcript_path": str(transcript),
+            "session_id": session_id,
+        }
+    )
+    return subprocess.run(
+        [sys.executable, str(hook_path)], input=payload, capture_output=True, text=True
+    )
 
 
-def _fired(result: subprocess.CompletedProcess[str]) -> bool:
-    """True iff the hook emitted the budget wrap-up reminder."""
+def _context(result: subprocess.CompletedProcess[str]) -> str:
+    """The additionalContext the hook injected (empty string if it stayed silent)."""
     assert result.returncode == 0, f"non-zero exit {result.returncode}: {result.stderr}"
     out = result.stdout.strip()
     if not out:
-        return False
-    ctx = json.loads(out).get("hookSpecificOutput", {}).get("additionalContext", "")
-    return "impag-budget" in ctx
+        return ""
+    return json.loads(out).get("hookSpecificOutput", {}).get("additionalContext", "")
+
+
+def _fired(result: subprocess.CompletedProcess[str]) -> bool:
+    """True iff the hook emitted ANY budget band (soft FYI or the hard stop)."""
+    return "impag-budget" in _context(result)
+
+
+def _hard_fired(result: subprocess.CompletedProcess[str]) -> bool:
+    """True iff the hook emitted the 130k hard-stop wrap-up (not a soft band).
+
+    The hard band is the only one carrying "WRAP UP"; the soft bands lead with
+    "Budget FYI". This distinction is what lets the boundary tests guard the
+    130k threshold specifically, now that soft bands fire below it.
+    """
+    return "WRAP UP" in _context(result)
 
 
 # --- read_last_turn_context (unit) ---
 
+
 def test_exact_sum_of_usage_fields(budget_hook, tmp_path):
-    t = _write_jsonl(tmp_path / "t.jsonl",
-                     [_assistant_turn(50_000, 60_000, 25_000)])
+    t = _write_jsonl(tmp_path / "t.jsonl", [_assistant_turn(50_000, 60_000, 25_000)])
     assert budget_hook.read_last_turn_context(t) == 135_000
 
 
 def test_reads_last_assistant_turn_not_an_earlier_one(budget_hook, tmp_path):
-    t = _write_jsonl(tmp_path / "t.jsonl", [
-        _assistant_turn(200_000, 0, 0),
-        '{"type": "user", "message": {}}',
-        _assistant_turn(10_000, 5_000, 5_000),  # last turn = 20k
-    ])
+    t = _write_jsonl(
+        tmp_path / "t.jsonl",
+        [
+            _assistant_turn(200_000, 0, 0),
+            '{"type": "user", "message": {}}',
+            _assistant_turn(10_000, 5_000, 5_000),  # last turn = 20k
+        ],
+    )
     assert budget_hook.read_last_turn_context(t) == 20_000
 
 
 def test_no_assistant_turn_returns_zero(budget_hook, tmp_path):
-    t = _write_jsonl(tmp_path / "t.jsonl",
-                     ['{"type": "user", "message": {}}', "not json", ""])
+    t = _write_jsonl(
+        tmp_path / "t.jsonl", ['{"type": "user", "message": {}}', "not json", ""]
+    )
     assert budget_hook.read_last_turn_context(t) == 0
 
 
@@ -85,22 +116,51 @@ def test_empty_file_returns_zero(budget_hook, tmp_path):
 
 # --- end-to-end (stdin payload -> hook subprocess) ---
 
+
 def test_block_path_fires_at_or_above_threshold(budget_hook_path, tmp_path):
-    t = _write_jsonl(tmp_path / "t.jsonl",
-                     [_assistant_turn(50_000, 60_000, 25_000)])  # 135k
+    t = _write_jsonl(
+        tmp_path / "t.jsonl", [_assistant_turn(50_000, 60_000, 25_000)]
+    )  # 135k
     assert _fired(_run_hook(budget_hook_path, t)) is True
 
 
-def test_block_path_fires_exactly_at_threshold(budget_hook_path, tmp_path):
-    """Boundary: 130k exactly must fire (guards against >= drifting to >)."""
-    t = _write_jsonl(tmp_path / "t.jsonl",
-                     [_assistant_turn(130_000, 0, 0)])  # exactly HARD_STOP_TOKENS
-    assert _fired(_run_hook(budget_hook_path, t)) is True
+def test_hard_stop_fires_exactly_at_threshold(budget_hook_path, tmp_path):
+    """Boundary: 130k exactly must fire the HARD stop (guards >= drifting to >).
+
+    Asserting the hard band specifically matters now that soft bands fire below
+    130k: a plain "did anything fire?" check would pass even if the hard
+    threshold silently drifted, because the 115k soft band would still emit.
+    """
+    t = _write_jsonl(
+        tmp_path / "t.jsonl", [_assistant_turn(130_000, 0, 0)]
+    )  # exactly HARD_STOP_TOKENS
+    assert _hard_fired(_run_hook(budget_hook_path, t)) is True
 
 
-def test_silent_just_below_threshold(budget_hook_path, tmp_path):
-    """Boundary: 129,999 must stay silent."""
+def test_hard_stop_silent_just_below_threshold(budget_hook_path, tmp_path):
+    """Boundary: 129,999 must NOT fire the hard stop (it fires a soft band).
+
+    Under the graduated bands 129,999 crosses the 115k soft FYI but stays below
+    the 130k wall, so the hard wrap-up must not fire while a soft band does.
+    """
     t = _write_jsonl(tmp_path / "t.jsonl", [_assistant_turn(129_999, 0, 0)])
+    result = _run_hook(budget_hook_path, t)
+    assert _hard_fired(result) is False
+    assert _fired(result) is True  # the 115k soft band still fires
+
+
+def test_soft_band_fires_below_hard_stop(budget_hook_path, tmp_path):
+    """A soft FYI fires between 80k and 130k and is NOT the wrap-up stop."""
+    t = _write_jsonl(tmp_path / "t.jsonl", [_assistant_turn(90_000, 0, 0)])
+    result = _run_hook(budget_hook_path, t)
+    assert _fired(result) is True
+    assert _hard_fired(result) is False
+    assert "Budget FYI" in _context(result)
+
+
+def test_silent_below_lowest_band(budget_hook_path, tmp_path):
+    """Boundary: below the 80k first band the hook stays fully silent."""
+    t = _write_jsonl(tmp_path / "t.jsonl", [_assistant_turn(79_999, 0, 0)])
     assert _fired(_run_hook(budget_hook_path, t)) is False
 
 
@@ -110,7 +170,7 @@ def test_compaction_regression_stays_silent(budget_hook_path, tmp_path):
     """
     lines = [_assistant_turn(190_000, 5_000, 5_000) for _ in range(50)]
     lines += ["x" * 2000 for _ in range(400)]  # pad file well past the byte floor
-    lines.append(_assistant_turn(60_000, 20_000, 10_000))  # post-compact = 90k
+    lines.append(_assistant_turn(40_000, 10_000, 10_000))  # post-compact = 60k
     t = _write_jsonl(tmp_path / "t.jsonl", lines)
     assert t.stat().st_size > 400_000  # exceeds FALLBACK_PROBE_BYTES
     # Both trigger paths must stay silent.
