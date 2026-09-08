@@ -36,11 +36,16 @@ check.
    reported `usage` from the transcript tail (`input_tokens +
    cache_creation_input_tokens + cache_read_input_tokens`). Compaction-aware and
    bounded - reads only the final 64 KB, never the whole file.
-3. **Hard-stop at 130k tokens** - silent below that by design; at >=130k it
-   injects (via the `additionalContext` JSON envelope, because plain
-   `PostToolUse` stdout reaches only the Ctrl-R transcript, not Claude's context)
-   a wrap-up reminder: finish in-flight work, save remaining tasks to project
-   state, then run code review then finishing-a-development-branch then retro.
+3. **Four graduated bands**, each firing once per session and only on the way
+   up - three soft notices at 80k, 100k and 115k tokens that say *keep going, no
+   action*, then a hard stop at 130k. Silent below 80k by design. Every band
+   injects via the `additionalContext` JSON envelope, because plain `PostToolUse`
+   stdout reaches only the Ctrl-R transcript, not Claude's context. The hard
+   band's text is the operative one: do not start a new task, finish in-flight
+   work, save remaining tasks to project state, then run code review, then finish
+   the branch - and *record* a retro as owed rather than running one, because a
+   retro at 130k costs more than it captures. A measured drop far below the
+   session highwater is read as a compaction and re-arms the bands.
 4. **Fail-open** - any error exits 0; never blocks a commit.
 
 The hook and `statusline.sh` **share the 130k mark _and_ the measurement**
@@ -73,5 +78,5 @@ echo "exit code: $?"   # slop is advisory now: exit 0 + a JSON additionalContext
 
 Hook behaviour is pinned by a pytest suite in `tests/` (run `pytest` from the
 repo root). `tests/test_impag_budget_check.py` covers the budget governor:
-the exact tail-reader, the block/silent thresholds, the compaction regression,
-and fail-open. Add cases there rather than scripting throwaway checks.
+the exact tail-reader, the hard-stop and soft-band thresholds, the boundary
+below the lowest band, the compaction regression, and fail-open. Add cases there rather than scripting throwaway checks.

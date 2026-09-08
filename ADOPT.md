@@ -101,7 +101,9 @@ cp -r .claude/skills/* ~/.claude/skills/
 ```
 
 `condense`, `de-bloat`, and `claude-md-progressive-disclosurer` are the
-context-hygiene trio; `impag` showcases the parallel-subagent fan-out. The rest
+context-hygiene trio; `impag` showcases the parallel-subagent fan-out, and
+`qimpag` is its questions-first variant (one interactive round, then the same
+full-auto run). The rest
 are bundled exemplars: `config-reuse`, `install-skill`, and `skills-discovery`
 manage Claude config and skills (the acquisition side of a copy-in catalog);
 `reflect` and `retro` are end-of-session hygiene; `senior-architect`,

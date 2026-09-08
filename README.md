@@ -176,10 +176,10 @@ deeper prose for the two mechanisms that don't fit a cell is below the table.
 | `pre-compact.py` | Insurance copy before a compaction | `PreCompact` hook snapshots transcript + plan/todo to a sidecar | Runs on every compaction |
 | `post-compact-restore.py` | Re-orient cheaply after compaction | `SessionStart` hook prints the newest snapshot's recovery pointer | Runs on compact/resume |
 | `docs-bloat-gate.py` | Keep bloated `.md` from entering context | `PreToolUse` hook on Write/Edit/Bash; signals (slop / density / new-audit-file advisory, size ratchet blocks) | Slop/density/new-file warn via a throttled nudge; only the opt-in size ratchet blocks (bypassable) |
-| `impag-budget-check.py` | Stop a long run before the context cliff | `PostToolUse` hook on Bash; exact token read, hard-stop at 130k | Interrupts mid-run at the threshold |
+| `impag-budget-check.py` | Stop a long run before the context cliff | `PostToolUse` hook on Bash; exact token read; three soft FYI heads-ups at 80k/100k/115k, then the 130k hard-stop wrap-up | Only the 130k band interrupts; the soft bands just nudge |
 | `statusline.sh` | Show live context %, cost, distance-to-stop | Reads Claude Code's statusline JSON; needs `jq` + `git` | Negligible |
 | `settings.json` | Wire the 4 hooks | Matcher → script entries | One-time hand-merge |
-| Skills (×26) | Context-hygiene core + config/session/quality/thinking exemplars | Hygiene core (`condense`, `de-bloat`, `claude-md-progressive-disclosurer`, `impag`); exemplar groups: config & skill mgmt, session hygiene, design & critique, code quality & dev workflow, Kaizen improvement, writing & AI-text | Skill body loads when matched |
+| Skills (×27) | Context-hygiene core + config/session/quality/thinking exemplars | Hygiene core (`condense`, `de-bloat`, `claude-md-progressive-disclosurer`, `impag`, `qimpag`); exemplar groups: config & skill mgmt, session hygiene, design & critique, code quality & dev workflow, Kaizen improvement, writing & AI-text | Skill body loads when matched |
 | `.claudeignore` | Keep archived plans out of context | Lists paths the harness skips | None |
 
 ## 🚦 The budget governor (detail)
@@ -187,9 +187,12 @@ deeper prose for the two mechanisms that don't fit a cell is below the table.
 `impag-budget-check.py` is a `PostToolUse` hook on `Bash` that makes a long
 `/impag` run stop taking new work before the session hits its context cliff. It
 reads the **exact, compaction-aware** token count from the transcript tail
-(no estimate, no dependency) and hard-stops at 130k: silent below, a wrap-up
-reminder at or above. It fails open - any error exits 0 and never blocks a
-commit. Why it and `statusline.sh` are pinned to the *same* 130k mark and
+(no estimate, no dependency) and emits four graduated bands as context grows:
+mild FYI heads-ups at ~80k, ~100k, and ~115k that lead with *keep going*, then
+the 130k hard-stop wrap-up reminder. It's silent below ~80k, each soft band
+fires once, and the 130k band re-nags on every commit past the wall. The soft
+bands never make the token count a reason to stop - only the 130k band does. It
+fails open - any error exits 0 and never blocks a commit. Why it and `statusline.sh` are pinned to the *same* 130k mark and
 measurement is explained in
 **[`.claude/hooks/README.md`](.claude/hooks/README.md)**.
 
@@ -198,16 +201,18 @@ the conversation:
 
 ```
 WRAP UP: do not start a new task. Finish what's in flight, save any remaining
-tasks to memory, then review the code, close the branch, and run a retro.
+tasks to project state, then review the code and close the branch - and record
+the retro as owed for the next session rather than running it at this context.
 ```
 
 **What actually happened** when it fired in two real runs:
 
 - *Mid-task:* "fired at 130k, current task is done and tests pass" → committed
   that task, wrote the leftover work to a notes file, ran a code review, closed
-  the branch, did the retro. It did **not** pick up anything new.
+  the branch, and recorded the retro as owed for the next session. It did
+  **not** pick up anything new.
 - *Already finishing up:* "noted, already wrapping up" → committed the last
-  change and carried on closing the branch and writing the retro.
+  change and carried on closing the branch, leaving the retro marked as owed.
 
 Either way the run lands what's in flight and stops, so the next session opens on
 a committed, written-down state - instead of auto-compaction eventually kicking
@@ -215,7 +220,7 @@ in and silently dropping detail that mattered.
 
 ## 🧠 The skills (detail)
 
-Twenty-six `/<name>` skills ship in `.claude/skills/`. The first group is the
+Twenty-seven `/<name>` skills ship in `.claude/skills/`. The first group is the
 context-hygiene set this repo is really about; the rest are bundled exemplars
 across config management, session hygiene, code quality & dev workflow, Kaizen
 improvement, and general thinking tools. Skill bodies load only when you invoke
@@ -238,6 +243,10 @@ them, so they cost nothing until used.
 - **`impag`** - implement a plan using parallel subagents, full-auto, never
   stopping to ask. Takes a plan file path (defaults to the newest in
   `docs/plans/`). The fan-out executor the other skills hand their plans to.
+- **`qimpag`** (invoke only via `/qimpag`) - questions-first variant of `impag`:
+  it launches `impag` unchanged but injects one interactive `AskUserQuestion`
+  round once the target plan/stage is resolved, so the questions are grounded in
+  the concrete work before execution begins.
 
 **Config & skill management** - the acquisition side of a copy-in catalog:
 
