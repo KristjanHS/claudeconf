@@ -55,8 +55,6 @@
     "padding": 0
   },
   "permissions": {
-    "deny": [
-      "Read(./docs/plans/archive/**)"
-    ]
+    "deny": []
   }
 }
