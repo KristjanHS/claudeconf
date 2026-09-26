@@ -51,6 +51,9 @@ class Result:
     unchanged: list[str] = field(default_factory=list)
     refused: list[tuple[str, str]] = field(default_factory=list)
     drift: list[str] = field(default_factory=list)
+    broken: list[str] = field(
+        default_factory=list
+    )  # config errors: drift in --check, never HELD
 
 
 def read_list(path: Path) -> list[str]:
@@ -204,12 +207,15 @@ def run(root: Path, dotfiles: Path, mode: str) -> tuple[Result, list[str], list[
     for dst, src in files:
         if not dst:
             res.refused.append((src, "missing in dotfiles HEAD"))
+            res.broken.append(src)
             continue
         if dst in NEVER_SYNC:
             res.refused.append((dst, "NEVER_SYNC teaching skeleton"))
+            res.broken.append(dst)
             continue
         if terms is None:
             res.refused.append((dst, f"{TERMS} missing in dotfiles HEAD (fail closed)"))
+            res.broken.append(dst)
             continue
         try:
             raw = head.read(src).decode()
@@ -276,15 +282,19 @@ def main(argv: list[str] | None = None) -> int:
     for dst in res.changed:
         print(f"{verb} {dst}")
     for dst, why in res.refused:
-        print(f"{'HELD' if mode == 'check' else 'REFUSED'} {dst}: {why}")
+        held = mode == "check" and dst not in res.broken
+        print(f"{'HELD' if held else 'REFUSED'} {dst}: {why}")
     for p in props:
         print(f"not published — add to manifest? {p}")
     for a in advisories:
         print(f"advisory: dangling cite {a}")
 
     if mode == "check":
-        print(f"drift: {len(res.drift)} drifted, {len(res.refused)} held")
-        return 1 if res.drift else 0
+        n_held = len(res.refused) - len(res.broken)
+        print(
+            f"drift: {len(res.drift)} drifted, {n_held} held, {len(res.broken)} broken"
+        )
+        return 1 if res.drift or res.broken else 0
     print(
         f"sync: {len(res.changed)} changed, {len(res.unchanged)} unchanged, "
         f"{len(res.refused)} refused"

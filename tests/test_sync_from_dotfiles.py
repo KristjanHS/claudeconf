@@ -219,7 +219,7 @@ def test_check_clean_after_sync(repos, capsys):
     run(root)
     capsys.readouterr()
     assert run(root, "--check") == 0
-    assert "drift: 0 drifted, 0 held" in capsys.readouterr().out
+    assert "drift: 0 drifted, 0 held, 0 broken" in capsys.readouterr().out
 
 
 def test_check_flags_hand_edit(repos, capsys):
@@ -239,6 +239,26 @@ def test_check_held_file_warns_exit_0(repos, capsys):
     capsys.readouterr()
     assert run(root, "--check") == 0
     assert "HELD .claude/rules/a.md" in capsys.readouterr().out
+
+
+def test_check_missing_source_is_drift_not_held(repos, capsys):
+    _, root = repos
+    run(root)
+    with (root / sync.MANIFEST).open("a") as fh:
+        fh.write(".claude/rules/gone.md <- claude/.claude/rules/gone.md\n")
+    capsys.readouterr()
+    assert run(root, "--check") == 1
+    assert "REFUSED claude/.claude/rules/gone.md: missing" in capsys.readouterr().out
+
+
+def test_check_missing_terms_is_drift_not_held(repos, capsys):
+    dot, root = repos
+    run(root)
+    git(dot, "rm", "-q", sync.TERMS)
+    git(dot, "-c", "user.name=t", "-c", "user.email=t@t", "commit", "-qm", "rm")
+    capsys.readouterr()
+    assert run(root, "--check") == 1
+    assert "0 held, 4 broken" in capsys.readouterr().out
 
 
 def test_check_skips_without_dotfiles(tmp_path, monkeypatch, capsys):
