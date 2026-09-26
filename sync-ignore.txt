@@ -1,0 +1,11 @@
+# Dotfiles paths kept out of `make sync`'s "add to manifest?" proposals — personal, not teaching material.
+claude/.claude/references/claude-models.md
+claude/.claude/references/claude-code-persistence.md
+claude/.claude/references/devcontainer-recovery.md
+claude/.claude/rules/claude-code-persistence.md
+claude/.claude/rules/devcontainer.md
+claude/.claude/rules/dotfile-symlinks.md
+claude/.claude/commands/syncwt.md
+claude/.claude/commands/wimpag.md
+claude/.claude/hooks/session-start-forensic-nudge.py
+claude/.claude/hooks/stop-forensic.py

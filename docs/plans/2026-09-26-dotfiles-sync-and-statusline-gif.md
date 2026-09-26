@@ -19,6 +19,8 @@ Run from a **claudeconf-cwd session** (`/qimpag`). Touches three repos: claudeco
 - **D1:** private terms = the private app repo + employer prefix (+ user adds); `ai-coding-journey` is nameable, not a term.
 - **D2:** a held (refused) file **warns** — `--check` prints `HELD <path>` and exits 0; the stale copy stays.
 - **D3:** publish `.claude/lib/docs_quality.py` — it joins the manifest.
+- **D4:** a dir mirror adds + updates, **never deletes**; claudeconf-only extras (21 in 5 skill dirs) are not drift.
+- **D5:** `sync-ignore.txt` = the personal set only (models, devcontainer, persistence, symlinks, syncwt/wimpag, forensic hooks).
 
 ## Recon (2026-09-26)
 
@@ -49,11 +51,11 @@ Run from a **claudeconf-cwd session** (`/qimpag`). Touches three repos: claudeco
 ## Design
 
 - **Engine:** `scripts/sync_from_dotfiles.py` (stdlib, ruff + pytest already gate `scripts/`, `tests/`).
-  Modes: default = sync; `--check` = drift. `DOTFILES` env overrides the `../dotfiles` default.
+  Modes: default = sync; `--check` = drift; `--dry-run` = report, write nothing. `DOTFILES` env overrides the `../dotfiles` default.
 - **Source = dotfiles `HEAD`** (`git show` / `git ls-tree`), never its working tree: uncommitted WIP and
   untracked `__pycache__` can never publish, and the post-commit hook syncs exactly what was committed.
 - **Manifest:** one `<claudeconf path> <- <dotfiles path>` per line; trailing `/` = directory mirror
-  (adds, updates **and deletes** files). `NEVER_SYNC` constant refuses CLAUDE.md/settings.json even if listed.
+  (adds + updates, never deletes — D4). `NEVER_SYNC` constant refuses CLAUDE.md/settings.json even if listed.
 - **Private data stays private:** the term list and rewrite rules name private repos, so they live in
   dotfiles `claudeconf-publish/{private-terms.txt,rewrites.tsv}` (top-level, not in `PACKAGES` → not stowed).
   Missing term list → **fail closed** (refuse all), never open.
@@ -85,7 +87,7 @@ Run from a **claudeconf-cwd session** (`/qimpag`). Touches three repos: claudeco
 - Manifest = 16 core files + 22 skill dirs (+ `lib/docs_quality.py` per D3). `sync-ignore.txt` = dotfiles-only
   files judged personal (e.g. models, devcontainer, persistence refs); it must pass the PII gate itself.
 - Tests use a tmp git repo as fake dotfiles (CI has none): rewrite per suffix, refusal, fail-closed,
-  dir-mirror delete, NEVER_SYNC, idempotence (2nd run = 0 changed), HEAD-not-worktree.
+  dir-mirror keeps extras (D4), NEVER_SYNC, idempotence (2nd run = 0 changed), HEAD-not-worktree.
 - **Verify:** `make test-lint && make test-pytest`; `time python3 scripts/sync_from_dotfiles.py --dry-run`
   (record wall time — it sets the 5.1 hook mode).
 - **Falsifiers:** drop the `.py` refusal branch → its test goes red; point terms at a missing file →
