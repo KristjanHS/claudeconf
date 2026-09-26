@@ -15,6 +15,11 @@
 # shipping anyone's name.
 set -Eeuo pipefail
 
+# Default scans the index (pre-commit). --worktree scans the working tree incl.
+# untracked files — what `make sync` just wrote, before anything is staged.
+scope=(--cached)
+if [ "${1:-}" = --worktree ]; then scope=(--untracked); fi
+
 here="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 allowlist="$here/hardcoded-paths-allowlist.txt"
 
@@ -48,10 +53,9 @@ self_exclusions=(
 
 hits=""
 for pat in "${patterns[@]}"; do
-    # --cached: scan the INDEX (what will actually be committed), not the
-    # working tree — otherwise a `git add`-then-edit could slip PII past the
-    # pre-commit gate. Manual full-tree runs `git add -A` first.
-    found=$(git grep --cached -nIE "$pat" -- \
+    # --cached (default): the INDEX is what will be committed — a `git add`-then-edit
+    # can't slip PII past pre-commit.
+    found=$(git grep "${scope[@]}" -nIE "$pat" -- \
         "${self_exclusions[@]}" "${exclusions[@]}" 2>/dev/null || true)
     [ -n "$found" ] && hits+="$found"$'\n'
 done
