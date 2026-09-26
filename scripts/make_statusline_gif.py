@@ -144,14 +144,16 @@ def main():
             f"frame {i} clipped: {x - MARGIN:.0f}px > {W - PAD_X}"
         )
         frames.append(img)
-    frames[0].save(
+    # Lead with the red frame: static renderers (PDF export, previews) show frame 0.
+    order = [RED_FRAME, *(i for i in range(len(frames)) if i != RED_FRAME)]
+    frames[order[0]].save(
         OUT,
         save_all=True,
-        append_images=frames[1:],
+        append_images=[frames[i] for i in order[1:]],
         # disposal=1 (leave prior frame) keeps the static white border visible:
         # optimize stores only the changed region per frame, so the unchanged
         # border must persist rather than be wiped to background (disposal=2).
-        duration=DURATIONS,
+        duration=[DURATIONS[i] for i in order],
         loop=0,
         optimize=True,
         disposal=1,
