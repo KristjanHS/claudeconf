@@ -3,7 +3,7 @@
 # the same muscle memory. The bodies differ — this repo's suite is pytest over
 # .claude/hooks/*.py, not bats.
 
-.PHONY: help test test-lint test-pytest test-paths advisory docs-report install-hooks
+.PHONY: help test test-lint test-pytest test-paths advisory docs-report install-hooks sync
 
 help:
 	@echo "make test          - run the full verification suite (lint + pytest + PII gate)"
@@ -11,6 +11,7 @@ help:
 	@echo "make test-pytest   - run the pytest suite (tests/)"
 	@echo "make test-paths    - blocking identity/PII scan (same gate as hooks/pre-commit)"
 	@echo "make advisory      - alias for test-paths, kept for dotfiles parity"
+	@echo "make sync          - publish dotfiles HEAD per sync-manifest.txt, then PII + gitleaks gate it"
 	@echo "make docs-report   - advisory size report for instruction files (never blocks)"
 	@echo "make install-hooks - activate the repo's git secret-gate hooks (./install.sh)"
 	@echo "make syncwt|commit|commitwt - shared worktree targets (~/.config/make/worktree.mk)"
@@ -45,6 +46,17 @@ test-paths:
 	@./scripts/check-hardcoded-paths.sh
 
 advisory: test-paths
+
+# Gates run even after a refusal (the engine still wrote the clean files).
+sync:
+	@python3 scripts/sync_from_dotfiles.py; rc=$$?; \
+	./scripts/check-hardcoded-paths.sh --worktree || rc=1; \
+	if command -v gitleaks >/dev/null 2>&1; then \
+		gitleaks dir --no-banner --redact .claude || rc=1; \
+	else \
+		echo "WARNING: gitleaks not installed — skipping credential scan." >&2; \
+	fi; \
+	exit $$rc
 
 # Deliberately NOT a dependency of `test` — a look-at-it-when-you-want report,
 # not a gate. Always exits 0.
