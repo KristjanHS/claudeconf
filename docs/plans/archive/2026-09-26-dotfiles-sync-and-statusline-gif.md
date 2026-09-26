@@ -1,6 +1,6 @@
 # Plan: dotfiles → claudeconf sync, and the statusline GIF regen
 
-Status: **open** — Stages 1–4 done (claudeconf `eb51692..HEAD`, dotfiles `102ee3f`,`ad21282`); next Stage 5 · Created 2026-09-26 · Rulings: user, 2026-09-26 (binding, restated below)
+Status: **✅ SHIPPED** 2026-09-26 — claudeconf `eb51692..HEAD`, dotfiles `102ee3f..cbd2134`, ai-coding-journey `7df203e` · Rulings: user, 2026-09-26 (binding, restated below)
 
 Run from a **claudeconf-cwd session** (`/qimpag`). Touches three repos: claudeconf (stages 1–4, 7),
 `../dotfiles` (1.1, 5), `../ai-coding-journey` (6). Each commits in place on its checked-out branch
