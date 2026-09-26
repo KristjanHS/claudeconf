@@ -17,8 +17,11 @@ set -Eeuo pipefail
 
 # Default scans the index (pre-commit). --worktree scans the working tree incl.
 # untracked files — what `make sync` just wrote, before anything is staged.
-scope=(--cached)
-if [ "${1:-}" = --worktree ]; then scope=(--untracked); fi
+case "${1:-}" in
+    "") scope=(--cached) ;;
+    --worktree) scope=(--untracked) ;;
+    *) echo "usage: $0 [--worktree]" >&2; exit 2 ;;
+esac
 
 here="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 allowlist="$here/hardcoded-paths-allowlist.txt"
@@ -55,8 +58,11 @@ hits=""
 for pat in "${patterns[@]}"; do
     # --cached (default): the INDEX is what will be committed — a `git add`-then-edit
     # can't slip PII past pre-commit.
+    # git grep: 0 = hit, 1 = none, >1 = git error — fail closed on the last.
+    rc=0
     found=$(git grep "${scope[@]}" -nIE "$pat" -- \
-        "${self_exclusions[@]}" "${exclusions[@]}" 2>/dev/null || true)
+        "${self_exclusions[@]}" "${exclusions[@]}") || rc=$?
+    if [ "$rc" -gt 1 ]; then echo "ERROR: git grep failed (rc=$rc) — PII gate cannot vouch" >&2; exit 2; fi
     [ -n "$found" ] && hits+="$found"$'\n'
 done
 
