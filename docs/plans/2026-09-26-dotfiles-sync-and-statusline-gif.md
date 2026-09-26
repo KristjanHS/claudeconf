@@ -1,6 +1,6 @@
 # Plan: dotfiles → claudeconf sync, and the statusline GIF regen
 
-Status: **open** — Stages 1–3 done (claudeconf `eb51692..7075e69`, dotfiles `102ee3f`,`ad21282`); next Stage 4 · Created 2026-09-26 · Rulings: user, 2026-09-26 (binding, restated below)
+Status: **open** — Stages 1–4 done (claudeconf `eb51692..HEAD`, dotfiles `102ee3f`,`ad21282`); next Stage 5 · Created 2026-09-26 · Rulings: user, 2026-09-26 (binding, restated below)
 
 Run from a **claudeconf-cwd session** (`/qimpag`). Touches three repos: claudeconf (stages 1–4, 7),
 `../dotfiles` (1.1, 5), `../ai-coding-journey` (6). Each commits in place on its checked-out branch
@@ -141,7 +141,7 @@ Run from a **claudeconf-cwd session** (`/qimpag`). Touches three repos: claudeco
 
 - **Focus:** `scripts/make_statusline_gif.py` — `FRAMES` gains a 7d column; payload adds
   `rate_limits.seven_day.used_percentage`; rescale for the 300k script: ≈27k, 83k, 147k, 186k,
-  201k (yellow + `/clear soon`), 231k (hero), **252k = 84% red**.
+  201k (yellow + `/clear soon`), 231k (hero), **252k = 84% red**. 7d = 14,15,17,18,19,21,22; model `Opus 5.5` (ruled).
 - Add `RED_FRAME = 6`; `main()` asserts that frame's bar SGR is 31 and its text holds `84%`, and asserts
   every line's drawn width ≤ `W - PAD_X` (the 7d + repo segments lengthen it; widen `W` if needed).
 - **Verify:** `python3 scripts/make_statusline_gif.py` → `docs/statusline.gif (7 frames)`; open frame 6
