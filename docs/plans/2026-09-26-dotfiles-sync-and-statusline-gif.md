@@ -21,6 +21,7 @@ Run from a **claudeconf-cwd session** (`/qimpag`). Touches three repos: claudeco
 - **D3:** publish `.claude/lib/docs_quality.py` — it joins the manifest.
 - **D4:** a dir mirror adds + updates, **never deletes**; claudeconf-only extras (21 in 5 skill dirs) are not drift.
 - **D5:** `sync-ignore.txt` = the personal set only (models, devcontainer, persistence, symlinks, syncwt/wimpag, forensic hooks).
+- **D6 (3.1):** forks = `hooks/README.md`, `docs-bloat-gate.py`, `condense/`, `de-bloat/`; private-app incident details and personal-workflow lines publish as-is.
 
 ## Recon (2026-09-26)
 

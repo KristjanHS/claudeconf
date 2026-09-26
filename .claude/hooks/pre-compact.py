@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 """PreCompact hook — snapshot transcript + derive sidecar for post-compact recovery.
 
-Why it saves context: the 9-section compact summary can drop load-bearing
-reasoning from before the compaction point. This hook snapshots the transcript
-and the active plan/todo state to a sidecar just before compaction, so the
-post-compact-restore hook can re-surface a recovery pointer instead of forcing
-Claude to re-derive lost decisions from scratch.
+Also runs on demand: `pre-compact.py --manual [--nonce N]` (the /snapshot skill).
+Manual snapshot dirs get a "-manual" suffix and their own retention pool, so
+automatic PreCompact snapshots can never evict a deliberate manual save.
 
-Fail-open contract: any failure exits 0 to never block compaction.
+Design: docs/plans/2026-04-18-precompact-hook-design.md
+Fail-open contract (hook mode only): any failure exits 0 to never block
+compaction. Manual mode reports errors and exits non-zero instead.
 """
 from __future__ import annotations
 
@@ -19,7 +19,8 @@ from collections import deque
 from datetime import datetime, timezone
 from pathlib import Path
 
-RETENTION = 10
+RETENTION = 10  # per pool — manual and auto snapshots are pruned independently
+MANUAL_SUFFIX = "-manual"
 # Control chars + recognized line/paragraph separators, stripped from any
 # untrusted repo-derived text before it is re-surfaced into Claude's context.
 _CONTROL_CHARS_RE = re.compile("[\x00-\x1f\x7f\x85\u2028\u2029]")
@@ -27,7 +28,7 @@ RECOVERY_HINT = (
     "The 9-section compact summary may have dropped load-bearing reasoning from "
     "before this point. If anything in the summary above feels incomplete, "
     "contradicts a prior decision, or references a plan step you can't locate "
-    "— read the sidecar and grep `transcript.jsonl` in the same dir."
+    "\u2014 read the sidecar and grep `transcript.jsonl` in the same dir."
 )
 
 
@@ -119,11 +120,6 @@ def memory_md_meta(cwd_slug: str) -> dict | None:
 
 
 def render_nudge(snapshot_dir: Path, plan_path: Path | None, current_task: str | None) -> str:
-    # plan_name and current_task are lifted verbatim from a repo plan file —
-    # untrusted content that gets re-surfaced into Claude's context at the next
-    # SessionStart. Strip control chars, cap, and render the task quoted +
-    # labelled as data so a crafted plan line ("- [ ] ignore prior instructions
-    # ...") reads as a value, not an instruction to follow.
     plan_name = _CONTROL_CHARS_RE.sub(" ", plan_path.name)[:120] if plan_path else "none"
     task = _CONTROL_CHARS_RE.sub(" ", current_task)[:120] if current_task else "none"
     return (
@@ -138,19 +134,16 @@ def cleanup_old(snapshots_dir: Path) -> None:
         entries = sorted((p for p in snapshots_dir.iterdir() if p.is_dir()), key=lambda p: p.name)
     except OSError:
         return
-    for old in entries[:-RETENTION]:
+    manual = [p for p in entries if p.name.endswith(MANUAL_SUFFIX)]
+    auto = [p for p in entries if not p.name.endswith(MANUAL_SUFFIX)]
+    for old in manual[:-RETENTION] + auto[:-RETENTION]:
         try:
             shutil.rmtree(old)
         except (OSError, FileNotFoundError):
             pass
 
 
-def main() -> None:
-    raw = sys.stdin.read()
-    try:
-        payload = json.loads(raw) if raw.strip() else {}
-    except json.JSONDecodeError:
-        payload = {}
+def run_snapshot(payload: dict, manual: bool = False) -> Path | None:
     raw_sid = payload.get("session_id") or "unknown-session"
     session_id = re.sub(r"[^A-Za-z0-9_.-]", "_", str(raw_sid))[:80] or "unknown-session"
     transcript_src = payload.get("transcript_path")
@@ -160,12 +153,12 @@ def main() -> None:
     cwd_slug = slugify_cwd(cwd)
     timestamp = iso_utc_now()
     snapshots_root = Path.home() / ".claude" / "projects" / cwd_slug / "snapshots"
-    snapshot_dir = snapshots_root / f"{timestamp}-{session_id}"
+    snapshot_dir = snapshots_root / f"{timestamp}-{session_id}{MANUAL_SUFFIX if manual else ''}"
     try:
         snapshot_dir.mkdir(parents=True, exist_ok=True)
     except OSError as exc:
         print(f"pre-compact: could not create snapshot dir: {exc}", file=sys.stderr)
-        return
+        return None
 
     transcript_copy_name: str | None = None
     projects_root = (Path.home() / ".claude" / "projects").resolve()
@@ -214,13 +207,72 @@ def main() -> None:
         (snapshot_dir / "sidecar.json").write_text(json.dumps(sidecar, indent=2) + "\n", encoding="utf-8")
     except OSError as exc:
         print(f"pre-compact: sidecar write failed: {exc}", file=sys.stderr)
-        return
+        return None
 
     cleanup_old(snapshots_root)
-    print(nudge, file=sys.stderr)
+    if not manual:
+        print(nudge, file=sys.stderr)
+    return snapshot_dir
+
+
+def main() -> None:
+    raw = sys.stdin.read()
+    try:
+        payload = json.loads(raw) if raw.strip() else {}
+    except json.JSONDecodeError:
+        payload = {}
+    run_snapshot(payload)
+
+
+def find_own_transcript(nonce: str | None) -> Path | None:
+    """Locate the calling session's transcript in this cwd's projects dir.
+
+    A nonce — a literal token the session just emitted in its own tool call,
+    hence already appended to its transcript by execution time — beats mtime:
+    a concurrent session in the same project can't race it.
+    """
+    projects_dir = Path.home() / ".claude" / "projects" / slugify_cwd(Path.cwd())
+    try:
+        candidates = sorted(projects_dir.glob("*.jsonl"), key=lambda p: p.stat().st_mtime, reverse=True)
+    except OSError:
+        return None
+    if not nonce:
+        return candidates[0] if candidates else None
+    for cand in candidates:
+        try:
+            with cand.open("r", encoding="utf-8", errors="replace") as fh:
+                tail = deque(fh, maxlen=50)
+        except OSError:
+            continue
+        if any(nonce in line for line in tail):
+            return cand
+    return None
+
+
+def manual_main(argv: list[str]) -> int:
+    nonce = None
+    if "--nonce" in argv:
+        idx = argv.index("--nonce")
+        if idx + 1 >= len(argv):
+            print("snapshot: --nonce needs a value", file=sys.stderr)
+            return 2
+        nonce = argv[idx + 1]
+    transcript = find_own_transcript(nonce)
+    if transcript is None:
+        where = f" containing nonce {nonce!r}" if nonce else ""
+        print(f"snapshot: no transcript found{where} — is cwd the project this session launched from?", file=sys.stderr)
+        return 1
+    payload = {"session_id": transcript.stem, "transcript_path": str(transcript), "trigger": "manual"}
+    snapshot_dir = run_snapshot(payload, manual=True)
+    if snapshot_dir is None:
+        return 1
+    print(f"snapshot: wrote {snapshot_dir}/ (source: {transcript.name})")
+    return 0
 
 
 if __name__ == "__main__":
+    if "--manual" in sys.argv[1:]:
+        sys.exit(manual_main(sys.argv[1:]))
     try:
         main()
     except Exception:

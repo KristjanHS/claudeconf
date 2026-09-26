@@ -1,6 +1,6 @@
 ---
-name: "senior-architect"
-description: System architecture work — ADRs, tech-stack evaluation, design review, dependency analysis, diagrams.
+name: senior-architect
+description: System architecture — ADRs, tech-stack evaluation, design review.
 ---
 
 # Senior Architect
@@ -163,42 +163,13 @@ Recommendations:
 
 ### Database Selection Workflow
 
-Use when choosing a database for a new project or migrating existing data.
+Use when choosing a database for a new project or migrating existing data. For the SQL/NoSQL decision matrix, database type comparisons, and quick decision flow, see `references/tech_decision_guide.md` (§1 Database Selection).
 
-**Step 1: Identify data characteristics**
-| Characteristic | Points to SQL | Points to NoSQL |
-|----------------|---------------|-----------------|
-| Structured with relationships | ✓ | |
-| ACID transactions required | ✓ | |
-| Flexible/evolving schema | | ✓ |
-| Document-oriented data | | ✓ |
-| Time-series data | | ✓ (specialized) |
-
-**Step 2: Evaluate scale requirements**
-- <1M records, single region → PostgreSQL or MySQL
-- 1M-100M records, read-heavy → PostgreSQL with read replicas
-- >100M records, global distribution → CockroachDB, Spanner, or DynamoDB
-- High write throughput (>10K/sec) → Cassandra or ScyllaDB
-
-**Step 3: Check consistency requirements**
-- Strong consistency required → SQL or CockroachDB
-- Eventual consistency acceptable → DynamoDB, Cassandra, MongoDB
-
-**Step 4: Document decision**
-Create an ADR (Architecture Decision Record) with:
+**Document the decision:** Create an ADR (Architecture Decision Record) with:
 - Context and requirements
 - Options considered
 - Decision and rationale
 - Trade-offs accepted
-
-**Quick reference:**
-```
-PostgreSQL → Default choice for most applications
-MongoDB    → Document store, flexible schema
-Redis      → Caching, sessions, real-time features
-DynamoDB   → Serverless, auto-scaling, AWS-native
-TimescaleDB → Time-series data with SQL interface
-```
 
 ---
 
@@ -240,25 +211,7 @@ See `references/architecture_patterns.md` for detailed pattern descriptions.
 
 ### Monolith vs Microservices Decision
 
-**Choose Monolith when:**
-- [ ] Team is small (<10 developers)
-- [ ] Domain boundaries are unclear
-- [ ] Rapid iteration is priority
-- [ ] Operational complexity must be minimized
-- [ ] Shared database is acceptable
-
-**Choose Microservices when:**
-- [ ] Teams can own services end-to-end
-- [ ] Independent deployment is critical
-- [ ] Different scaling requirements per component
-- [ ] Technology diversity is needed
-- [ ] Domain boundaries are well understood
-
-**Hybrid approach:**
-Start with a modular monolith. Extract services only when:
-1. A module has significantly different scaling needs
-2. A team needs independent deployment
-3. Technology constraints require separation
+See `references/architecture_patterns.md` (§1–3 + decision table) — when-to-use criteria and the extract-when rule live there.
 
 ---
 

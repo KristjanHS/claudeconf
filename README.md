@@ -76,9 +76,9 @@ reports for the turn - the same number the budget governor stops on:
 
 ![statusline render](docs/statusline.png)
 
-The bar turns amber and a red `/clear soon` nudge appears as the turn nears the
-130k mark - the same threshold the budget governor enforces, so the visual
-warning and the automated stop fire off one number:
+The bar turns amber at 200k (red at 240k) of a 300k budget, and a red `/clear soon`
+nudge appears from 195k - amber is the same 200k threshold the budget governor
+enforces, so the visual warning and the automated stop fire off one number:
 
 ![statusline near the budget cliff](docs/statusline2.png)
 
@@ -105,7 +105,7 @@ A skeptic should weigh the tax, not just the upside:
   proceeds and a one-line nudge is fed back, throttled to once per signal per
   session. Only the S1 size ratchet blocks, and only on projects that opt in;
   it's bypassable (N=3 override sentinels per session).
-- **The budget governor interrupts.** At 130k tokens it injects a wrap-up
+- **The budget governor interrupts.** At 200k tokens it injects a wrap-up
   reminder mid-run, whether or not you were ready to stop.
 - **Setup is hand-work.** You merge a `settings.json` hooks block yourself and
   maintain the pytest suite. There is no auto-merge, by design (it's the most
@@ -115,7 +115,7 @@ A skeptic should weigh the tax, not just the upside:
 
 - The bloat gate **false-positives** on legitimately dense writing - a genuinely
   information-rich doc can trip the density floor.
-- Some tasks **legitimately need >130k tokens**; the governor's wrap-up nudge
+- Some tasks **legitimately need >200k tokens**; the governor's wrap-up nudge
   fights you there. Raise the threshold or skip the hook.
 - **None of this helps if you weren't going to run a long agent session
   anyway.** The whole catalog presupposes sessions long enough for context to
@@ -176,8 +176,8 @@ deeper prose for the two mechanisms that don't fit a cell is below the table.
 | `pre-compact.py` | Insurance copy before a compaction | `PreCompact` hook snapshots transcript + plan/todo to a sidecar | Runs on every compaction |
 | `post-compact-restore.py` | Re-orient cheaply after compaction | `SessionStart` hook prints the newest snapshot's recovery pointer | Runs on compact/resume |
 | `docs-bloat-gate.py` | Keep bloated `.md` from entering context | `PreToolUse` hook on Write/Edit/Bash; signals (slop / density / new-audit-file advisory, size ratchet blocks) | Slop/density/new-file warn via a throttled nudge; only the opt-in size ratchet blocks (bypassable) |
-| `impag-budget-check.py` | Stop a long run before the context cliff | `PostToolUse` hook on Bash; exact token read; three soft FYI heads-ups at 80k/100k/115k, then the 130k hard-stop wrap-up | Only the 130k band interrupts; the soft bands just nudge |
-| `statusline.sh` | Show live context %, cost, distance-to-stop | Reads Claude Code's statusline JSON; needs `jq` + `git` | Negligible |
+| `impag-budget-check.py` | Stop a long run before the context cliff | `PostToolUse` hook on Bash; exact token read; three soft FYI heads-ups at 120k/150k/175k, then the 200k hard-stop wrap-up | Only the 200k band interrupts; the soft bands just nudge |
+| `statusline.sh` | Show live context %, cost, distance-to-stop, 5h + 7d limits | Reads Claude Code's statusline JSON; needs `jq` + `git` | Negligible |
 | `settings.json` | Wire the 4 hooks | Matcher → script entries | One-time hand-merge |
 | Skills (×27) | Context-hygiene core + config/session/quality/thinking exemplars | Hygiene core (`condense`, `de-bloat`, `claude-md-progressive-disclosurer`, `impag`, `qimpag`); exemplar groups: config & skill mgmt, session hygiene, design & critique, code quality & dev workflow, Kaizen improvement, writing & AI-text | Skill body loads when matched |
 | `.claudeignore` | Keep archived plans out of context | Lists paths the harness skips | None |
@@ -188,11 +188,11 @@ deeper prose for the two mechanisms that don't fit a cell is below the table.
 `/impag` run stop taking new work before the session hits its context cliff. It
 reads the **exact, compaction-aware** token count from the transcript tail
 (no estimate, no dependency) and emits four graduated bands as context grows:
-mild FYI heads-ups at ~80k, ~100k, and ~115k that lead with *keep going*, then
-the 130k hard-stop wrap-up reminder. It's silent below ~80k, each soft band
-fires once, and the 130k band re-nags on every commit past the wall. The soft
-bands never make the token count a reason to stop - only the 130k band does. It
-fails open - any error exits 0 and never blocks a commit. Why it and `statusline.sh` are pinned to the *same* 130k mark and
+mild FYI heads-ups at ~120k, ~150k, and ~175k that lead with *keep going*, then
+the 200k hard-stop wrap-up reminder. It's silent below ~120k, each soft band
+fires once, and the 200k band re-nags on every commit past the wall. The soft
+bands never make the token count a reason to stop - only the 200k band does. It
+fails open - any error exits 0 and never blocks a commit. Why it and `statusline.sh` are pinned to the *same* 200k mark and
 measurement is explained in
 **[`.claude/hooks/README.md`](.claude/hooks/README.md)**.
 

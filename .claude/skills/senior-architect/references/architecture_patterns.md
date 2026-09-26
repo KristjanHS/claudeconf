@@ -68,6 +68,8 @@ monolith/
 - Already need independent deployment
 - Teams can't coordinate releases
 
+**Extract a module to a service only when:** it has significantly different scaling needs, a team needs independent deployment, or technology constraints require separation.
+
 **Trade-offs:**
 | Pros | Cons |
 |------|------|

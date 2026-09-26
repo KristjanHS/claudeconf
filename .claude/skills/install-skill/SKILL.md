@@ -1,6 +1,6 @@
 ---
 name: install-skill
-description: Install a Claude skill from a GitHub URL or repo path into ~/.claude/skills/.
+description: Install a Claude skill from a GitHub URL or path.
 ---
 
 # Install Skill
@@ -23,8 +23,8 @@ Installs a skill from GitHub into `~/.claude/skills/` so Claude Code picks it up
    - If `SKILL.md` is listed: proceed.
 
 3. Run `scripts/install.sh <owner/repo> [skill_path]` — the repo is always passed as a single `owner/repo` argument, with the subpath as an optional second argument.
-4. **Vendor-strip the new SKILL.md before promoting.** Open the installed `SKILL.md` and remove these vendor frontmatter fields if present (they pad always-loaded tokens with no functional value): `tokenEstimate`, `agents`, `trust_tier`, `validation`, `implementation_status`, `optimization_version`, `last_optimized`, `quick_reference_card`, `category`, `priority`, `dependencies`. Also trim `tags` to ≤3 entries. Keep only `name` and `description` plus any field actively read by Claude Code or by this user's hooks. If the body opens with a "Quick Reference Card", "Three Modes" table, or "Related Skills" block whose targets do not exist locally, cut those too.
-5. **Always promote to shared after install.** Run `~/projects/dotfiles/scripts/sync-skills.sh add <skill-name>`, then commit the new skill dir. Skip only if the user explicitly asks to keep the skill local.
+4. **Vendor-strip the new SKILL.md before promoting.** Open the installed `SKILL.md` and apply the strip list in `~/.claude/references/skills-management.md` § Post-Install: Promote + Vendor-Strip.
+5. **Always promote to shared after install.** Run `~/projects/dotfiles/scripts/sync-skills.sh add <skill-name>`, then commit the new skill dir. Full contract (LOCAL state, install-one-question-one) → same reference section.
 6. Confirm success and tell the user the skill name and install location.
 7. If anything fails, show the error and suggest a fix.
 

@@ -1,7 +1,8 @@
 ---
 name: kaizen-analyse-problem
-description: A3 one-page problem analysis — root cause + action plan.
+description: A3 problem analysis — root cause + actions.
 argument-hint: problem description
+allowed-tools: Read, Grep, Glob
 ---
 
 # A3 Problem Analysis
@@ -11,18 +12,11 @@ Apply A3 problem-solving format for comprehensive, single-page problem documenta
 ## Description
 Structured one-page analysis format covering: Background, Current Condition, Goal, Root Cause Analysis, Countermeasures, Implementation Plan, and Follow-up. Named after A3 paper size; emphasizes concise, complete documentation.
 
-## Usage
-`/analyse-problem [problem_description]`
-
-## Variables
-- PROBLEM: Issue to analyze (default: prompt for input)
-- OUTPUT_FORMAT: markdown or text (default: markdown)
-
 ## Steps
 1. **Background**: Why this problem matters (context, business impact)
 2. **Current Condition**: What's happening now (data, metrics, examples)
 3. **Goal/Target**: What success looks like (specific, measurable)
-4. **Root Cause Analysis**: Why problem exists (use 5 Whys or Fishbone)
+4. **Root Cause Analysis**: Why problem exists — Five Whys or Fishbone (6M); both in `root-cause-methods.md` in this directory
 5. **Countermeasures**: Proposed solutions addressing root causes
 6. **Implementation Plan**: Who, what, when, how
 7. **Follow-up**: How to verify success and prevent recurrence

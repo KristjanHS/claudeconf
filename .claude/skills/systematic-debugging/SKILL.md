@@ -1,6 +1,6 @@
 ---
 name: systematic-debugging
-description: Use when encountering any bug, test failure, or unexpected behavior, before proposing fixes
+description: Use on any bug, test failure, or unexpected behavior, before fixes.
 ---
 
 # Systematic Debugging
@@ -73,7 +73,7 @@ You MUST complete each phase before proceeding to the next.
 **Find the pattern before fixing:**
 
 1. **Find Working Examples**
-   - Locate similar working code in same codebase
+   - Locate similar working code in same codebase — when it's unfamiliar or the search spans many files, dispatch a Haiku `Explore` to find them (pure location); compare inline
    - What works that's similar to what's broken?
 
 2. **Compare Against References**
@@ -195,15 +195,6 @@ If you catch yourself thinking:
 
 See ~/.claude/references/anti-patterns-common-rationalizations.md
 
-## Quick Reference
-
-| Phase | Key Activities | Success Criteria |
-|-------|---------------|------------------|
-| **1. Root Cause** | Read errors, reproduce, check changes, gather evidence | Understand WHAT and WHY |
-| **2. Pattern** | Find working examples, compare | Identify differences |
-| **3. Hypothesis** | Form theory, test minimally | Confirmed or new hypothesis |
-| **4. Implementation** | Create test, fix, verify | Bug resolved, tests pass |
-
 ## When Process Reveals "No Root Cause"
 
 If systematic investigation reveals issue is truly environmental, timing-dependent, or external:
@@ -214,11 +205,3 @@ If systematic investigation reveals issue is truly environmental, timing-depende
 4. Add monitoring/logging for future investigation
 
 **But:** 95% of "no root cause" cases are incomplete investigation.
-
-## Real-World Impact
-
-From debugging sessions:
-- Systematic approach: 15-30 minutes to fix
-- Random fixes approach: 2-3 hours of thrashing
-- First-time fix rate: 95% vs 40%
-- New bugs introduced: Near zero vs common

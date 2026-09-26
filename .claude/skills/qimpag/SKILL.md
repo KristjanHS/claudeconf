@@ -60,6 +60,10 @@ here — `impag` owns all of that.
   (d), and it holds **even when you intend to write the addendum yourself** — "the port is delicate" is an
   execution-phase concern, and execution is chained away.
 - One interactive round **by default** — the upfront round after plan/stage resolution.
+- **Never question the checkout, worktree or branch the user launched you in.** Which tree and which
+  branch the work lands on is the user's standing choice, already made by where the session was started —
+  it is never an `AskUserQuestion` option, not even when that tree is stale, behind `main`, or owes a merge.
+  Note the consequence in one line if it matters ("merge to `main` owed before `make ship`") and execute.
 - **Gated-stage rounds (standing user preference).** Plan stages the plan itself marks `[USER]` /
   `[USER DECISION]` (or an equivalent gate) are NOT skipped, auto-decided, or folded into the upfront
   round — surface each as its own `AskUserQuestion` round **when execution reaches it**, with the

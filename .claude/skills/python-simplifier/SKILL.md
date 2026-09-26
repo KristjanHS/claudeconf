@@ -1,6 +1,6 @@
 ---
 name: python-simplifier
-description: Simplify or refactor complex Python — code smells, duplication, coupling, readability. Not Django.
+description: Simplify or refactor complex Python. Not Django.
 ---
 
 # Python Code Simplifier

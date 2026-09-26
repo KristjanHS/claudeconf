@@ -4,6 +4,22 @@ Detailed toolkit for the `mybrain` skill's Deep mode Ideation Phase. Loaded on d
 
 Pick 1–3 techniques per ideation round; don't run all of them.
 
+## Technique selection guide
+
+Pick based on what the brainstorm needs:
+
+| Situation | Technique |
+|-----------|-----------|
+| Need diverse viewpoints | Perspective Multiplication |
+| Feeling stuck or conventional | Inversion |
+| Want to improve something existing | SCAMPER Decomposition |
+| Need creative leaps | Analogical Transfer |
+| Working within hard limits | Constraint Variation |
+| Uncertain about the future | Scenario Exploration |
+| Want to stress-test assumptions | Assumption Challenge |
+
+You don't need all of them. Pick the 1-3 that fit. Tell the user which technique you're using and why.
+
 ## Perspective Multiplication
 
 Generate ideas from 3–5 relevant viewpoints for the domain:
@@ -73,3 +89,24 @@ List 5–8 assumptions embedded in the current framing. For each:
 3. What would change if this assumption were wrong?
 
 The most productive challenges are assumptions the user didn't realize they were making.
+
+---
+
+## Deepen phase (after an approach is selected)
+
+`mybrain` Deep mode step 5.5 — run all three, then fold mitigations into the final design and continue with steps 5-8. Unlike the divergent techniques above, these three run together on the *already-chosen* approach.
+
+**Abstraction Laddering** -- Analyze at three levels:
+- Zoom OUT: what broader goal does this serve? Are we solving the right problem?
+- Current level: the selected approach as stated
+- Zoom IN: what are the concrete first 3 implementation steps?
+
+**Hidden Assumptions** -- List 3-5 implicit assumptions. For each: "If we inverted this assumption, what would change?" Flag fragile assumptions.
+
+**Pre-Mortem** -- Imagine the approach has FAILED. What went wrong?
+
+| Failure Mode | Likelihood | Impact | Mitigation |
+|-------------|:----------:|:------:|------------|
+| [failure 1] | Med | High | [action] |
+| [failure 2] | Low | High | [action] |
+| [failure 3] | High | Med | [action] |

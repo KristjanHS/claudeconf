@@ -7,7 +7,7 @@ counts the Anthropic API reported for that turn; summing
 `input_tokens + cache_creation_input_tokens + cache_read_input_tokens` is the
 real context size. This is the same formula `statusline.sh` uses (it reads
 `current_usage` from the harness), so the hook and statusline agree by
-construction — same measurement, not just the same 130k mark.
+construction — same measurement, not just the same 200k mark.
 
 The read is compaction-aware: a post-compact assistant turn reports the reset
 context, so this never false-fires the way a file-size proxy does (the .jsonl
@@ -28,11 +28,11 @@ research agents are the ones that actually overrun. Main sessions stay Bash-only
 via the tool_name guard below.
 
 Emits four graduated bands as context grows: three mild FYI heads-ups at
-~80k/100k/115k, then the 130k hard-stop WRAP-UP reminder. The soft bands lead
+~120k/150k/175k, then the 200k hard-stop WRAP-UP reminder. The soft bands lead
 with the keep-going instruction and keep the token count a de-emphasized trailing
-parenthetical with NO "/130k" ratio — the ratio-to-ceiling itself reads as
+parenthetical with NO "/200k" ratio — the ratio-to-ceiling itself reads as
 "almost at the wall". They never make the *budget number* a reason to wrap up
-(code review + finish belong to the 130k stop; /retro does NOT — SKILL step 9
+(code review + finish belong to the 200k stop; /retro does NOT — SKILL step 9
 defers it to the next chained session via a `retro owed:` marker); finishing early because
 the task is genuinely done is always fine — the bands only guard against stopping
 on the count alone. Rationale (two real incidents): a manual "only 25k left"
@@ -42,7 +42,7 @@ at ~122k — hence the demoted count and the "not on the number alone" wording.
 
 Dedup via a per-session "highwater" sentinel — same `.impag-budget-fired-<sid>`
 filename, now storing an integer = the highest band-threshold already emitted.
-Each soft band fires once; the hard band keeps nagging on every commit past 130k.
+Each soft band fires once; the hard band keeps nagging on every commit past 200k.
 If the measured count drops ≥20k below the highwater (only a compaction/rewind
 can do that — a same-session climb only grows), the highwater resets to 0 so the
 bands re-arm for the fresh runway.
@@ -58,15 +58,15 @@ import re
 import sys
 from pathlib import Path
 
-# 130k is the /impag wrap-up threshold. Aligned with the statusline 130k yellow
-# mark, leaving ~70k headroom before the 200k session-stop budget so review +
+# 200k is the /impag wrap-up threshold. Aligned with the statusline 200k yellow
+# mark, leaving ~100k headroom before the 300k session-stop budget so review +
 # finish-branch + /retro can run with a clean-enough transcript.
-HARD_STOP_TOKENS = 130_000
+HARD_STOP_TOKENS = 200_000
 
 # Latency floor for the fallback path only — NOT an accuracy device. A session
-# whose transcript is smaller than this cannot hold 130k tokens of context, so
+# whose transcript is smaller than this cannot hold 120k tokens of context, so
 # we skip the tail-read entirely to keep PostToolUse latency negligible on every
-# non-commit Bash call in small sessions. (130k tokens is many MB of JSONL;
+# non-commit Bash call in small sessions. (120k tokens is many MB of JSONL;
 # 400k bytes is a comfortably safe floor.) The git-commit path always reads.
 FALLBACK_PROBE_BYTES = 400_000
 
@@ -75,27 +75,27 @@ FALLBACK_PROBE_BYTES = 400_000
 _TAIL_CHUNK = 65536
 
 # Graduated budget bands, ascending. `kind`: soft = informational FYI (fires
-# once each via the highwater sentinel); hard = the 130k WRAP-UP stop (re-nags on
+# once each via the highwater sentinel); hard = the 200k WRAP-UP stop (re-nags on
 # every commit). `{t}` renders the ACTUAL token count (tokens // 1000), so the
 # fraction shown is real, not the band label. The soft wording is intentionally
 # non-stop-flavored and never names an end gate to run now — see the module
 # docstring for the incident that shaped it.
 BANDS: tuple[tuple[int, str, str], ...] = (
     (
-        80_000,
+        120_000,
         "soft",
         "[impag-budget] Budget FYI, not a checkpoint — keep going, no action. (~{t}k)",
     ),
     (
-        100_000,
+        150_000,
         "soft",
         "[impag-budget] Budget FYI, not a checkpoint — keep going normally. (~{t}k)",
     ),
     (
-        115_000,
+        175_000,
         "soft",
         "[impag-budget] Budget FYI, not a stop — don't wrap up on the number alone. "
-        "Keep going if work remains; 130k is the only budget checkpoint. (~{t}k)",
+        "Keep going if work remains; 200k is the only budget checkpoint. (~{t}k)",
     ),
     (
         HARD_STOP_TOKENS,
@@ -109,7 +109,7 @@ BANDS: tuple[tuple[int, str, str], ...] = (
 )
 
 # A measured drop this far below the recorded highwater can only be a
-# compaction/rewind (a same-session climb only grows; bands are ≥15k apart, so
+# compaction/rewind (a same-session climb only grows; bands are ≥25k apart, so
 # token jitter never falls 20k). Triggers a highwater reset so the bands re-arm.
 COMPACTION_RESET_DROP = 20_000
 
@@ -120,7 +120,7 @@ COMPACTION_RESET_DROP = 20_000
 # doesn't have (/retro, finishing-a-development-branch are main-session moves).
 SUBAGENT_BANDS: tuple[tuple[int, str, str], ...] = (
     (
-        100_000,
+        150_000,
         "soft",
         "[subagent-budget] Budget FYI, not a checkpoint — keep going normally. (~{t}k)",
     ),
@@ -202,7 +202,7 @@ def select_band(
     """Highest band whose threshold <= tokens, rendered. None below the first band.
 
     Returns (threshold, kind, message). Band-skipping is intended: a turn jumping
-    70k -> 120k selects band 3 (115k), never a backlog of the lower bands.
+    100k -> 180k selects band 3 (175k), never a backlog of the lower bands.
     """
     selected: tuple[int, str, str] | None = None
     for threshold, kind, template in bands:
@@ -320,7 +320,7 @@ def main() -> None:
     is_commit = is_git_commit(tool_name, tool_input)
 
     # Fallback path (any non-commit Bash): byte-proxy latency gate first — a
-    # transcript below the floor cannot hold even the earliest (80k) band, so
+    # transcript below the floor cannot hold even the earliest (120k) band, so
     # skip the tail-read on every Bash call in small sessions. The git-commit
     # path always reads.
     if not is_commit:
@@ -350,7 +350,7 @@ def main() -> None:
         highwater = 0
 
     # Emit a band iff it hasn't been emitted yet (threshold > highwater), OR it's
-    # the hard stop on a commit — the 130k WRAP-UP re-nags on every commit past
+    # the hard stop on a commit — the 200k WRAP-UP re-nags on every commit past
     # the wall, exactly as before, while soft bands fire once each.
     if not (threshold > highwater or (kind == "hard" and is_commit)):
         return

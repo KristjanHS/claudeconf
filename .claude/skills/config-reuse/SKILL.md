@@ -1,6 +1,6 @@
 ---
 name: config-reuse
-description: Copy or sync Claude configs, rules, and settings from another project; auto-detects stack.
+description: Copy/sync Claude configs & rules from another project.
 ---
 
 # Config Reuse

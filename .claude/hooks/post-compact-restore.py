@@ -1,11 +1,7 @@
 #!/usr/bin/env python3
 """SessionStart(compact|resume) hook — print recovery nudge from newest snapshot.
 
-Why it saves context: pairs with pre-compact.py. After a compaction or resume,
-it surfaces the recovery pointer the snapshot recorded (active plan, current
-task, where to find the full pre-compact transcript), so Claude can re-orient
-from a cheap pointer instead of re-reading or re-deriving lost state.
-
+Design: docs/plans/2026-04-18-precompact-hook-design.md
 Fail-open: any failure exits 0 so session startup is never blocked.
 """
 from __future__ import annotations

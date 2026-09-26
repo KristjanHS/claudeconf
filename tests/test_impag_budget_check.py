@@ -69,11 +69,10 @@ def _fired(result: subprocess.CompletedProcess[str]) -> bool:
 
 
 def _hard_fired(result: subprocess.CompletedProcess[str]) -> bool:
-    """True iff the hook emitted the 130k hard-stop wrap-up (not a soft band).
+    """True iff the hook emitted the HARD_STOP_TOKENS wrap-up (not a soft band).
 
     The hard band is the only one carrying "WRAP UP"; the soft bands lead with
-    "Budget FYI". This distinction is what lets the boundary tests guard the
-    130k threshold specifically, now that soft bands fire below it.
+    "Budget FYI".
     """
     return "WRAP UP" in _context(result)
 
@@ -124,49 +123,46 @@ def test_block_path_fires_at_or_above_threshold(budget_hook_path, tmp_path):
     assert _fired(_run_hook(budget_hook_path, t)) is True
 
 
-def test_hard_stop_fires_exactly_at_threshold(budget_hook_path, tmp_path):
-    """Boundary: 130k exactly must fire the HARD stop (guards >= drifting to >).
+def test_hard_stop_fires_exactly_at_threshold(budget_hook, budget_hook_path, tmp_path):
+    """Boundary: HARD_STOP_TOKENS exactly fires the HARD stop (guards >= drifting to >).
 
-    Asserting the hard band specifically matters now that soft bands fire below
-    130k: a plain "did anything fire?" check would pass even if the hard
-    threshold silently drifted, because the 115k soft band would still emit.
+    Asserts the hard band specifically: a plain "did anything fire?" check passes
+    even if the threshold drifted, because the soft band below it still emits.
     """
-    t = _write_jsonl(
-        tmp_path / "t.jsonl", [_assistant_turn(130_000, 0, 0)]
-    )  # exactly HARD_STOP_TOKENS
+    hard = budget_hook.HARD_STOP_TOKENS
+    t = _write_jsonl(tmp_path / "t.jsonl", [_assistant_turn(hard, 0, 0)])
     assert _hard_fired(_run_hook(budget_hook_path, t)) is True
 
 
-def test_hard_stop_silent_just_below_threshold(budget_hook_path, tmp_path):
-    """Boundary: 129,999 must NOT fire the hard stop (it fires a soft band).
-
-    Under the graduated bands 129,999 crosses the 115k soft FYI but stays below
-    the 130k wall, so the hard wrap-up must not fire while a soft band does.
-    """
-    t = _write_jsonl(tmp_path / "t.jsonl", [_assistant_turn(129_999, 0, 0)])
+def test_hard_stop_silent_just_below_threshold(budget_hook, budget_hook_path, tmp_path):
+    """Boundary: one token under the wall fires a soft band, never the hard stop."""
+    hard = budget_hook.HARD_STOP_TOKENS
+    t = _write_jsonl(tmp_path / "t.jsonl", [_assistant_turn(hard - 1, 0, 0)])
     result = _run_hook(budget_hook_path, t)
     assert _hard_fired(result) is False
-    assert _fired(result) is True  # the 115k soft band still fires
+    assert _fired(result) is True
 
 
-def test_soft_band_fires_below_hard_stop(budget_hook_path, tmp_path):
-    """A soft FYI fires between 80k and 130k and is NOT the wrap-up stop."""
-    t = _write_jsonl(tmp_path / "t.jsonl", [_assistant_turn(90_000, 0, 0)])
+def test_soft_band_fires_below_hard_stop(budget_hook, budget_hook_path, tmp_path):
+    """The lowest band is a soft FYI, NOT the wrap-up stop."""
+    lowest = budget_hook.BANDS[0][0]
+    t = _write_jsonl(tmp_path / "t.jsonl", [_assistant_turn(lowest, 0, 0)])
     result = _run_hook(budget_hook_path, t)
     assert _fired(result) is True
     assert _hard_fired(result) is False
     assert "Budget FYI" in _context(result)
 
 
-def test_silent_below_lowest_band(budget_hook_path, tmp_path):
-    """Boundary: below the 80k first band the hook stays fully silent."""
-    t = _write_jsonl(tmp_path / "t.jsonl", [_assistant_turn(79_999, 0, 0)])
+def test_silent_below_lowest_band(budget_hook, budget_hook_path, tmp_path):
+    """Boundary: one token under the lowest band the hook stays fully silent."""
+    lowest = budget_hook.BANDS[0][0]
+    t = _write_jsonl(tmp_path / "t.jsonl", [_assistant_turn(lowest - 1, 0, 0)])
     assert _fired(_run_hook(budget_hook_path, t)) is False
 
 
 def test_compaction_regression_stays_silent(budget_hook_path, tmp_path):
     """Large pre-compact prefix, but the final turn reports the reset context
-    (< 130k). A file-size proxy would false-fire here; the tail-reader must not.
+    (below every band). A file-size proxy would false-fire here; the tail-reader must not.
     """
     lines = [_assistant_turn(190_000, 5_000, 5_000) for _ in range(50)]
     lines += ["x" * 2000 for _ in range(400)]  # pad file well past the byte floor
