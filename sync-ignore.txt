@@ -14,3 +14,4 @@ claude/.claude/hooks/README.md
 claude/.claude/hooks/docs-bloat-gate.py
 skills/condense/
 skills/de-bloat/
+claude/.claude/lib/docs_quality.py

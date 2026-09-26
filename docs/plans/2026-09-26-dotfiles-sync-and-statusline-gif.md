@@ -18,7 +18,7 @@ Run from a **claudeconf-cwd session** (`/qimpag`). Touches three repos: claudeco
 - Every new gate owes a **mutate-and-confirm-red** demo before its slice is called verified.
 - **D1:** private terms = the private app repo + employer prefix (+ user adds); `ai-coding-journey` is nameable, not a term.
 - **D2:** a held (refused) file **warns** — `--check` prints `HELD <path>` and exits 0; the stale copy stays.
-- **D3:** publish `.claude/lib/docs_quality.py` — it joins the manifest.
+- **D3 (re-ruled at Stage 7):** `.claude/lib/docs_quality.py` is NOT published — no importer after D6's fork; in `sync-ignore.txt`.
 - **D4:** a dir mirror adds + updates, **never deletes**; claudeconf-only extras (21 in 5 skill dirs) are not drift.
 - **D5:** `sync-ignore.txt` = the personal set only (models, devcontainer, persistence, symlinks, syncwt/wimpag, forensic hooks).
 - **D6 (3.1):** forks = `hooks/README.md`, `docs-bloat-gate.py`, `condense/`, `de-bloat/`; private-app incident details and personal-workflow lines publish as-is.
@@ -85,7 +85,7 @@ Run from a **claudeconf-cwd session** (`/qimpag`). Touches three repos: claudeco
 - **Focus:** `scripts/sync_from_dotfiles.py`, `sync-manifest.txt`, `sync-ignore.txt`,
   `tests/test_sync_from_dotfiles.py`; dotfiles `claudeconf-publish/private-terms.txt` (seed: every private
   sibling repo name found in recon except `ai-coding-journey` + employer prefix, per D1), empty `rewrites.tsv`.
-- Manifest = 16 core files + 22 skill dirs (+ `lib/docs_quality.py` per D3). `sync-ignore.txt` = dotfiles-only
+- Manifest = 16 core files + 22 skill dirs (`lib/docs_quality.py` dropped at Stage 7, D3). `sync-ignore.txt` = dotfiles-only
   files judged personal (e.g. models, devcontainer, persistence refs); it must pass the PII gate itself.
 - Tests use a tmp git repo as fake dotfiles (CI has none): rewrite per suffix, refusal, fail-closed,
   dir-mirror keeps extras (D4), NEVER_SYNC, idempotence (2nd run = 0 changed), HEAD-not-worktree.
