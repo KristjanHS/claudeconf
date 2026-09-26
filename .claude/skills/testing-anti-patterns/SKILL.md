@@ -1,6 +1,7 @@
 ---
 name: testing-anti-patterns
-description: Use when writing or changing tests, adding mocks, or tempted to add test-only methods to production code - prevents testing mock behavior, production pollution with test-only methods, and mocking without understanding dependencies
+description: Use when writing or changing tests, or adding mocks.
+allowed-tools: Read
 ---
 
 # Testing Anti-Patterns
@@ -221,29 +222,7 @@ TDD cycle:
 
 ## Anti-Pattern 6: Testing Language Guarantees
 
-**The violation:**
-```python
-# BAD: Testing that len() works
-def test_num_turns_empty(self):
-    stats = SessionStats(turns=[])
-    assert stats.num_turns == 0  # num_turns is just len(self.turns)
-
-# BAD: Testing that sum() works
-def test_total_output_empty(self):
-    stats = SessionStats(turns=[])
-    assert stats.total_output == 0  # total_output is just sum(...)
-
-# BAD: Testing dataclass defaults
-def test_default_timestamp_is_empty(self):
-    t = TurnUsage(..., timestamp not provided)
-    assert t.timestamp == ""  # this is the dataclass default
-```
-
-**Why this is wrong:**
-- These tests verify Python, not your code
-- They can never catch a real bug — only a wholesale deletion of the property
-- They inflate test count giving false confidence
-- They cost maintenance when refactoring (more tests to update)
+See ~/.claude/rules/testing.md test value gate (check 1: `len()`/`sum()`/`max()`/dataclass defaults) and ~/.claude/references/testing-deep-dives.md § "Pruning / removal tests need a bystander".
 
 ## Red Flags
 
@@ -252,8 +231,8 @@ def test_default_timestamp_is_empty(self):
 - Mock setup is >50% of test
 - Test fails when you remove mock
 - Can't explain why mock is needed
-- Mocking "just to be safe"
-- Test only verifies `len()`, `sum()`, `max()`, or dataclass defaults
+
+Rationalizations catalog: ~/.claude/references/anti-patterns-common-rationalizations.md
 
 ## The Bottom Line
 

@@ -1,6 +1,6 @@
 ---
 name: architecture-diagram-creator
-description: Generate HTML architecture diagrams (data flow, components, deployment) for a system or project.
+description: Generate HTML architecture diagrams.
 ---
 
 # Architecture Diagram Creator

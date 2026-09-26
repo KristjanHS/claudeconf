@@ -1,6 +1,6 @@
 ---
 name: skills-discovery
-description: Search for and install skills that handle the current task better than base knowledge.
+description: Find/install skills better than base knowledge for a task.
 ---
 
 # Skills Discovery
@@ -76,9 +76,9 @@ The registry indexes skill names, descriptions, and tags. Construct queries that
 
 If user wants to install: `npx skills-installer install @owner/repo/skill-name`.
 
-## After install — always promote to shared
+## After install
 
-A fresh install lands as a real directory at `~/.claude/skills/<name>/` (`LOCAL` state per this repo's `sync-skills.sh status`). LOCAL skills are per-machine and not backed up. Always promote to shared without asking — run `~/projects/dotfiles/scripts/sync-skills.sh add <name>`, then commit the new skill dir. Skip only if the user explicitly asks to keep a skill local.
+Promote to shared, vendor-strip the SKILL.md, and run install-one-question-one → `~/.claude/references/skills-management.md` § Post-Install: Promote + Vendor-Strip.
 
 ## Management
 
@@ -89,74 +89,3 @@ npx skills-installer list
 # Uninstall a skill
 npx skills-installer uninstall @owner/repo/skill-name
 ```
-
-## Presenting results to users
-
-When you find relevant skills:
-
-1. Show 3-5 most relevant results maximum
-2. Include: name, namespace, description, stars, installs
-3. Explain how each skill helps with their _specific_ task
-4. Prioritize those with high installs
-5. Always ask for confirmation before installing
-6. Offer to help directly if no good skill exists or user declines
-
-## Examples
-
-**Example: Proactive suggestion**
-
-User: "I need to create a Django REST API"
-
-```bash
-curl "https://claude-plugins.dev/api/skills?q=django&limit=10"
-```
-
-Present suggestion:
-
-```
-I found some skills that could help:
-
-1. django-rest-framework-expert (@anthropics/claude-code/django-rest-framework-expert)
-   Description: Django REST API development with best practices
-   ⭐ 234 stars • 1,567 installs
-
-Would you like me to install this, or help you directly without installing a skill?
-```
-
-**Example: Explicit search request**
-
-User: "find skills for Python"
-
-```bash
-curl "https://claude-plugins.dev/api/skills?q=python&limit=10"
-```
-
-Present results and ask which to install.
-
-## API reference
-
-| Endpoint                                 | Description       |
-| ---------------------------------------- | ----------------- |
-| `GET /api/skills/search?q=QUERY`         | Search skills     |
-| `GET /api/skills/@owner/repo/skill-name` | Get skill details |
-
-**Web registry:** https://claude-plugins.dev/skills
-
-## Troubleshooting
-
-**No results found:**
-
-- Try broader search terms
-- Browse web registry: https://claude-plugins.dev/skills
-
-**Installation fails:**
-
-- Verify namespace format: `@owner/repo/skill-name`
-- Check skill exists in registry
-- Verify directory permissions
-
-**Skill not activating:**
-
-- User may need to restart their client
-- Verify correct installation directory
-- Confirm SKILL.md exists in installation path

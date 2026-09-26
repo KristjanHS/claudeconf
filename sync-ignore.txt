@@ -9,3 +9,8 @@ claude/.claude/commands/syncwt.md
 claude/.claude/commands/wimpag.md
 claude/.claude/hooks/session-start-forensic-nudge.py
 claude/.claude/hooks/stop-forensic.py
+# fork: claudeconf keeps its own public copy (teaching rewrite the dotfiles copy would lose).
+claude/.claude/hooks/README.md
+claude/.claude/hooks/docs-bloat-gate.py
+skills/condense/
+skills/de-bloat/

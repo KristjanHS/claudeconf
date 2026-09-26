@@ -65,7 +65,7 @@ If you keep separate `settings.json` files, add the matchers to whichever one
 already holds your hooks. Confirm Claude Code reports no settings errors after.
 
 How the budget governor measures context (exact, compaction-aware, zero-dep) and
-why it shares the statusline's 130k mark is documented once in
+why it shares the statusline's 200k mark is documented once in
 **[`.claude/hooks/README.md`](.claude/hooks/README.md#the-budget-governor--impag-budget-checkpy)** - read it there.
 
 **Smoke-test (hooks):** run a hook against a synthetic stdin payload and check
@@ -83,10 +83,10 @@ chmod +x ~/.claude/statusline.sh
 ```
 
 Point `statusLine` at it in `settings.json` (see the shipped example). It needs
-only `jq` and `git`. Note the context window is pinned to a personal 200k
-budget with a 130k/160k yellow/red mark - the same 130k the budget governor
+only `jq` and `git`. Note the context window is pinned to a personal 300k
+budget with a 200k/240k yellow/red mark - the same 200k the budget governor
 wraps up on. `WINDOW` is the token budget you choose to treat as your personal
-session cap (here 200k) - deliberately *below* the model's real context limit
+session cap (here 300k) - deliberately *below* the model's real context limit
 (e.g. 1M), so the bar fills and warns well before any native autocompact. Set it
 to whatever cap you want to pace yourself against; adjust the thresholds to match.
 

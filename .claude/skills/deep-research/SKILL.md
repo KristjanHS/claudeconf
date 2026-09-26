@@ -1,6 +1,6 @@
 ---
 name: deep-research
-description: Multi-source web research and critical analysis for non-trivial investigative questions.
+description: Multi-source web research for non-trivial questions.
 ---
 
 # Deep Research Skill
@@ -37,7 +37,7 @@ Before concluding research, verify:
 
 - **WebSearch** / **WebFetch**: general information, current events, specific URLs.
 - **Context7**: library/framework documentation.
-- **Agent (Explore subagent)**: multi-step investigations.
+- **Agent (`general-purpose` subagent)** — pinned **opus/medium**: multi-step investigations synthesize across sources, not just locate, so route them here rather than to Haiku `Explore` (routing + why → `~/.claude/references/claude-models.md`).
 
 ## Iteration
 

@@ -1,6 +1,6 @@
 ---
 name: finishing-a-development-branch
-description: Close out a stage or branch — verify tests, report branch state, then merge into main and leave main active (no push).
+description: Close out a branch — verify tests, merge to main, no push.
 ---
 
 # Finishing a Development Branch

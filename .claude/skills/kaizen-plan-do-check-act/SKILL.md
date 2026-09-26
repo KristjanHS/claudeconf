@@ -1,6 +1,6 @@
 ---
 name: kaizen-plan-do-check-act
-description: PDCA iterative experimentation cycle.
+description: PDCA experimentation cycle.
 argument-hint: improvement goal or problem
 ---
 
@@ -12,22 +12,13 @@ Apply PDCA cycle for continuous improvement through iterative problem-solving an
 
 Four-phase iterative cycle: Plan (identify and analyze), Do (implement changes), Check (measure results), Act (standardize or adjust). Enables systematic experimentation and improvement.
 
-## Usage
-
-`/plan-do-check-act [improvement_goal]`
-
-## Variables
-
-- GOAL: Improvement target or problem to address (default: prompt for input)
-- CYCLE_NUMBER: Which PDCA iteration (default: 1)
-
 ## Steps
 
 ### Phase 1: PLAN
 
 1. Define the problem or improvement goal
 2. Analyze current state (baseline metrics)
-3. Identify root causes (use `/why` or `/cause-and-effect`)
+3. Identify root causes (Five Whys or Fishbone → `kaizen-analyse-problem/root-cause-methods.md`)
 4. Develop hypothesis: "If we change X, Y will improve"
 5. Design experiment: what to change, how to measure success
 6. Set success criteria (measurable targets)

@@ -1,7 +1,7 @@
 ---
 name: reflect
-description: Analyze the session and propose skill improvements. Only on explicit /reflect or from retro step 4.
-allowed-tools: Read, Write, Edit, Grep, Glob, Task, Bash, AskUserQuestion
+description: ONLY on /reflect or retro step 4. Propose skill improvements.
+allowed-tools: Read, Write, Edit, Grep, Glob, Bash, AskUserQuestion
 ---
 
 # Reflect Skill
@@ -77,28 +77,24 @@ Apply these changes? [Y/n] or describe tweaks
 ```
 
 #### User Response Options:
-- `Y` – Apply changes, commit, and push
+- `Y` – Apply changes + integrate surrounding instructions, then commit locally (user pushes from host)
 - `n` – Skip this update
 - Or describe any tweaks to the proposed changes
 
 ### Step 4: If Approved
 
-1. Read the current skill file from `.claude/skills/[skill-name]/SKILL.md`
-2. Apply the changes using the Edit tool
-3. Run git commands:
-   ```bash
-   cd .claude/skills
-   git add [skill-name]/SKILL.md
-   git commit -m "[skill]: [change summary]"
-   git push origin main
-   ```
-4. Confirm: "Skill updated and pushed to GitHub"
+1. Read the current skill file at its **canonical dotfiles path** (`~/projects/dotfiles/skills/[skill-name]/SKILL.md`) — CLAUDE.md § Dotfile symlink discipline.
+2. Apply the changes using the Edit tool.
+3. **Integrate — no contradictions left behind.** Before committing, sweep the surrounding instructions (other steps in the file; numbering/range references like "Steps 2–4"; silence/close/scope notes;
+   and **every other file that names the changed behaviour** — `grep` the concept)
+   and update them in the same burst so nothing now contradicts, double-counts, or dangles against the edit.
+   Full discipline → `~/.claude/references/skills-management.md` §"Integrate Every Edit". A partial edit that leaves a contradiction is a defect.
+4. Commit locally (dotfiles repo): `git -C ~/projects/dotfiles add … && git -C ~/projects/dotfiles commit -m "[skill]: [change summary]"`. **Do NOT `git push` from the session** — the user pushes dotfiles from the host (CLAUDE.md "Git push credentials").
+5. Confirm: "Skill updated + committed to dotfiles — push from host when ready."
 
 ### Step 5: If Declined
 
-Ask: "Would you like to save these observations for later review?"
-
-If yes, append to `.claude/skills/[skill-name]/OBSERVATIONS.md`
+Drop it. If it must survive the session, stage it as a `type: feedback` memory file — that layer already has a drain (a later `/retro` graduates it into its target once that target is reachable). Never open a per-skill observations log: nothing reads it, nothing prunes it, and no admission rule governs it.
 
 ## Toggle Commands
 
@@ -126,5 +122,6 @@ Check current status:
 
 - Always show the exact changes before applying
 - Never modify skills without explicit user approval
+- Every applied change integrates with its surroundings — no contradictions left behind (Step 4.3)
 - Commit messages should be concise and descriptive
-- Push only after successful commit
+- Commit locally; the user pushes dotfiles from the host (never `git push` from the session)

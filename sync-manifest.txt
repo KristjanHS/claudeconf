@@ -2,8 +2,6 @@
 # Trailing / = dir mirror: adds + updates, never deletes. Targets are dotfiles-owned — edit there.
 .claude/statusline.sh <- claude/.claude/statusline.sh
 .claude/lib/docs_quality.py <- claude/.claude/lib/docs_quality.py
-.claude/hooks/README.md <- claude/.claude/hooks/README.md
-.claude/hooks/docs-bloat-gate.py <- claude/.claude/hooks/docs-bloat-gate.py
 .claude/hooks/impag-budget-check.py <- claude/.claude/hooks/impag-budget-check.py
 .claude/hooks/post-compact-restore.py <- claude/.claude/hooks/post-compact-restore.py
 .claude/hooks/pre-compact.py <- claude/.claude/hooks/pre-compact.py
@@ -20,9 +18,7 @@
 .claude/rules/testing.md <- claude/.claude/rules/testing.md
 .claude/skills/architecture-diagram-creator/ <- skills/architecture-diagram-creator/
 .claude/skills/brutal-honesty-review/ <- skills/brutal-honesty-review/
-.claude/skills/condense/ <- skills/condense/
 .claude/skills/config-reuse/ <- skills/config-reuse/
-.claude/skills/de-bloat/ <- skills/de-bloat/
 .claude/skills/deep-research/ <- skills/deep-research/
 .claude/skills/finishing-a-development-branch/ <- skills/finishing-a-development-branch/
 .claude/skills/impag/ <- skills/impag/
