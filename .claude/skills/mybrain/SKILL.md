@@ -26,7 +26,7 @@ pick the next increment, detail it into a per-increment `docs/plans/` file, hand
 Loop + design gate summary → **Iterate Mode Process** below.
 
 If unsure, describe the modes and ask.
-Default to Quick for narrow scope; **Iterate when the target is a living spec with only shipped increments**; Deep when ambiguous, multi-stakeholder, "stuck", or innovation-first.
+Default to Quick for narrow scope; **Iterate when the target has a living spec**; Deep when ambiguous, multi-stakeholder, "stuck", or innovation-first.
 Switch modes mid-session -- upgrade Quick that reveals complexity, skip ahead if Deep is overkill.
 
 ---
@@ -175,10 +175,10 @@ Procedure for each three → `~/.claude/references/ideation-techniques-library.m
 The surface already has a **living spec** (Mode Selection): an index doc holding the north star, binding constraints, an unordered backlog of candidate increments, and a ✅-shipped log -- never full build detail.
 Run a per-increment loop instead of re-running the design-doc → spec-doc chain — that chain was the one-time standup cost.
 
-Loop: **re-pick** from the backlog → **design gate** → **detail** into a thin `docs/plans/YYYY-MM-DD-<increment>-spec.md` (never inline build detail in the living spec) → hand off `/qimpag <that file>` → **collapse on ship** (`git mv` to `docs/plans/archive/`; the backlog entry becomes a one-line ✅ + commits). **Auto-trigger:** a spec whose increments are ALL shipped means "pick + detail the next" -- do it unprompted.
+Loop: **re-pick** from the backlog → **design gate** → **detail** into a thin `docs/plans/YYYY-MM-DD-<increment>-spec.md` (never inline build detail in the living spec) → hand off `/qimpag <that file>` → **collapse on ship** (`impag` archives the file; the NEXT run's re-pick turns its backlog entry into a one-line ✅ + commits). **Auto-trigger:** a spec whose increments are ALL shipped (✅ or archived under `docs/plans/archive/`) means "pick + detail the next" -- do it unprompted.
 **Design gate** -- run `mybrain`-quick scoped to the increment (before the per-increment file) only for a **new shared seam**, an **unsettled approach**, or a parked **"open call"** the living spec lists; else skip straight to the thin file + qimpag.
 
-Per-step detail + full gate criteria → `~/.claude/references/iterative-spec-loop.md` §Executable per-increment loop; that file also holds the rationale, doc mechanics reconciling with `impag`'s per-stage-plan-files rule, and gate calibration.
+Per-step detail + gate examples → `~/.claude/references/iterative-spec-loop.md` §Executable per-increment loop; that file also holds the rationale, doc mechanics reconciling with `impag`'s per-stage-plan-files rule, and gate calibration.
 
 ---
 

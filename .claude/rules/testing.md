@@ -13,13 +13,15 @@ paths:
 
 Before writing any test, pass this gate:
 
-1. **Is this testing MY code or the language?** If the test only verifies `len()`, `sum()`, `max()`, dict construction, or dataclass defaults — don't write it.
+1. **Is this testing MY code or the language?** If the test only verifies `len()`, `sum()`, `max()`, dict construction, or dataclass defaults — don't write it. Same for tautologies: an explicit default ≡ omitted, a constant vs its own literal, `f` vs a copy of `f`, a restore re-check after `finally`, a test implied by another test's asserts.
 2. **Is this already covered?** If a higher-layer test exercises this code path, a unit test adds maintenance cost without coverage.
 3. **Could this test ever fail from a real bug?** If the only way it fails is deleting the code entirely, it's testing existence, not behavior.
 4. **Is this testing a trivial function too thoroughly?** Simple functions (<10 lines, ≤3 paths): 1-3 tests suffice.
 5. **Am I testing an impossible input?** If the input can't occur given upstream guarantees, skip it.
 
 When in doubt: one test per meaningful behavior, not one test per code path.
+
+**⛔ `monkeypatch` / `mock.patch` / `sys.modules` stubs.** Extract the logic into a pure function, or inject the dependency as a parameter, and drive it with a real fixture (a real repo, file or subprocess).
 
 **A green test proves nothing until its fixture reaches the regime where the code would be wrong.** Eleven forms, all corollaries of value-gate check 3 — mechanisms and worked examples in the deep-dive:
 

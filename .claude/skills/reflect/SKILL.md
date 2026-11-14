@@ -1,6 +1,6 @@
 ---
 name: reflect
-description: ONLY on /reflect or retro step 4. Propose skill improvements.
+description: Propose skill improvements from what worked, failed, or surprised in this session.
 allowed-tools: Read, Write, Edit, Grep, Glob, Bash, AskUserQuestion
 ---
 

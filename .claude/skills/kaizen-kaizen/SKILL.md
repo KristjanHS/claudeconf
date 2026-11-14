@@ -1,6 +1,6 @@
 ---
 name: kaizen-kaizen
-description: Apply Kaizen to a change. Explicit-invoke only.
+description: Kaizen review of a change — small iterative steps, error-proofing, no over-engineering.
 allowed-tools: Read
 ---
 
@@ -16,7 +16,7 @@ Small improvements, continuously. Error-proof by design. Follow what works. Buil
 
 ## When to Use
 
-**Invoke explicitly when working on:**
+**Use when working on:**
 
 - Code implementation and refactoring
 - Architecture and design decisions

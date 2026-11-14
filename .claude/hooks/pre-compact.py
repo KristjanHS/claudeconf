@@ -146,6 +146,10 @@ def cleanup_old(snapshots_dir: Path) -> None:
 def run_snapshot(payload: dict, manual: bool = False) -> Path | None:
     raw_sid = payload.get("session_id") or "unknown-session"
     session_id = re.sub(r"[^A-Za-z0-9_.-]", "_", str(raw_sid))[:80] or "unknown-session"
+    # Only manual dirs may end in "-manual" — cleanup_old() pools by that suffix, so an
+    # auto run whose session_id happens to end in it would otherwise misfile.
+    if session_id.endswith(MANUAL_SUFFIX):
+        session_id = session_id[: -len(MANUAL_SUFFIX)] + "_manual"
     transcript_src = payload.get("transcript_path")
     trigger = payload.get("trigger") or "auto"
 

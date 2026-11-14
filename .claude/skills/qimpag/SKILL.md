@@ -91,15 +91,21 @@ here — `impag` owns all of that.
   say so plainly, show the evidence, and re-ask — never quietly execute the answer they'd have given differently.
   **This binds a MECHANISM you derived inline exactly as it binds a cited fact** — harder, since nothing about
   a *therefore* looks like a citation to check. When a description carries one, compute both sides on a toy
-  input BEFORE the round (a throwaway sim, per the sim-before-ruling habit), or state the mechanism as
-  untested. And verify the option is **ALLOWED**, not merely true: grep the path-gated rule governing the
-  surface first — an option a project rule forbids is a false choice even when its description is accurate.
+  input BEFORE the round, or state the mechanism as untested. And verify the option is **ALLOWED**, not merely
+  true: grep the path-gated rule governing the surface first — an option a project rule forbids is a false
+  choice even when its description is accurate. **An option grounded in external literature first greps the
+  entity's own symbol/docblock for a recorded ruling** — a fresh web search does not discharge it; a ruling
+  that disagrees drops the option or is named inside it.
+- **Sim before ruling an aggregation/weighting/gating fork.** Build one throwaway script modelling the actual
+  fold, run it, and put its measured ASCII — valuable AND failure cases, side by side — in the option previews;
+  label chosen parameters illustrative. Check the formatter can't corrupt boundary values.
 - **A banked literature search does NOT discharge the search obligation for a NEW fork.** A plan doc's
   prior §Search-evidence covers the questions it was run for. When the questions round opens a
   methodology/design fork that search did not ask (a different estimator, a different aggregation rule),
   **search FIRST, then offer options** — reusing the banked evidence silently presents unsearched options as
   if they were evidenced. Applies to the `/mybrain`-first gated round too: mybrain structures the
-  trade-offs, it does not supply the sources.
+  trade-offs, it does not supply the sources. A ruling made before a search that lands later is not a lock —
+  re-ask with the sources, exactly as a collapsed measurement re-asks.
 - **A plan STEP'S premise is a claim too** — a "wire X" step may already be DONE by a sibling lever or rest on a
   MIS-MODELED flow; check the DERIVED set at RUNTIME + grep the CONSUMER before executing (LEGP Stage 1: legs
   convert via a LIVE `fetchSeries`, not the stored copy it assumed). Same for a queued **"go measure it"**
