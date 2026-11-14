@@ -47,19 +47,19 @@
 ## 👋 Why this exists
 
 This is how I do agentic coding, published as reusable config. The method is a
-loop: **rules** say what good looks like, **gates** block the output that
-isn't, a **review loop** catches what slips past the gates, and a **cost
+loop: **rules** say what good looks like, **gates** flag or block the output
+that isn't, a **review loop** catches what slips past the gates, and a **cost
 budget** stops a run before it burns through its context. Each layer is a file
 you can read and copy, not a description of one. Co-workers use the same
 catalog in their own setups.
 
-Built by [Kristjan](https://github.com/KristjanHS). Apps built with this method,
-each linking back here:
+Built by [Kristjan](https://github.com/KristjanHS). Apps built with this method:
 
 - [transcribe-offline](https://github.com/KristjanHS/transcribe-offline)
 - [my-vector](https://github.com/KristjanHS/my-vector)
-- [kri-local-rag](https://github.com/KristjanHS/kri-local-rag)
 - [dewpoint-ts](https://github.com/KristjanHS/dewpoint-ts)
+
+Earlier work, from before this method: [kri-local-rag](https://github.com/KristjanHS/kri-local-rag).
 
 ## 🧭 How it works
 
