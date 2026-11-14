@@ -9,7 +9,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![Built for Claude Code](https://img.shields.io/badge/built%20for-Claude%20Code-d97757)](https://claude.com/claude-code)
 
-[Problem](#-the-problem) · [What it is](#-what-this-is) · [Does it work?](#-does-this-actually-work) · [Catalog](#-the-catalog) · [Quick start](#-quick-start) · [Adopt](ADOPT.md)
+[Why](#-why-this-exists) · [Problem](#-the-problem) · [What it is](#-what-this-is) · [Does it work?](#-does-this-actually-work) · [Catalog](#-the-catalog) · [Quick start](#-quick-start) · [Adopt](ADOPT.md)
 
 <p align="left">A Claude Code statusline to track context usage - available in this repo:</p>
 
@@ -18,6 +18,11 @@
 </div>
 
 ## Contents
+
+**Start here**
+
+- 👋 [Why this exists](#-why-this-exists)
+- 🧭 [How it works](#-how-it-works)
 
 **The case for (and against) adopting**
 
@@ -38,6 +43,41 @@
 
 - 📖 [Glossary](#-glossary)
 - 🚀 [Quick start](#-quick-start)
+
+## 👋 Why this exists
+
+This is how I do agentic coding, published as reusable config. The method is a
+loop: **rules** say what good looks like, **gates** block the output that
+isn't, a **review loop** catches what slips past the gates, and a **cost
+budget** stops a run before it burns through its context. Each layer is a file
+you can read and copy, not a description of one. Co-workers use the same
+catalog in their own setups.
+
+Built by [Kristjan](https://github.com/KristjanHS). Apps built with this method,
+each linking back here:
+
+- [transcribe-offline](https://github.com/KristjanHS/transcribe-offline)
+- [my-vector](https://github.com/KristjanHS/my-vector)
+- [kri-local-rag](https://github.com/KristjanHS/kri-local-rag)
+- [dewpoint-ts](https://github.com/KristjanHS/dewpoint-ts)
+
+## 🧭 How it works
+
+Where each layer of the method lives on this page:
+
+- **Rules** - path-gated rules and the progressive-disclosure `CLAUDE.md`:
+  [The catalog](#-the-catalog), [Glossary](#-glossary).
+- **Gates** - the anti-bloat write gate and the test value gate:
+  [The catalog](#-the-catalog), [Beyond context](#-beyond-context-the-rest-of-the-kit).
+- **Review loop** - critique and debugging skills, plus the subagent-dispatch
+  conventions: [The skills (detail)](#-the-skills-detail).
+- **Cost budget** - the context-budget hook and statusline:
+  [The budget governor (detail)](#-the-budget-governor-detail),
+  [What it costs you](#-what-it-costs-you).
+
+To adopt it, start at [Quick start](#-quick-start).
+
+<!-- TODO: system page (slot 5) -->
 
 ## 🎯 The problem
 
