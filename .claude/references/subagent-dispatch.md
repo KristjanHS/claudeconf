@@ -34,6 +34,14 @@ Only parallelize sub-agents when they modify independent files. After sub-agents
 
 **A repo-wide gate run INSIDE a parallel sibling proves nothing, and its green is not evidence you may relay.** Each sibling runs the suite against a tree its peers are still mutating, so every one can report green over a state that never existed whole and is gone before the last one commits. No sibling's run is authoritative — and the failure is silent, because N green reports read as N confirmations rather than N mutually-invalidated snapshots. Instruct parallel siblings to run only *targeted* tests over their own focus files, and run the repo-wide gate **once, in the orchestrator, after the last sibling returns**. Same bound on any whole-tree measurement (a file count, a repo-wide grep census): take it after the barrier, never inside an arm.
 
+**Don't `git commit` in the orchestrator while a sibling is still editing the same tree:** pre-commit stashes the sibling's unstaged edits (a race) and whole-tree hooks (bandit) fail on its WIP. Commit after the barrier.
+
+**Parallel siblings share ONE session scratchpad** — tell each to prefix its helper files (`<agent-tag>-mut.py`); same-name helpers overwrite each other mid-run.
+
+A parallel research fan-out (5 web-research agents, ~580k subagent tokens, private-app 2026-10-12) leaves the
+parent at ~266k before any code — dispatch the fan-out from a fresh session that ONLY banks the reports as docs,
+and synthesize/execute in a second session at a small prefix.
+
 ## Plan subagent can't Write
 
 The `Plan` subagent's tool set excludes `Write`/`Edit`/`NotebookEdit`. When using it to produce a design doc, either (a) tell it to return the full doc content verbatim in its final message so the parent session writes it to disk, or (b) stub the file path first and have it report the intended content by section. Don't instruct it to "save the plan" — it will produce the doc and then note it couldn't write, costing a round-trip.

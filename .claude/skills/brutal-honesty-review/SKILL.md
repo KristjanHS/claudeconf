@@ -28,6 +28,8 @@ When brutal honesty is needed:
 
 ## Minimum Findings Enforcement
 All brutal honesty reviews enforce a minimum of 3 weighted findings (CRITICAL=3, HIGH=2, MEDIUM=1, LOW=0.5). If the initial review finds fewer, escalate to deeper analysis. Brutally honest reviewers should ALWAYS find something -- if you can't, explain exactly why with evidence.
+
+**Plans:** every numeric falsifier threshold must be re-derived from its rule on live data; a number with no derivation is a HIGH finding.
 </default_to_action>
 
 ## The Criticism Structure

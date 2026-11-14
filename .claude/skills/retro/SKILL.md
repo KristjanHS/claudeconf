@@ -15,6 +15,7 @@ Stranger test: a skill steer (impag/qimpag/…) is GLOBAL. Silent if none.
 ## 3. Append memories
 If a project memory was already written this turn (e.g. impag stage-done), append only load-bearing facts Steps 1–2 missed.
 A `project_state` pointer write does NOT discharge capture — 3b still runs.
+On a linked project (`~/.claude/projects/<slug>/memory` → `<repo>/.claude/memory/`) every memory write ends in its own `git commit -m "chore(memory): …" -- .claude/memory`, pushed in the cloud; unlinked → nothing to commit.
 Auto-memory pruning stays automatic and write-time: each writer trims its own memory file (`project_state.md`, `roadmap.md`, `MEMORY.md`) in the same write, dropping closed/superseded lines (`memory-system.md §Rolling state`). That is the ONLY trimming retro does — scope, and the two things that are NOT condensing and still run automatically → `memory-system.md §Write targets`.
 
 ## 3b. File the facts (the payload)
