@@ -7,11 +7,14 @@ Usage: agentic_stats.py --config PATH [--repo NAME ...]. Exit 0 ok, 2 input erro
 from __future__ import annotations
 
 import argparse
+import fnmatch
 import subprocess
 import sys
 import tomllib
 from dataclasses import dataclass, field
 from pathlib import Path
+
+import yaml
 
 # lang -> (pathspec globs, git grep -E regex)
 LANGS: dict[str, tuple[list[str], str]] = {
@@ -20,6 +23,11 @@ LANGS: dict[str, tuple[list[str], str]] = {
     "go": (["*_test.go"], r"^func Test\w*\("),
 }
 DEFAULT_EXCLUDE = [".claude"]
+GATE_TRIGGERS = {"push", "pull_request", "merge_group"}
+CI_DEFINITION = (
+    "workflows triggered on push / pull_request / merge_group;"
+    " schedule- or dispatch-only ops jobs excluded"
+)
 ALLOWED_KEYS = {
     "name",
     "path",
@@ -44,7 +52,7 @@ class InputError(Exception):
 class Repo:
     name: str
     path: Path
-    langs: list[str]
+    langs: list[str] = field(default_factory=list)
     exclude: list[str] = field(default_factory=list)
     release_pattern: list[str] = field(default_factory=list)
     release_exclude: list[str] = field(default_factory=list)
@@ -124,16 +132,65 @@ def tests_definition(langs: list[str]) -> str:
     return "static count of lines matching " + "; ".join(parts) + " at HEAD"
 
 
+def _workflow_triggers(doc: object) -> set[str]:
+    if not isinstance(doc, dict):
+        raise ValueError("top level is not a mapping")
+    # YAML 1.1 parses a bare `on:` key as boolean True
+    on = doc.get("on", doc.get(True))
+    if isinstance(on, str):
+        return {on}
+    if isinstance(on, list):
+        return {str(t) for t in on}
+    if isinstance(on, dict):
+        return {str(t) for t in on}
+    return set()
+
+
+def count_ci_gates(repo: Path) -> int:
+    res = _git(repo, "ls-tree", "-r", "--name-only", "HEAD", "--", ".github/workflows")
+    gates = 0
+    for name in res.stdout.splitlines():
+        if not name.endswith((".yml", ".yaml")):
+            continue
+        body = _git(repo, "show", f"HEAD:{name}").stdout
+        try:
+            triggers = _workflow_triggers(yaml.safe_load(body))
+        except (yaml.YAMLError, ValueError) as e:
+            raise InputError(f"{repo}: malformed workflow {name}: {e}") from e
+        if triggers & GATE_TRIGGERS:
+            gates += 1
+    return gates
+
+
+def count_releases(repo: Path, pattern: list[str], exclude: list[str]) -> int:
+    tags = _git(repo, "tag", "-l", *pattern).stdout.splitlines()
+    return sum(1 for t in tags if not any(fnmatch.fnmatchcase(t, x) for x in exclude))
+
+
+def releases_definition(pattern: list[str], exclude: list[str]) -> str:
+    text = "git tags matching " + ", ".join(f"`{p}`" for p in pattern)
+    if exclude:
+        text += " excluding " + ", ".join(f"`{x}`" for x in exclude)
+    return text
+
+
 def collect(repo: Repo) -> list[Row]:
-    tests = (
-        str(count_tests(repo.path, repo.langs, repo.exclude)) if repo.langs else ABSENT
-    )
-    return [
-        Row(
-            "Tests",
-            tests,
-            tests_definition(repo.langs) if repo.langs else "no test langs configured",
+    if repo.langs:
+        tests = str(count_tests(repo.path, repo.langs, repo.exclude))
+        tests_def = tests_definition(repo.langs)
+    else:
+        tests, tests_def = ABSENT, "no test langs configured"
+    if repo.release_pattern:
+        releases = str(
+            count_releases(repo.path, repo.release_pattern, repo.release_exclude)
         )
+        releases_def = releases_definition(repo.release_pattern, repo.release_exclude)
+    else:
+        releases, releases_def = ABSENT, "no release tag pattern configured"
+    return [
+        Row("Tests", tests, tests_def),
+        Row("CI gates", str(count_ci_gates(repo.path)), CI_DEFINITION),
+        Row("Releases", releases, releases_def),
     ]
 
 

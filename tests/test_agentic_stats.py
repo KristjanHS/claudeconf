@@ -108,3 +108,50 @@ def test_example_config_runs(capsys):
         == 0
     )
     assert "| Tests |" in capsys.readouterr().out
+
+
+WORKFLOWS = {
+    ".github/workflows/push.yml": "on:\n  push:\n    branches: [main]\njobs: {}\n",
+    ".github/workflows/pr.yml": "on:\n  pull_request:\njobs: {}\n",
+    ".github/workflows/cron.yml": "on:\n  schedule:\n    - cron: '0 0 * * *'\njobs: {}\n",
+    ".github/workflows/manual.yml": "on: workflow_dispatch\njobs: {}\n",
+    ".github/workflows/list.yml": "on: [push]\njobs: {}\n",
+    ".github/workflows/str.yaml": "on: push\njobs: {}\n",
+    ".github/workflows/quoted.yml": '"on":\n  merge_group:\njobs: {}\n',
+    ".github/workflows/README.md": "on: push\n",
+}
+
+
+def test_count_ci_gates(tmp_path):
+    repo = make_repo(tmp_path, WORKFLOWS)
+    # push, pr, list, str, quoted = 5; cron + manual excluded; non-yaml ignored
+    assert stats.count_ci_gates(repo) == 5
+
+
+def test_count_ci_gates_none(tmp_path):
+    repo = make_repo(tmp_path, {"a.txt": "x\n"})
+    assert stats.count_ci_gates(repo) == 0
+
+
+def test_malformed_workflow_exits_2(tmp_path, capsys):
+    repo = make_repo(tmp_path, {".github/workflows/bad.yml": "on: [push\n"})
+    cfg = write_config(tmp_path, f'[[repo]]\nname = "a"\npath = "{repo.name}"\n')
+    assert stats.main(["--config", str(cfg)]) == 2
+    assert "bad.yml" in capsys.readouterr().err
+
+
+def test_count_releases(tmp_path):
+    repo = make_repo(tmp_path, {"a.txt": "x\n"})
+    for tag in ["v1.0", "v1.1", "v2.0-rc1", "chipper/v1", "last-cursor"]:
+        git(repo, "tag", tag)
+    assert stats.count_releases(repo, ["v*"], []) == 3
+    assert stats.count_releases(repo, ["v*"], ["*-rc*"]) == 2
+    assert stats.count_releases(repo, ["v*", "chipper/*"], ["chipper/*"]) == 3
+
+
+def test_releases_unset_is_absent(tmp_path, capsys):
+    repo = make_repo(tmp_path, {"a.txt": "x\n"})
+    git(repo, "tag", "v1.0")
+    cfg = write_config(tmp_path, f'[[repo]]\nname = "a"\npath = "{repo.name}"\n')
+    assert stats.main(["--config", str(cfg)]) == 0
+    assert "| Releases | — |" in capsys.readouterr().out
