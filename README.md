@@ -23,6 +23,7 @@
 
 - 👋 [Why this exists](#-why-this-exists)
 - 🧭 [How it works](#-how-it-works)
+- 📈 [Built with this method](#-built-with-this-method)
 
 **The case for (and against) adopting**
 
@@ -78,6 +79,28 @@ Where each layer of the method lives on this page:
 To adopt it, start at [Quick start](#-quick-start).
 
 <!-- TODO: system page (slot 5) -->
+
+## 📈 Built with this method
+
+Numbers come from each repo's HEAD via `scripts/agentic_stats.py`; definitions under the table.
+
+<!-- agentic-portfolio:start -->
+| Repo | Tests | CI gates | ADRs | Releases | Lines | In prod since |
+|---|---|---|---|---|---|---|
+| [claudeconf](https://github.com/KristjanHS/claudeconf) | 71 | 2 | — | — | 1674 | — |
+| [transcribe-offline](https://github.com/KristjanHS/transcribe-offline) | 48 | 2 | — | 10 | 851 | — |
+| [my-vector](https://github.com/KristjanHS/my-vector) | +576 over wire-pod | 1 | — | — | +43706 over wire-pod | — |
+| [kri-local-rag](https://github.com/KristjanHS/kri-local-rag) | 61 | 5 | — | — | 6323 | — |
+| [dewpoint-ts](https://github.com/KristjanHS/dewpoint-ts) | 35 | 0 | — | — | 1273 | 2026-06 |
+| [stt-faster](https://github.com/KristjanHS/stt-faster) | 387 | 6 | — | 10 | 21122 | — |
+
+- **Tests**: static count of lines matching `^\s*(async\s+)?def test_` in `test_*.py`, `*/test_*.py`, `*_test.py` at HEAD (claudeconf, transcribe-offline, kri-local-rag, stt-faster); static count of lines matching `^func Test\w*\(` in `*_test.go`; `^\s*(async\s+)?def test_` in `test_*.py`, `*/test_*.py`, `*_test.py` at HEAD (delta vs `refs/remotes/upstream/main`) (my-vector); static count of lines matching `^\s*(it|test)\(` in `*.test.ts`, `*.test.tsx`, `*.spec.ts`, `*.test.js` at HEAD (dewpoint-ts)
+- **CI gates**: workflows triggered on push / pull_request / merge_group; schedule- or dispatch-only ops jobs excluded
+- **ADRs**: no ADR glob configured
+- **Releases**: no release tag pattern configured (claudeconf, my-vector, kri-local-rag, dewpoint-ts); git tags matching `v*` (transcribe-offline, stt-faster)
+- **Lines**: scc code lines (no blanks/comments) at HEAD, excl. docs/data formats and vendored dirs (claudeconf, transcribe-offline, kri-local-rag, dewpoint-ts, stt-faster); scc code lines (no blanks/comments) at HEAD, excl. docs/data formats and vendored dirs (delta vs `refs/remotes/upstream/main`) (my-vector)
+- **In prod since**: first production deploy (manual)
+<!-- agentic-portfolio:end -->
 
 ## 🎯 The problem
 
