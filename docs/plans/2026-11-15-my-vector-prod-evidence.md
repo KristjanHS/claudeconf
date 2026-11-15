@@ -1,27 +1,49 @@
-# Plan: my-vector "in prod since" — derived from ship receipts
+# Plan: my-vector "in prod since" — derived from a sustained-use receipt
 
 - **Created:** 2026-11-15
-- **Status:** ACTIVE — Stage 1 runs in a **my-vector** session (cross-project); Stage 2 here.
-- **Goal:** the hub's my-vector "In prod since" cell is computed from git, not a manual string.
-- **Ruling (2026-11-15):** option A — annotated `ship/*` tag per green ship; prod event = earliest receipt with `link: tailnet`.
-- **Out of scope:** a ledger file (B), GitHub Deployments (C), proving off-home use (smoke runs docked).
+- **Status:** ACTIVE — Stages 1–3 run in a **my-vector** session (cross-project); Stage 4 here, after `prod/start` exists.
+- **Goal:** the hub's my-vector "In prod since" cell is computed from git, and means sustained, stable, real use.
+- **Rulings (2026-11-15):** (1) live `ship/*` receipt per green ship, **no backfill** (tagger dates are forgeable);
+  (2) prod event = first day of a 7-day window of real use + zero unplanned restarts, sealed as a `prod/start` tag.
+- **Out of scope:** backfilled tags, ledger in a tracked file, GitHub Deployments, OpenTimestamps, proving off-home use.
+- **Privacy:** ledger stays in gitignored `robot/work/`; tag bodies carry counts only — no IP, ESN, hostname, tailnet name, transcript.
 
 ## Evidence in hand (2026-11-15)
 
-- `robot/firmware/ship.sh`: pin server sha → firmware deploy (if tree differs) → smoke → `git push`; robot marker `/data/myvector/firmware-tree` written only after green full smoke.
-- `robot/work/ship-logs/` (gitignored): 20 logs from 2026-11-10; first green 20261110-083930 `8c564e7`; first green with `ok: tailscale: logged in` 20261110-194605 `6dac3c9`.
+- `robot/firmware/ship.sh`: pin server sha → firmware deploy (if tree differs) → smoke → push; `:202` writes robot `/data/myvector/silent-start` (ship window).
+- Smoke traffic carries `ConnectionId "wirepod-fork-smoke"` (`chipper/pkg/wirepod/sdkapp/fork_smoke.go:56`); real robot requests don't.
+- No usage history survives: server journald = current boot only; robot journal volatile, `/data/log/keep` ≈ 20 h.
 
-## Stage 1 — ship receipts (my-vector session)
+## Constants
 
-- `ship.sh`: after the green smoke, before its push: `git tag -a ship/<YYYYMMDD-HHMM>-<sha7>`; push with `--follow-tags`.
-- Receipt body, fixed keys: `server <sha>` · `fw-tree <hash|unchanged>` · `smoke full|server PASS` · `link tailnet|lan`.
-- ⛔ No IP, serial, hostname or tailnet name in the receipt (public repo); a test greps a receipt for `[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+`.
-- Backfill: one tag per green log (exit 0), tagger date = log timestamp (`GIT_COMMITTER_DATE`), `link` from the log's tailscale line.
-- Falsifier: `git tag -l 'ship/*' --format='%(contents)' | grep -c 'link tailnet'` ≥ 1; failed logs (exit ≠ 0) have no tag.
+| Name | Value |
+|---|---|
+| Ledger | `robot/work/usage.tsv` — `day  real  smoke  unplanned_restarts  tailnet` (one row/day, local date) |
+| Real request | a speech request whose ConnectionId ≠ `wirepod-fork-smoke` |
+| Unplanned restart | vic-* restart outside a `silent-start` window (exact counter: verify in Stage 2 — systemd `NRestarts` or MainPID change) |
+| Window | 7 consecutive days, each `real ≥ 5`, `unplanned_restarts = 0`, `tailnet = up` (defaults; Stage 3 test pins them) |
+| Seal | annotated tag `prod/start` on the HEAD at sealing; body = the 7 ledger rows; created once, never moved |
 
-## Stage 2 — generator key (claudeconf)
+## Stage 1 — live ship receipts (my-vector)
 
-- `prod_since_tag = { pattern = "ship/*", body = "link tailnet" }` → `YYYY-MM` of the earliest matching tag's tagger date; mutually exclusive with `prod_since`.
-- Definition: "month of first `ship/*` tag with `link tailnet` (green server + robot smoke)"; no match → `—`.
-- Tests: fixture tags with/without the body line → earliest qualifying month; both keys set → exit 2.
-- Config: my-vector in the `--config` file; `--hub README.md`, then `--check` → 0; review; archive.
+- `ship.sh`: after green smoke, before push: `git tag -a ship/<YYYYMMDD-HHMM>-<sha7>`; push `--follow-tags`.
+- Body keys: `server <sha>` · `fw-tree <hash|unchanged>` · `smoke full|server PASS` · `link tailnet|lan`.
+- Test: a receipt never matches `[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+`; a failed ship creates no tag.
+
+## Stage 2 — usage ledger (my-vector)
+
+- Server: chipper counts real vs smoke requests per day → appends/updates today's ledger row (counts only).
+- Robot: daily poll over the existing ssh lane → unplanned vic-* restarts (minus `silent-start` windows) + tailnet up.
+- Tests: smoke ConnectionId lands in `smoke`, never `real`; a restart inside a `silent-start` window is not counted.
+
+## Stage 3 — window checker + seal (my-vector)
+
+- `make prod-check`: scans the ledger for the first qualifying 7-day window; prints it, exit 0 found / 3 not yet.
+- On first find it creates + pushes `prod/start` (refuses if the tag exists); recomputation from the ledger must reproduce the body.
+- Tests: a 6-day run → 3; one `real = 4` day breaks the window; a restart day breaks it; 7 good days → rows match.
+
+## Stage 4 — generator key (claudeconf; blocked on `prod/start` existing)
+
+- `prod_since_tag = "prod/start"` → `YYYY-MM` of the first row's `day` in the tag body; mutually exclusive with `prod_since`; absent tag → `—`.
+- Definition: "first day of 7 consecutive days of real voice use with zero unplanned restarts (`prod/start` tag)".
+- Tests: fixture tag body → month of row 1 (not tagger date); both keys → exit 2. Then config, `--hub README.md`, `--check` → 0, review, archive.
