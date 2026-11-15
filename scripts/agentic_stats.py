@@ -8,8 +8,14 @@ from __future__ import annotations
 
 import argparse
 import fnmatch
+import io
+import json
+import re
+import shutil
 import subprocess
 import sys
+import tarfile
+import tempfile
 import tomllib
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -28,6 +34,14 @@ CI_DEFINITION = (
     "workflows triggered on push / pull_request / merge_group;"
     " schedule- or dispatch-only ops jobs excluded"
 )
+LOC_SKIP_LANGS = {"Markdown", "Plain Text", "JSON", "CSV", "SVG", "License"}
+LOC_DEFINITION = (
+    "scc code lines (no blanks/comments) at HEAD,"
+    " excl. docs/data formats and vendored dirs"
+)
+SCC_MISSING = "scc not on PATH — install scc; refusing to report 0 lines"
+PROD_SINCE_RE = re.compile(r"^\d{4}-\d{2}$")
+PROD_DEFINITION = "first production deploy (manual)"
 ALLOWED_KEYS = {
     "name",
     "path",
@@ -104,6 +118,13 @@ def load_config(path: Path) -> list[Repo]:
             raise InputError(
                 f"{entry['name']}: unknown lang(s) {bad}; known: {sorted(LANGS)}"
             )
+        prod = entry.get("prod_since")
+        if prod is not None and not (
+            isinstance(prod, str) and PROD_SINCE_RE.match(prod)
+        ):
+            raise InputError(
+                f"{entry['name']}: prod_since must be 'YYYY-MM', got {prod!r}"
+            )
         fields = {k: v for k, v in entry.items() if k != "path"}
         repos.append(Repo(path=repo_path, **fields))
     return repos
@@ -174,6 +195,41 @@ def releases_definition(pattern: list[str], exclude: list[str]) -> str:
     return text
 
 
+def count_adrs(repo: Path, adr_glob: str) -> int:
+    names = _git(repo, "ls-tree", "-r", "--name-only", "HEAD").stdout.splitlines()
+    return sum(1 for n in names if fnmatch.fnmatchcase(n, adr_glob))
+
+
+def count_loc(repo: Path, exclude: list[str], rev: str = "HEAD") -> int:
+    scc = shutil.which("scc")
+    if scc is None:
+        raise InputError(SCC_MISSING)
+    excludes = [f":(exclude){p}" for p in DEFAULT_EXCLUDE + exclude]
+    archive = subprocess.run(
+        ["git", "-C", str(repo), "archive", "--format=tar", rev, "--", ".", *excludes],
+        capture_output=True,
+    )
+    if archive.returncode != 0:
+        raise InputError(
+            f"git archive failed in {repo}: {archive.stderr.decode().strip()}"
+        )
+    with tempfile.TemporaryDirectory() as tmp:
+        with tarfile.open(fileobj=io.BytesIO(archive.stdout)) as tar:
+            tar.extractall(tmp, filter="data")
+        res = subprocess.run(
+            [scc, "--format", "json", "--no-cocomo", tmp],
+            capture_output=True,
+            text=True,
+        )
+    if res.returncode != 0:
+        raise InputError(f"scc failed on {repo}: {res.stderr.strip()}")
+    return sum(
+        lang["Code"]
+        for lang in json.loads(res.stdout)
+        if lang["Name"] not in LOC_SKIP_LANGS
+    )
+
+
 def collect(repo: Repo) -> list[Row]:
     if repo.langs:
         tests = str(count_tests(repo.path, repo.langs, repo.exclude))
@@ -191,6 +247,15 @@ def collect(repo: Repo) -> list[Row]:
         Row("Tests", tests, tests_def),
         Row("CI gates", str(count_ci_gates(repo.path)), CI_DEFINITION),
         Row("Releases", releases, releases_def),
+        Row(
+            "ADRs",
+            str(count_adrs(repo.path, repo.adr_glob)) if repo.adr_glob else ABSENT,
+            f"files matching `{repo.adr_glob}`"
+            if repo.adr_glob
+            else "no ADR glob configured",
+        ),
+        Row("Lines", str(count_loc(repo.path, repo.exclude)), LOC_DEFINITION),
+        Row("In prod since", repo.prod_since or ABSENT, PROD_DEFINITION),
     ]
 
 
