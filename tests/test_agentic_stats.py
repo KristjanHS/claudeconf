@@ -250,3 +250,55 @@ def test_bad_prod_since_exits_2(tmp_path, capsys, value):
     )
     assert stats.main(["--config", str(cfg)]) == 2
     assert "prod_since" in capsys.readouterr().err
+
+
+def _upstream_repo(tmp_path: Path) -> Path:
+    repo = make_repo(
+        tmp_path, {"tests/test_up.py": "def test_u():\n    pass\n", "up.py": "u = 1\n"}
+    )
+    git(repo, "branch", "upstream-main")
+    commit(
+        repo,
+        {
+            "tests/test_mine.py": "def test_a():\n    pass\n\ndef test_b():\n    pass\n",
+            "mine.py": "m = 1\nn = 2\n",
+        },
+    )
+    return repo
+
+
+def test_upstream_delta(tmp_path, fake_scc, capsys):
+    repo = _upstream_repo(tmp_path)
+    cfg = write_config(
+        tmp_path,
+        f'[[repo]]\nname = "a"\npath = "{repo.name}"\nlangs = ["py"]\n'
+        'upstream_ref = "upstream-main"\nupstream_name = "wire-pod"\n',
+    )
+    assert stats.main(["--config", str(cfg)]) == 0
+    out = capsys.readouterr().out
+    # HEAD 3 tests vs 1 upstream; HEAD 2+1+5+2 = 10 py lines vs 2+1 = 3 upstream
+    assert "| Tests | +2 over wire-pod |" in out
+    assert "| Lines | +7 over wire-pod |" in out
+
+
+def test_upstream_delta_negative_not_clamped(tmp_path, fake_scc, capsys):
+    repo = _upstream_repo(tmp_path)
+    git(repo, "rm", "-q", "tests/test_mine.py", "tests/test_up.py")
+    git(repo, "-c", "user.name=t", "-c", "user.email=t@t", "commit", "-qm", "drop")
+    cfg = write_config(
+        tmp_path,
+        f'[[repo]]\nname = "a"\npath = "{repo.name}"\nlangs = ["py"]\n'
+        'upstream_ref = "upstream-main"\n',
+    )
+    assert stats.main(["--config", str(cfg)]) == 0
+    assert "| Tests | -1 over upstream-main |" in capsys.readouterr().out
+
+
+def test_unresolvable_upstream_exits_2(tmp_path, fake_scc, capsys):
+    repo = make_repo(tmp_path, {"a.txt": "x\n"})
+    cfg = write_config(
+        tmp_path,
+        f'[[repo]]\nname = "a"\npath = "{repo.name}"\nupstream_ref = "nope/main"\n',
+    )
+    assert stats.main(["--config", str(cfg)]) == 2
+    assert "does not resolve" in capsys.readouterr().err

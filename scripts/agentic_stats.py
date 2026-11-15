@@ -230,10 +230,23 @@ def count_loc(repo: Path, exclude: list[str], rev: str = "HEAD") -> int:
     )
 
 
+def _upstream_delta(repo: Repo, count) -> str:
+    """`count(rev)` at HEAD, or `+N over <upstream>` when the repo sets upstream_ref."""
+    if not repo.upstream_ref:
+        return str(count("HEAD"))
+    ref = repo.upstream_ref
+    if _git(repo.path, "rev-parse", "--verify", "-q", f"{ref}^{{commit}}").returncode:
+        raise InputError(f"{repo.name}: upstream_ref {ref!r} does not resolve")
+    return f"{count('HEAD') - count(ref):+d} over {repo.upstream_name or ref}"
+
+
 def collect(repo: Repo) -> list[Row]:
+    delta_note = f" (delta vs `{repo.upstream_ref}`)" if repo.upstream_ref else ""
     if repo.langs:
-        tests = str(count_tests(repo.path, repo.langs, repo.exclude))
-        tests_def = tests_definition(repo.langs)
+        tests = _upstream_delta(
+            repo, lambda rev: count_tests(repo.path, repo.langs, repo.exclude, rev)
+        )
+        tests_def = tests_definition(repo.langs) + delta_note
     else:
         tests, tests_def = ABSENT, "no test langs configured"
     if repo.release_pattern:
@@ -254,7 +267,11 @@ def collect(repo: Repo) -> list[Row]:
             if repo.adr_glob
             else "no ADR glob configured",
         ),
-        Row("Lines", str(count_loc(repo.path, repo.exclude)), LOC_DEFINITION),
+        Row(
+            "Lines",
+            _upstream_delta(repo, lambda rev: count_loc(repo.path, repo.exclude, rev)),
+            LOC_DEFINITION + delta_note,
+        ),
         Row("In prod since", repo.prod_since or ABSENT, PROD_DEFINITION),
     ]
 
