@@ -1,7 +1,7 @@
 # Plan: my-vector "in prod since" — derived from a sustained-use receipt
 
 - **Created:** 2026-11-15
-- **Status:** ACTIVE — Stages 1–3 run in a **my-vector** session (cross-project); Stage 4 here, after `prod/start` exists.
+- **Status:** ACTIVE — Stages 1–3 DONE in my-vector (0758a2b9..c0e11ebc, reviewed); live from the next `make ship`. Stage 4 here, after `make prod-check` seals `prod/start`.
 - **Goal:** the hub's my-vector "In prod since" cell is computed from git, and means sustained, stable, real use.
 - **Rulings (2026-11-15):** (1) live `ship/*` receipt per green ship, **no backfill** (tagger dates are forgeable);
   (2) prod event = first day of a 7-day window of real use + zero unplanned restarts, sealed as a `prod/start` tag.
@@ -25,6 +25,7 @@
 | Ship window | `robot/work/ship-windows.tsv` — `start end` epochs appended by ship.sh: start at the `silent-start` write, end at ship exit (any outcome) |
 | Tailnet up | tailscale0 UP at every successful poll that day, ≥ 1 successful poll |
 | Poll | hourly loop inside wire-pod over the `robot/env.sh` ssh lane; state in `robot/work/usage-poll.state` |
+| Final day | before today AND before the day of the last saved robot poll (`usage-poll.state` mtime); prod-check tags `origin/main` |
 | Window | 7 consecutive days, each `real ≥ 5`, `unplanned_restarts = 0`, `tailnet = up` (defaults; Stage 3 test pins them) |
 | Seal | annotated tag `prod/start` on the HEAD at sealing; body = the 7 ledger rows; created once, never moved |
 
