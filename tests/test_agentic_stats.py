@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import importlib.util
+import os
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -155,3 +157,96 @@ def test_releases_unset_is_absent(tmp_path, capsys):
     cfg = write_config(tmp_path, f'[[repo]]\nname = "a"\npath = "{repo.name}"\n')
     assert stats.main(["--config", str(cfg)]) == 0
     assert "| Releases | — |" in capsys.readouterr().out
+
+
+FAKE_SCC = """#!{python}
+import json, os, sys
+names = {{".py": "Python", ".md": "Markdown", ".json": "JSON"}}
+code = {{}}
+for root, _, files in os.walk(sys.argv[-1]):
+    for f in files:
+        lang = names.get(os.path.splitext(f)[1], "Other")
+        with open(os.path.join(root, f)) as fh:
+            code[lang] = code.get(lang, 0) + sum(1 for _ in fh)
+print(json.dumps([{{"Name": k, "Code": v}} for k, v in code.items()]))
+"""
+
+
+@pytest.fixture
+def fake_scc(tmp_path, monkeypatch):
+    bindir = tmp_path / "bin"
+    bindir.mkdir()
+    scc = bindir / "scc"
+    scc.write_text(FAKE_SCC.format(python=sys.executable))
+    scc.chmod(0o755)
+    monkeypatch.setenv("PATH", f"{bindir}:{os.environ['PATH']}")
+
+
+@pytest.fixture
+def no_scc(tmp_path, monkeypatch):
+    bindir = tmp_path / "nobin"
+    bindir.mkdir()
+    git_bin = shutil.which("git")
+    assert git_bin is not None
+    (bindir / "git").symlink_to(git_bin)
+    monkeypatch.setenv("PATH", str(bindir))
+
+
+LOC_FILES = {
+    "src/a.py": "a = 1\nb = 2\nc = 3\n",
+    "README.md": "# t\n\nbody\n",
+    "data.json": "{}\n",
+    "vendor/v.py": "v = 1\n",
+    ".claude/hooks/h.py": "h = 1\n",
+}
+
+
+def test_count_loc_skips_docs_and_excludes(tmp_path, fake_scc):
+    repo = make_repo(tmp_path, LOC_FILES)
+    # src/a.py (3) + vendor/v.py (1); Markdown/JSON skipped; .claude always excluded
+    assert stats.count_loc(repo, []) == 4
+    assert stats.count_loc(repo, ["vendor"]) == 3
+
+
+def test_count_loc_head_only(tmp_path, fake_scc):
+    repo = make_repo(tmp_path, LOC_FILES)
+    (repo / "src" / "untracked.py").write_text("x = 1\ny = 2\n")
+    (repo / "src" / "a.py").write_text("a = 1\n")
+    assert stats.count_loc(repo, ["vendor"]) == 3
+
+
+def test_missing_scc_exits_2_never_zero(tmp_path, no_scc, capsys):
+    repo = make_repo(tmp_path, LOC_FILES)
+    cfg = write_config(tmp_path, f'[[repo]]\nname = "a"\npath = "{repo.name}"\n')
+    assert stats.main(["--config", str(cfg)]) == 2
+    captured = capsys.readouterr()
+    assert "scc not on PATH" in captured.err
+    assert "| Lines |" not in captured.out
+
+
+def test_adrs_and_prod_since_rows(tmp_path, fake_scc, capsys):
+    repo = make_repo(
+        tmp_path,
+        {"docs/adr/0001-x.md": "x\n", "docs/adr/0002-y.md": "y\n", "docs/n.md": "n\n"},
+    )
+    cfg = write_config(
+        tmp_path,
+        f'[[repo]]\nname = "a"\npath = "{repo.name}"\n'
+        'adr_glob = "docs/adr/*.md"\nprod_since = "2026-06"\n'
+        f'[[repo]]\nname = "b"\npath = "{repo.name}"\n',
+    )
+    assert stats.main(["--config", str(cfg)]) == 0
+    out = capsys.readouterr().out
+    block_a, block_b = out.split("### b")
+    assert "| ADRs | 2 |" in block_a and "| In prod since | 2026-06 |" in block_a
+    assert "| ADRs | — |" in block_b and "| In prod since | — |" in block_b
+
+
+@pytest.mark.parametrize("value", ['"2026-6"', '"June 2026"', "202606"])
+def test_bad_prod_since_exits_2(tmp_path, capsys, value):
+    repo = make_repo(tmp_path, {"a.txt": "x\n"})
+    cfg = write_config(
+        tmp_path, f'[[repo]]\nname = "a"\npath = "{repo.name}"\nprod_since = {value}\n'
+    )
+    assert stats.main(["--config", str(cfg)]) == 2
+    assert "prod_since" in capsys.readouterr().err
