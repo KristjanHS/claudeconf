@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """Fold-proof portfolio stats: per-repo markdown blocks computed from each repo's HEAD tree.
 
-Usage: agentic_stats.py --config PATH [--repo NAME ...]. Exit 0 ok, 2 input error.
+Usage: agentic_stats.py --config PATH [--repo NAME ...] [--hub FILE] [--check].
+Exit 0 ok/fresh, 1 stale block (--check), 2 input error.
 """
 
 from __future__ import annotations
@@ -54,8 +55,12 @@ ALLOWED_KEYS = {
     "upstream_ref",
     "upstream_name",
     "hub",
+    "url",
 }
 ABSENT = "—"
+BLOCK_MARKERS = ("<!-- agentic-stats:start -->", "<!-- agentic-stats:end -->")
+HUB_MARKERS = ("<!-- agentic-portfolio:start -->", "<!-- agentic-portfolio:end -->")
+HUB_COLS = ["Tests", "CI gates", "ADRs", "Releases", "Lines", "In prod since"]
 
 
 class InputError(Exception):
@@ -75,6 +80,7 @@ class Repo:
     upstream_ref: str | None = None
     upstream_name: str | None = None
     hub: bool = False
+    url: str | None = None
 
 
 @dataclass
@@ -282,11 +288,90 @@ def render_block(rows: list[Row]) -> str:
     return "\n".join(lines) + "\n"
 
 
+def has_markers(text: str, markers: tuple[str, str]) -> bool:
+    return any(m in text for m in markers)
+
+
+def replace_between(text: str, start: str, end: str, body: str) -> str:
+    """Swap the bytes between exactly one `start` and one later `end`; all else untouched."""
+    if text.count(start) != 1 or text.count(end) != 1:
+        raise InputError(f"need exactly one {start} and one {end}")
+    i, j = text.index(start) + len(start), text.index(end)
+    if j < i:
+        raise InputError(f"{end} comes before {start}")
+    return text[:i] + "\n" + body + text[j:]
+
+
+def render_hub(stats: list[tuple[Repo, list[Row]]]) -> str:
+    lines = [
+        "| Repo | " + " | ".join(HUB_COLS) + " |",
+        "|---" * (len(HUB_COLS) + 1) + "|",
+    ]
+    defs: dict[str, dict[str, list[str]]] = {col: {} for col in HUB_COLS}
+    for repo, rows in stats:
+        by_metric = {r.metric: r for r in rows}
+        name = f"[{repo.name}]({repo.url})" if repo.url else repo.name
+        lines.append(
+            f"| {name} | " + " | ".join(by_metric[c].value for c in HUB_COLS) + " |"
+        )
+        for col in HUB_COLS:
+            defs[col].setdefault(by_metric[col].definition, []).append(repo.name)
+    lines.append("")
+    for col in HUB_COLS:
+        if len(defs[col]) == 1:
+            lines.append(f"- **{col}**: {next(iter(defs[col]))}")
+        else:
+            parts = [f"{d} ({', '.join(names)})" for d, names in defs[col].items()]
+            lines.append(f"- **{col}**: " + "; ".join(parts))
+    return "\n".join(lines) + "\n"
+
+
+def check_repo_block(repo: Repo, rows: list[Row]) -> bool:
+    """True when the repo README's block is fresh (or the README has no markers)."""
+    readme = repo.path / "README.md"
+    text = readme.read_text() if readme.exists() else ""
+    if not has_markers(text, BLOCK_MARKERS):
+        print(f"skip: {repo.name} has no agentic-stats markers", file=sys.stderr)
+        return True
+    try:
+        fresh = replace_between(text, *BLOCK_MARKERS, render_block(rows))
+    except InputError as e:
+        raise InputError(f"{readme}: {e}") from e
+    if fresh != text:
+        print(f"stale: {readme}", file=sys.stderr)
+        return False
+    return True
+
+
+def run_hub(hub: Path, repos: list[Repo], check: bool) -> int:
+    try:
+        text = hub.read_text()
+    except OSError as e:
+        raise InputError(f"cannot read hub {hub}: {e}") from e
+    body = render_hub([(r, collect(r)) for r in repos if r.hub])
+    try:
+        fresh = replace_between(text, *HUB_MARKERS, body)
+    except InputError as e:
+        raise InputError(f"{hub}: {e}") from e
+    if fresh == text:
+        return 0
+    if check:
+        print(f"stale: {hub}", file=sys.stderr)
+        return 1
+    hub.write_text(fresh)
+    print(f"updated: {hub}", file=sys.stderr)
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description="Fold-proof portfolio stats per repo.")
     ap.add_argument("--config", required=True, type=Path)
     ap.add_argument(
         "--repo", action="append", default=[], help="only this repo name (repeatable)"
+    )
+    ap.add_argument("--hub", type=Path, help="write the portfolio table into FILE")
+    ap.add_argument(
+        "--check", action="store_true", help="exit 1 if a block is stale; write nothing"
     )
     args = ap.parse_args(argv)
     try:
@@ -294,14 +379,23 @@ def main(argv: list[str] | None = None) -> int:
         unknown = set(args.repo) - {r.name for r in repos}
         if unknown:
             raise InputError(f"--repo not in config: {sorted(unknown)}")
+        if args.hub:
+            if args.repo:
+                raise InputError("--hub renders the whole portfolio; drop --repo")
+            return run_hub(args.hub, repos, args.check)
+        stale = False
         for repo in repos:
             if args.repo and repo.name not in args.repo:
                 continue
-            print(f"### {repo.name}\n\n{render_block(collect(repo))}")
+            rows = collect(repo)
+            if args.check:
+                stale |= not check_repo_block(repo, rows)
+            else:
+                print(f"### {repo.name}\n\n{render_block(rows)}")
     except InputError as e:
         print(f"error: {e}", file=sys.stderr)
         return 2
-    return 0
+    return 1 if stale else 0
 
 
 if __name__ == "__main__":

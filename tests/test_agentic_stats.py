@@ -302,3 +302,103 @@ def test_unresolvable_upstream_exits_2(tmp_path, fake_scc, capsys):
     )
     assert stats.main(["--config", str(cfg)]) == 2
     assert "does not resolve" in capsys.readouterr().err
+
+
+START, END = stats.BLOCK_MARKERS
+
+
+def test_replace_between_idempotent_and_preserves_outside():
+    text = f"head\n{START}\nold\n{END}\ntail  \n"
+    once = stats.replace_between(text, START, END, "new\n")
+    assert once == f"head\n{START}\nnew\n{END}\ntail  \n"
+    assert stats.replace_between(once, START, END, "new\n") == once
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        f"{START}\nx\n",  # end missing
+        f"{START}\n{START}\n{END}\n",  # duplicate start
+        f"{END}\nx\n{START}\n",  # reversed
+    ],
+)
+def test_replace_between_bad_markers(text):
+    with pytest.raises(stats.InputError):
+        stats.replace_between(text, START, END, "b\n")
+
+
+def _check_setup(tmp_path: Path) -> tuple[Path, Path, str]:
+    repo = make_repo(tmp_path, {"tests/test_a.py": "def test_a():\n    pass\n"})
+    cfg = write_config(
+        tmp_path, f'[[repo]]\nname = "a"\npath = "{repo.name}"\nlangs = ["py"]\n'
+    )
+    block = stats.render_block(stats.collect(stats.load_config(cfg)[0]))
+    return repo, cfg, block
+
+
+def test_check_fresh_stale_and_skip(tmp_path, fake_scc, capsys):
+    repo, cfg, block = _check_setup(tmp_path)
+    assert stats.main(["--config", str(cfg), "--check"]) == 0
+    assert "skip: a has no agentic-stats markers" in capsys.readouterr().err
+    readme = repo / "README.md"
+    readme.write_text(f"# a\n{START}\n{block}{END}\n")
+    assert stats.main(["--config", str(cfg), "--check"]) == 0
+    readme.write_text(readme.read_text().replace("| Tests | 1 |", "| Tests | 9 |"))
+    assert stats.main(["--config", str(cfg), "--check"]) == 1
+    assert "stale:" in capsys.readouterr().err
+
+
+def test_check_duplicate_markers_exits_2(tmp_path, fake_scc, capsys):
+    repo, cfg, block = _check_setup(tmp_path)
+    (repo / "README.md").write_text(f"{START}\n{block}{END}\n{END}\n")
+    assert stats.main(["--config", str(cfg), "--check"]) == 2
+    assert "README.md" in capsys.readouterr().err
+
+
+HUB_START, HUB_END = stats.HUB_MARKERS
+
+
+def _hub_setup(tmp_path: Path) -> tuple[Path, Path]:
+    pub = make_repo(tmp_path, {"tests/test_a.py": "def test_a():\n    pass\n"}, "pub")
+    priv = make_repo(tmp_path, {"a.txt": "x\n"}, "priv")
+    cfg = write_config(
+        tmp_path,
+        f'[[repo]]\nname = "pub"\npath = "{pub.name}"\nlangs = ["py"]\nhub = true\n'
+        'url = "https://example.invalid/pub"\nprod_since = "2026-06"\n'
+        f'[[repo]]\nname = "priv"\npath = "{priv.name}"\n',
+    )
+    hub = tmp_path / "HUB.md"
+    hub.write_text(f"# hub\n{HUB_START}\n{HUB_END}\nafter\n")
+    return cfg, hub
+
+
+def test_hub_write_then_check(tmp_path, fake_scc):
+    cfg, hub = _hub_setup(tmp_path)
+    assert stats.main(["--config", str(cfg), "--hub", str(hub)]) == 0
+    text = hub.read_text()
+    assert (
+        "| Repo | Tests | CI gates | ADRs | Releases | Lines | In prod since |" in text
+    )
+    assert (
+        "| [pub](https://example.invalid/pub) | 1 | 0 | — | — | 2 | 2026-06 |" in text
+    )
+    assert "priv" not in text
+    assert "- **Tests**: static count" in text
+    assert text.startswith("# hub\n") and text.endswith(f"{HUB_END}\nafter\n")
+    assert stats.main(["--config", str(cfg), "--hub", str(hub), "--check"]) == 0
+
+
+def test_hub_check_stale_leaves_file_untouched(tmp_path, fake_scc):
+    cfg, hub = _hub_setup(tmp_path)
+    stats.main(["--config", str(cfg), "--hub", str(hub)])
+    stale = hub.read_text().replace("| 2026-06 |", "| 2025-01 |")
+    hub.write_text(stale)
+    assert stats.main(["--config", str(cfg), "--hub", str(hub), "--check"]) == 1
+    assert hub.read_text() == stale
+
+
+def test_hub_without_markers_exits_2(tmp_path, fake_scc, capsys):
+    cfg, hub = _hub_setup(tmp_path)
+    hub.write_text("# hub, no markers\n")
+    assert stats.main(["--config", str(cfg), "--hub", str(hub)]) == 2
+    assert hub.read_text() == "# hub, no markers\n"
