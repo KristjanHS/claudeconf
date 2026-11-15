@@ -94,11 +94,18 @@ Numbers come from each repo's HEAD via `scripts/agentic_stats.py`; definitions u
 | [dewpoint-ts](https://github.com/KristjanHS/dewpoint-ts) | 35 | 0 | — | — | 1273 | 2026-06 |
 | [stt-faster](https://github.com/KristjanHS/stt-faster) | 387 | 6 | — | 10 | 21122 | — |
 
-- **Tests**: static count of lines matching `^\s*(async\s+)?def test_` in `test_*.py`, `*/test_*.py`, `*_test.py` at HEAD (claudeconf, transcribe-offline, kri-local-rag, stt-faster); static count of lines matching `^func Test\w*\(` in `*_test.go`; `^\s*(async\s+)?def test_` in `test_*.py`, `*/test_*.py`, `*_test.py` at HEAD (delta vs `refs/remotes/upstream/main`) (my-vector); static count of lines matching `^\s*(it|test)\(` in `*.test.ts`, `*.test.tsx`, `*.spec.ts`, `*.test.js` at HEAD (dewpoint-ts)
+- **Tests**:
+  - claudeconf, transcribe-offline, kri-local-rag, stt-faster: static count: lines matching `^\s*(async\s+)?def test_` in `test_*.py`, `*/test_*.py`, `*_test.py` at HEAD, excl. `.claude`; `.each`/parametrized cases count once
+  - my-vector: static count: lines matching `^func Test\w*\(` in `*_test.go`; `^\s*(async\s+)?def test_` in `test_*.py`, `*/test_*.py`, `*_test.py` at HEAD, excl. `.claude`; `.each`/parametrized cases count once (delta vs wire-pod)
+  - dewpoint-ts: static count: lines matching `^\s*(it|test)\(` in `*.test.ts`, `*.test.tsx`, `*.spec.ts`, `*.test.js` at HEAD, excl. `.claude`; `.each`/parametrized cases count once
 - **CI gates**: workflows triggered on push / pull_request / merge_group; schedule- or dispatch-only ops jobs excluded
-- **ADRs**: no ADR glob configured
-- **Releases**: no release tag pattern configured (claudeconf, my-vector, kri-local-rag, dewpoint-ts); git tags matching `v*` (transcribe-offline, stt-faster)
-- **Lines**: scc code lines (no blanks/comments) at HEAD, excl. docs/data formats and vendored dirs (claudeconf, transcribe-offline, kri-local-rag, dewpoint-ts, stt-faster); scc code lines (no blanks/comments) at HEAD, excl. docs/data formats and vendored dirs (delta vs `refs/remotes/upstream/main`) (my-vector)
+- **ADRs**: not tracked
+- **Releases**:
+  - claudeconf, my-vector, kri-local-rag, dewpoint-ts: not tracked
+  - transcribe-offline, stt-faster: git tags matching `v*`
+- **Lines**:
+  - claudeconf, transcribe-offline, kri-local-rag, dewpoint-ts, stt-faster: scc code lines (no blanks/comments) at HEAD, excl. docs/data formats, `.claude`
+  - my-vector: scc code lines (no blanks/comments) at HEAD, excl. docs/data formats, `.claude` (delta vs wire-pod)
 - **In prod since**: first production deploy (manual)
 <!-- agentic-portfolio:end -->
 
