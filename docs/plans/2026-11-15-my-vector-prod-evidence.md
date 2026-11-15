@@ -5,6 +5,7 @@
 - **Goal:** the hub's my-vector "In prod since" cell is computed from git, and means sustained, stable, real use.
 - **Rulings (2026-11-15):** (1) live `ship/*` receipt per green ship, **no backfill** (tagger dates are forgeable);
   (2) prod event = first day of a 7-day window of real use + zero unplanned restarts, sealed as a `prod/start` tag.
+- **Rulings (2026-11-15, qimpag round):** smoke never sends speech (SayText + cloud_intent only) → real = non-loopback peer + non-empty transcript; restarts = snapshot diff minus ship windows; poll inside wire-pod; seal manual.
 - **Out of scope:** backfilled tags, ledger in a tracked file, GitHub Deployments, OpenTimestamps, proving off-home use.
 - **Privacy:** ledger stays in gitignored `robot/work/`; tag bodies carry counts only — no IP, ESN, hostname, tailnet name, transcript.
 
@@ -18,9 +19,12 @@
 
 | Name | Value |
 |---|---|
-| Ledger | `robot/work/usage.tsv` — `day  real  smoke  unplanned_restarts  tailnet` (one row/day, local date) |
-| Real request | a speech request whose ConnectionId ≠ `wirepod-fork-smoke` |
-| Unplanned restart | vic-* restart outside a `silent-start` window (exact counter: verify in Stage 2 — systemd `NRestarts` or MainPID change) |
+| Ledger | `robot/work/usage.tsv` — `day  real  test  unplanned_restarts  tailnet` (one row/day, local date) |
+| Real request | a speech stream from a non-loopback peer with a non-empty transcript; a loopback stream (fakebot, live-check) counts `test`; empty transcript (false wake) counts nowhere |
+| Unplanned restart | snapshot diff poll-to-poll: boot_id change, or a vic-* `ActiveEnterTimestamp`/`NRestarts` change, whose time is outside every ship window (+120 s slack) |
+| Ship window | `robot/work/ship-windows.tsv` — `start end` epochs appended by ship.sh: start at the `silent-start` write, end at ship exit (any outcome) |
+| Tailnet up | tailscale0 UP at every successful poll that day, ≥ 1 successful poll |
+| Poll | hourly loop inside wire-pod over the `robot/env.sh` ssh lane; state in `robot/work/usage-poll.state` |
 | Window | 7 consecutive days, each `real ≥ 5`, `unplanned_restarts = 0`, `tailnet = up` (defaults; Stage 3 test pins them) |
 | Seal | annotated tag `prod/start` on the HEAD at sealing; body = the 7 ledger rows; created once, never moved |
 
@@ -33,13 +37,14 @@
 ## Stage 2 — usage ledger (my-vector)
 
 - Server: chipper counts real vs smoke requests per day → appends/updates today's ledger row (counts only).
-- Robot: daily poll over the existing ssh lane → unplanned vic-* restarts (minus `silent-start` windows) + tailnet up.
-- Tests: smoke ConnectionId lands in `smoke`, never `real`; a restart inside a `silent-start` window is not counted.
+- Robot: hourly poll in wire-pod over the existing ssh lane → unplanned restarts (snapshot diff minus ship windows) + tailnet up.
+- ship.sh appends the ship window (start at the `silent-start` write, end in its exit trap).
+- Tests: a loopback stream lands in `test`, never `real`; an empty transcript counts nowhere; a restart inside a ship window is not counted; a boot_id change outside one is.
 
 ## Stage 3 — window checker + seal (my-vector)
 
 - `make prod-check`: scans the ledger for the first qualifying 7-day window; prints it, exit 0 found / 3 not yet.
-- On first find it creates + pushes `prod/start` (refuses if the tag exists); recomputation from the ledger must reproduce the body.
+- Manual only (no auto-seal). On first find it creates + pushes `prod/start` (refuses if the tag exists); recomputation from the ledger must reproduce the body.
 - Tests: a 6-day run → 3; one `real = 4` day breaks the window; a restart day breaks it; 7 good days → rows match.
 
 ## Stage 4 — generator key (claudeconf; blocked on `prod/start` existing)
