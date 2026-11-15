@@ -1,0 +1,8 @@
+# Example config for scripts/agentic_stats.py; relative paths resolve against this file's dir.
+# Copy it, list your own repos, and pass the copy with --config.
+
+[[repo]]
+name = "this-repo"
+path = ".."
+langs = ["py"]
+hub = true
