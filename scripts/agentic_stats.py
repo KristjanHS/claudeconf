@@ -36,13 +36,12 @@ CI_DEFINITION = (
     " schedule- or dispatch-only ops jobs excluded"
 )
 LOC_SKIP_LANGS = {"Markdown", "Plain Text", "JSON", "CSV", "SVG", "License"}
-LOC_DEFINITION = (
-    "scc code lines (no blanks/comments) at HEAD,"
-    " excl. docs/data formats and vendored dirs"
-)
 SCC_MISSING = "scc not on PATH — install scc; refusing to report 0 lines"
 PROD_SINCE_RE = re.compile(r"^\d{4}-\d{2}$")
 PROD_DEFINITION = "first production deploy (manual)"
+NOT_TRACKED = "not tracked"
+LIST_KEYS = {"langs", "exclude", "release_pattern", "release_exclude"}
+BOOL_KEYS = {"hub"}
 ALLOWED_KEYS = {
     "name",
     "path",
@@ -90,16 +89,35 @@ class Row:
     definition: str
 
 
-def _git(repo: Path, *args: str) -> subprocess.CompletedProcess[str]:
-    return subprocess.run(
-        ["git", "-C", str(repo), *args], capture_output=True, text=True
-    )
+def _git(repo: Path, *args: str, text: bool = True) -> subprocess.CompletedProcess:
+    try:
+        return subprocess.run(
+            ["git", "-C", str(repo), *args], capture_output=True, text=text
+        )
+    except OSError as e:
+        raise InputError(f"cannot run git: {e}") from e
+
+
+def _check_types(entry: dict, where: Path) -> None:
+    label = entry.get("name", "?")
+    for key, value in entry.items():
+        if key in LIST_KEYS:
+            ok, kind = (
+                isinstance(value, list) and all(isinstance(v, str) for v in value),
+                "a list of strings",
+            )
+        elif key in BOOL_KEYS:
+            ok, kind = isinstance(value, bool), "true/false"
+        else:
+            ok, kind = isinstance(value, str), "a string"
+        if not ok:
+            raise InputError(f"{where}: {label}: {key} must be {kind}, got {value!r}")
 
 
 def load_config(path: Path) -> list[Repo]:
     try:
-        data = tomllib.loads(path.read_text())
-    except (OSError, tomllib.TOMLDecodeError) as e:
+        data = tomllib.loads(path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError, tomllib.TOMLDecodeError) as e:
         raise InputError(f"cannot read config {path}: {e}") from e
     entries = data.get("repo")
     if not isinstance(entries, list) or not entries:
@@ -111,6 +129,7 @@ def load_config(path: Path) -> list[Repo]:
             raise InputError(f"{path}: unknown key(s) {sorted(unknown)}")
         if "name" not in entry or "path" not in entry:
             raise InputError(f"{path}: every [[repo]] needs name and path")
+        _check_types(entry, path)
         repo_path = Path(entry["path"]).expanduser()
         if not repo_path.is_absolute():
             repo_path = (path.parent / repo_path).resolve()
@@ -151,12 +170,26 @@ def count_tests(
     return total
 
 
-def tests_definition(langs: list[str]) -> str:
+def _excl(exclude: list[str]) -> str:
+    return ", ".join(f"`{p}`" for p in DEFAULT_EXCLUDE + exclude)
+
+
+def tests_definition(langs: list[str], exclude: list[str]) -> str:
     parts = [
         f"`{LANGS[lang][1]}` in {', '.join(f'`{g}`' for g in LANGS[lang][0])}"
         for lang in langs
     ]
-    return "static count of lines matching " + "; ".join(parts) + " at HEAD"
+    return (
+        f"static count: lines matching {'; '.join(parts)} at HEAD,"
+        f" excl. {_excl(exclude)}; `.each`/parametrized cases count once"
+    )
+
+
+def loc_definition(exclude: list[str]) -> str:
+    return (
+        "scc code lines (no blanks/comments) at HEAD,"
+        f" excl. docs/data formats, {_excl(exclude)}"
+    )
 
 
 def _workflow_triggers(doc: object) -> set[str]:
@@ -211,17 +244,21 @@ def count_loc(repo: Path, exclude: list[str], rev: str = "HEAD") -> int:
     if scc is None:
         raise InputError(SCC_MISSING)
     excludes = [f":(exclude){p}" for p in DEFAULT_EXCLUDE + exclude]
-    archive = subprocess.run(
-        ["git", "-C", str(repo), "archive", "--format=tar", rev, "--", ".", *excludes],
-        capture_output=True,
+    archive = _git(
+        repo, "archive", "--format=tar", rev, "--", ".", *excludes, text=False
     )
     if archive.returncode != 0:
         raise InputError(
             f"git archive failed in {repo}: {archive.stderr.decode().strip()}"
         )
     with tempfile.TemporaryDirectory() as tmp:
-        with tarfile.open(fileobj=io.BytesIO(archive.stdout)) as tar:
-            tar.extractall(tmp, filter="data")
+        try:
+            with tarfile.open(fileobj=io.BytesIO(archive.stdout)) as tar:
+                # symlinks carry no code lines; an absolute target would trip filter="data"
+                files = [m for m in tar.getmembers() if not m.issym()]
+                tar.extractall(tmp, members=files, filter="data")
+        except tarfile.TarError as e:
+            raise InputError(f"cannot unpack git archive of {repo}: {e}") from e
         res = subprocess.run(
             [scc, "--format", "json", "--no-cocomo", tmp],
             capture_output=True,
@@ -229,11 +266,14 @@ def count_loc(repo: Path, exclude: list[str], rev: str = "HEAD") -> int:
         )
     if res.returncode != 0:
         raise InputError(f"scc failed on {repo}: {res.stderr.strip()}")
-    return sum(
-        lang["Code"]
-        for lang in json.loads(res.stdout)
-        if lang["Name"] not in LOC_SKIP_LANGS
-    )
+    try:
+        return sum(
+            lang["Code"]
+            for lang in json.loads(res.stdout)
+            if lang["Name"] not in LOC_SKIP_LANGS
+        )
+    except (ValueError, KeyError, TypeError) as e:
+        raise InputError(f"unexpected scc output on {repo}: {e!r}") from e
 
 
 def _upstream_delta(repo: Repo, count) -> str:
@@ -247,21 +287,22 @@ def _upstream_delta(repo: Repo, count) -> str:
 
 
 def collect(repo: Repo) -> list[Row]:
-    delta_note = f" (delta vs `{repo.upstream_ref}`)" if repo.upstream_ref else ""
+    baseline = repo.upstream_name or repo.upstream_ref
+    delta_note = f" (delta vs {baseline})" if repo.upstream_ref else ""
     if repo.langs:
         tests = _upstream_delta(
             repo, lambda rev: count_tests(repo.path, repo.langs, repo.exclude, rev)
         )
-        tests_def = tests_definition(repo.langs) + delta_note
+        tests_def = tests_definition(repo.langs, repo.exclude) + delta_note
     else:
-        tests, tests_def = ABSENT, "no test langs configured"
+        tests, tests_def = ABSENT, NOT_TRACKED
     if repo.release_pattern:
         releases = str(
             count_releases(repo.path, repo.release_pattern, repo.release_exclude)
         )
         releases_def = releases_definition(repo.release_pattern, repo.release_exclude)
     else:
-        releases, releases_def = ABSENT, "no release tag pattern configured"
+        releases, releases_def = ABSENT, NOT_TRACKED
     return [
         Row("Tests", tests, tests_def),
         Row("CI gates", str(count_ci_gates(repo.path)), CI_DEFINITION),
@@ -269,22 +310,25 @@ def collect(repo: Repo) -> list[Row]:
         Row(
             "ADRs",
             str(count_adrs(repo.path, repo.adr_glob)) if repo.adr_glob else ABSENT,
-            f"files matching `{repo.adr_glob}`"
-            if repo.adr_glob
-            else "no ADR glob configured",
+            f"files matching `{repo.adr_glob}`" if repo.adr_glob else NOT_TRACKED,
         ),
         Row(
             "Lines",
             _upstream_delta(repo, lambda rev: count_loc(repo.path, repo.exclude, rev)),
-            LOC_DEFINITION + delta_note,
+            loc_definition(repo.exclude) + delta_note,
         ),
         Row("In prod since", repo.prod_since or ABSENT, PROD_DEFINITION),
     ]
 
 
+def _row(cells: list[str]) -> str:
+    """GFM splits a cell on `|` even inside backticks, so escape it."""
+    return "| " + " | ".join(c.replace("|", r"\|") for c in cells) + " |"
+
+
 def render_block(rows: list[Row]) -> str:
     lines = ["| Metric | Value | Definition |", "|---|---|---|"]
-    lines += [f"| {r.metric} | {r.value} | {r.definition} |" for r in rows]
+    lines += [_row([r.metric, r.value, r.definition]) for r in rows]
     return "\n".join(lines) + "\n"
 
 
@@ -311,9 +355,7 @@ def render_hub(stats: list[tuple[Repo, list[Row]]]) -> str:
     for repo, rows in stats:
         by_metric = {r.metric: r for r in rows}
         name = f"[{repo.name}]({repo.url})" if repo.url else repo.name
-        lines.append(
-            f"| {name} | " + " | ".join(by_metric[c].value for c in HUB_COLS) + " |"
-        )
+        lines.append(_row([name] + [by_metric[c].value for c in HUB_COLS]))
         for col in HUB_COLS:
             defs[col].setdefault(by_metric[col].definition, []).append(repo.name)
     lines.append("")
@@ -321,15 +363,18 @@ def render_hub(stats: list[tuple[Repo, list[Row]]]) -> str:
         if len(defs[col]) == 1:
             lines.append(f"- **{col}**: {next(iter(defs[col]))}")
         else:
-            parts = [f"{d} ({', '.join(names)})" for d, names in defs[col].items()]
-            lines.append(f"- **{col}**: " + "; ".join(parts))
+            lines.append(f"- **{col}**:")
+            lines += [f"  - {', '.join(n)}: {d}" for d, n in defs[col].items()]
     return "\n".join(lines) + "\n"
 
 
 def check_repo_block(repo: Repo, rows: list[Row]) -> bool:
     """True when the repo README's block is fresh (or the README has no markers)."""
     readme = repo.path / "README.md"
-    text = readme.read_text() if readme.exists() else ""
+    try:
+        text = readme.read_bytes().decode("utf-8") if readme.exists() else ""
+    except (OSError, UnicodeDecodeError) as e:
+        raise InputError(f"cannot read {readme}: {e}") from e
     if not has_markers(text, BLOCK_MARKERS):
         print(f"skip: {repo.name} has no agentic-stats markers", file=sys.stderr)
         return True
@@ -345,8 +390,8 @@ def check_repo_block(repo: Repo, rows: list[Row]) -> bool:
 
 def run_hub(hub: Path, repos: list[Repo], check: bool) -> int:
     try:
-        text = hub.read_text()
-    except OSError as e:
+        text = hub.read_bytes().decode("utf-8")
+    except (OSError, UnicodeDecodeError) as e:
         raise InputError(f"cannot read hub {hub}: {e}") from e
     body = render_hub([(r, collect(r)) for r in repos if r.hub])
     try:
@@ -358,7 +403,10 @@ def run_hub(hub: Path, repos: list[Repo], check: bool) -> int:
     if check:
         print(f"stale: {hub}", file=sys.stderr)
         return 1
-    hub.write_text(fresh)
+    try:
+        hub.write_bytes(fresh.encode("utf-8"))
+    except OSError as e:
+        raise InputError(f"cannot write hub {hub}: {e}") from e
     print(f"updated: {hub}", file=sys.stderr)
     return 0
 
@@ -392,7 +440,7 @@ def main(argv: list[str] | None = None) -> int:
                 stale |= not check_repo_block(repo, rows)
             else:
                 print(f"### {repo.name}\n\n{render_block(rows)}")
-    except InputError as e:
+    except (InputError, OSError) as e:
         print(f"error: {e}", file=sys.stderr)
         return 2
     return 1 if stale else 0

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import importlib.util
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -74,16 +75,19 @@ def test_count_tests_head_only(tmp_path):
     assert stats.count_tests(repo, ["py"], ["vendor"]) == 2
 
 
-def test_main_prints_tests_row(tmp_path, capsys):
+def test_main_prints_tests_row(tmp_path, fake_scc, capsys):
     repo = make_repo(tmp_path, MIXED)
     cfg = write_config(
         tmp_path,
-        f'[[repo]]\nname = "demo"\npath = "{repo.name}"\nlangs = ["py", "go"]\n',
+        f'[[repo]]\nname = "demo"\npath = "{repo.name}"\nlangs = ["py", "go"]\n'
+        'exclude = ["vendor"]\n',
     )
     assert stats.main(["--config", str(cfg)]) == 0
     out = capsys.readouterr().out
     assert "### demo" in out
-    assert "| Tests | 4 |" in out
+    assert "| Tests | 3 |" in out
+    assert "excl. `.claude`, `vendor`; `.each`/parametrized cases count once |" in out
+    assert "excl. docs/data formats, `.claude`, `vendor` |" in out
 
 
 @pytest.mark.parametrize(
@@ -93,6 +97,12 @@ def test_main_prints_tests_row(tmp_path, capsys):
         ('[[repo]]\nname = "a"\npath = "r"\nlangs = ["rust"]\n', "unknown lang"),
         ('[[repo]]\nname = "a"\npath = "r"\ntypo = 1\n', "unknown key"),
         ('title = "x"\n', "no [[repo]]"),
+        (
+            '[[repo]]\nname = "a"\npath = "r"\nrelease_pattern = "v*"\n',
+            "a: release_pattern",
+        ),
+        ('[[repo]]\nname = "a"\npath = "r"\nhub = "false"\n', "a: hub must be"),
+        ('[[repo]]\nname = "a"\npath = "r"\nadr_glob = ["d/*"]\n', "a: adr_glob must"),
     ],
 )
 def test_bad_config_exits_2(tmp_path, capsys, body, needle):
@@ -102,7 +112,7 @@ def test_bad_config_exits_2(tmp_path, capsys, body, needle):
     assert needle in capsys.readouterr().err
 
 
-def test_example_config_runs(capsys):
+def test_example_config_runs(fake_scc, capsys):
     assert (
         stats.main(
             ["--config", str(REPO_ROOT / "scripts" / "agentic-stats.example.toml")]
@@ -151,12 +161,12 @@ def test_count_releases(tmp_path):
     assert stats.count_releases(repo, ["v*", "chipper/*"], ["chipper/*"]) == 3
 
 
-def test_releases_unset_is_absent(tmp_path, capsys):
+def test_releases_unset_is_absent(tmp_path, fake_scc, capsys):
     repo = make_repo(tmp_path, {"a.txt": "x\n"})
     git(repo, "tag", "v1.0")
     cfg = write_config(tmp_path, f'[[repo]]\nname = "a"\npath = "{repo.name}"\n')
     assert stats.main(["--config", str(cfg)]) == 0
-    assert "| Releases | — |" in capsys.readouterr().out
+    assert "| Releases | — | not tracked |" in capsys.readouterr().out
 
 
 FAKE_SCC = """#!{python}
@@ -166,7 +176,7 @@ code = {{}}
 for root, _, files in os.walk(sys.argv[-1]):
     for f in files:
         lang = names.get(os.path.splitext(f)[1], "Other")
-        with open(os.path.join(root, f)) as fh:
+        with open(os.path.join(root, f), "rb") as fh:
             code[lang] = code.get(lang, 0) + sum(1 for _ in fh)
 print(json.dumps([{{"Name": k, "Code": v}} for k, v in code.items()]))
 """
@@ -206,6 +216,13 @@ def test_count_loc_skips_docs_and_excludes(tmp_path, fake_scc):
     # src/a.py (3) + vendor/v.py (1); Markdown/JSON skipped; .claude always excluded
     assert stats.count_loc(repo, []) == 4
     assert stats.count_loc(repo, ["vendor"]) == 3
+
+
+def test_count_loc_skips_absolute_symlink(tmp_path, fake_scc):
+    repo = make_repo(tmp_path, LOC_FILES)
+    (repo / "abs-link").symlink_to("/etc/hostname")
+    commit(repo, {})
+    assert stats.count_loc(repo, []) == 4
 
 
 def test_count_loc_head_only(tmp_path, fake_scc):
@@ -279,6 +296,7 @@ def test_upstream_delta(tmp_path, fake_scc, capsys):
     # HEAD 3 tests vs 1 upstream; HEAD 2+1+5+2 = 10 py lines vs 2+1 = 3 upstream
     assert "| Tests | +2 over wire-pod |" in out
     assert "| Lines | +7 over wire-pod |" in out
+    assert "(delta vs wire-pod) |" in out
 
 
 def test_upstream_delta_negative_not_clamped(tmp_path, fake_scc, capsys):
@@ -348,11 +366,18 @@ def test_check_fresh_stale_and_skip(tmp_path, fake_scc, capsys):
     assert "stale:" in capsys.readouterr().err
 
 
-def test_check_duplicate_markers_exits_2(tmp_path, fake_scc, capsys):
+@pytest.mark.parametrize("tail", [f"{END}\n{END}\n", "no end marker\n"])
+def test_check_bad_markers_exits_2(tmp_path, fake_scc, capsys, tail):
     repo, cfg, block = _check_setup(tmp_path)
-    (repo / "README.md").write_text(f"{START}\n{block}{END}\n{END}\n")
+    (repo / "README.md").write_text(f"{START}\n{block}{tail}")
     assert stats.main(["--config", str(cfg), "--check"]) == 2
     assert "README.md" in capsys.readouterr().err
+
+
+def test_block_escapes_pipes_in_cells():
+    rows = [stats.Row("Tests", "1", stats.tests_definition(["ts"], []))]
+    table = stats.render_block(rows).splitlines()
+    assert all(len(re.findall(r"(?<!\\)\|", line)) == 4 for line in table)
 
 
 HUB_START, HUB_END = stats.HUB_MARKERS
@@ -365,17 +390,22 @@ def _hub_setup(tmp_path: Path) -> tuple[Path, Path]:
         tmp_path,
         f'[[repo]]\nname = "pub"\npath = "{pub.name}"\nlangs = ["py"]\nhub = true\n'
         'url = "https://example.invalid/pub"\nprod_since = "2026-06"\n'
-        f'[[repo]]\nname = "priv"\npath = "{priv.name}"\n',
+        f'[[repo]]\nname = "priv"\npath = "{priv.name}"\n'
+        f'[[repo]]\nname = "gopub"\npath = "{pub.name}"\nlangs = ["go"]\nhub = true\n',
     )
     hub = tmp_path / "HUB.md"
-    hub.write_text(f"# hub\n{HUB_START}\n{HUB_END}\nafter\n")
+    hub.write_bytes(f"# hub\r\n{HUB_START}\r\n{HUB_END}\r\nafter\r\n".encode())
     return cfg, hub
 
 
 def test_hub_write_then_check(tmp_path, fake_scc):
     cfg, hub = _hub_setup(tmp_path)
+    assert stats.main(["--config", str(cfg), "--hub", str(hub), "--repo", "pub"]) == 2
     assert stats.main(["--config", str(cfg), "--hub", str(hub)]) == 0
-    text = hub.read_text()
+    raw = hub.read_bytes()
+    assert raw.startswith(f"# hub\r\n{HUB_START}".encode())
+    assert raw.endswith(f"{HUB_END}\r\nafter\r\n".encode())
+    text = raw.decode()
     assert (
         "| Repo | Tests | CI gates | ADRs | Releases | Lines | In prod since |" in text
     )
@@ -383,18 +413,22 @@ def test_hub_write_then_check(tmp_path, fake_scc):
         "| [pub](https://example.invalid/pub) | 1 | 0 | — | — | 2 | 2026-06 |" in text
     )
     assert "priv" not in text
-    assert "- **Tests**: static count" in text
-    assert text.startswith("# hub\n") and text.endswith(f"{HUB_END}\nafter\n")
+    lines = text.splitlines()
+    tests_at = lines.index("- **Tests**:")
+    assert lines[tests_at + 1].startswith("  - pub: static count: lines matching `^")
+    assert lines[tests_at + 2].startswith(
+        "  - gopub: static count: lines matching `^func"
+    )
     assert stats.main(["--config", str(cfg), "--hub", str(hub), "--check"]) == 0
 
 
 def test_hub_check_stale_leaves_file_untouched(tmp_path, fake_scc):
     cfg, hub = _hub_setup(tmp_path)
     stats.main(["--config", str(cfg), "--hub", str(hub)])
-    stale = hub.read_text().replace("| 2026-06 |", "| 2025-01 |")
-    hub.write_text(stale)
+    stale = hub.read_bytes().replace(b"| 2026-06 |", b"| 2025-01 |")
+    hub.write_bytes(stale)
     assert stats.main(["--config", str(cfg), "--hub", str(hub), "--check"]) == 1
-    assert hub.read_text() == stale
+    assert hub.read_bytes() == stale
 
 
 def test_hub_without_markers_exits_2(tmp_path, fake_scc, capsys):
