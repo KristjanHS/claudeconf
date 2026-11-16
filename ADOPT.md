@@ -66,7 +66,7 @@ already holds your hooks. Confirm Claude Code reports no settings errors after.
 
 How the budget governor measures context (exact, compaction-aware, zero-dep) and
 why it shares the statusline's 200k mark is documented once in
-**[`.claude/hooks/README.md`](.claude/hooks/README.md#the-budget-governor--impag-budget-checkpy)** - read it there.
+**[`.claude/hooks/README.md`](.claude/hooks/README.md#the-budget-governor---impag-budget-checkpy)** - read it there.
 
 **Smoke-test (hooks):** run a hook against a synthetic stdin payload and check
 its exit code - the bloat-gate example is in the

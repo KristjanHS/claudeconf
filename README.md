@@ -9,7 +9,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![Built for Claude Code](https://img.shields.io/badge/built%20for-Claude%20Code-d97757)](https://claude.com/claude-code)
 
-[Why](#-why-this-exists) · [Problem](#-the-problem) · [What it is](#-what-this-is) · [Does it work?](#-does-this-actually-work) · [Catalog](#-the-catalog) · [Quick start](#-quick-start) · [Adopt](ADOPT.md)
+[Why](#-why-this-exists) · [System](docs/system.md) · [Problem](#-the-problem) · [What it is](#-what-this-is) · [Does it work?](#-does-this-actually-work) · [Catalog](#-the-catalog) · [Quick start](#-quick-start) · [Adopt](ADOPT.md)
 
 <p align="left">A Claude Code statusline to track context usage - available in this repo:</p>
 
@@ -23,6 +23,7 @@
 
 - 👋 [Why this exists](#-why-this-exists)
 - 🧭 [How it works](#-how-it-works)
+- ⚙️ [How the system works](docs/system.md) - all four layers on one page
 - 📈 [Built with this method](#-built-with-this-method)
 
 **The case for (and against) adopting**
@@ -51,8 +52,10 @@ This is how I do agentic coding, published as reusable config. The method is a
 loop: **rules** say what good looks like, **gates** flag or block the output
 that isn't, a **review loop** catches what slips past the gates, and a **cost
 budget** stops a run before it burns through its context. Each layer is a file
-you can read and copy, not a description of one. Co-workers use the same
-catalog in their own setups.
+you can read and copy, not a description of one.
+
+The longer version, with what agents got wrong and worked trails:
+**[Why this exists](docs/why.md)**.
 
 Built by [Kristjan](https://github.com/KristjanHS). Apps built with this method:
 
@@ -76,9 +79,8 @@ Where each layer of the method lives on this page:
   [The budget governor (detail)](#-the-budget-governor-detail),
   [What it costs you](#-what-it-costs-you).
 
-To adopt it, start at [Quick start](#-quick-start).
-
-<!-- TODO: system page (slot 5) -->
+The whole loop, with each layer's files and evidence, is on one page:
+**[How the system works](docs/system.md)**. To adopt it, start at [Quick start](#-quick-start).
 
 ## 📈 Built with this method
 
@@ -123,7 +125,8 @@ A **copy-in catalog** of the Claude Code config that keeps a session's context
 window lean: a progressive-disclosure `CLAUDE.md`, path-gated rules, compaction
 continuity hooks, an anti-bloat write gate, a budget governor, and a statusline
 that shows the burn. Each piece is a working example you copy into your own
-`~/.claude/` by hand and adapt - **not** an installer.
+`~/.claude/` by hand and adapt; `install.sh` only activates this clone's git
+secret-gate hooks.
 
 This is written for someone **already running Claude Code who doubts the
 hook/rule/budget sprawl earns its keep.** The honest question - "does this

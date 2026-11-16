@@ -20,6 +20,6 @@ gitleaks dir . || {
 }
 
 # Identity/PII layer too — gitleaks catches credentials, not home paths/emails.
-# Mirrors pre-commit so a `--no-verify`'d commit still can't push PII.
+# Re-checks tracked files at push time; history PII is CI's job, not this hook's.
 repo_root="$(git rev-parse --show-toplevel)"
 "$repo_root/scripts/check-hardcoded-paths.sh" || exit 1
