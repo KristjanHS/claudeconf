@@ -1,9 +1,14 @@
-"""Every `#anchor` and relative link in README.md, ADOPT.md and docs/*.md must resolve on GitHub."""
+"""Every `#anchor` and relative link in README.md, ADOPT.md and docs/*.md must resolve on GitHub.
+
+Also: every dated `YYYY-MM-DD-<name>.md` cited in any tracked file names a tracked file,
+apart from the pinned DANGLING_BASELINE.
+"""
 
 from __future__ import annotations
 
 import html
 import re
+import subprocess
 import unicodedata
 from pathlib import Path
 from urllib.parse import unquote
@@ -181,3 +186,66 @@ def test_link_form_is_parsed(tmp_path: Path, body: str, problem: str) -> None:
     doc = tmp_path / "doc.md"
     doc.write_text(body + "\n", encoding="utf-8")
     assert [p.split(": ", 1)[1] for p in broken_links(doc, root=tmp_path)] == [problem]
+
+
+DATED_CITE = re.compile(r"\d{4}-\d{2}-\d{2}-[\w.-]+\.md")
+# Dated docs cited here that live only in the author's dotfiles, never in this repo.
+# Pinned so any NEW unresolved cite fails; drop an entry once its cite is gone.
+# Stems, not `.md` names: a literal name here would cite itself and never go stale.
+DANGLING_BASELINE = frozenset(
+    {
+        "2026-04-18-precompact-hook-design",
+        "2026-08-09-session-token-audit-round-2",
+        "2026-09-27-security-critique-todo",
+    }
+)
+
+
+def tracked_files(root: Path = REPO_ROOT) -> list[str]:
+    out = subprocess.run(
+        ["git", "-C", str(root), "ls-files", "-z"],
+        check=True,
+        capture_output=True,
+    ).stdout.decode()
+    # Index entries deleted in the working tree count as gone (a pending removal).
+    return [p for p in out.split("\0") if p and (root / p).is_file()]
+
+
+def dangling_cites(root: Path, files: list[str]) -> dict[str, list[str]]:
+    """Map each cited dated `.md` name no file in `files` carries to its `path:line` sites."""
+    names = {Path(p).name for p in files}
+    out: dict[str, list[str]] = {}
+    for rel in files:
+        try:
+            text = (root / rel).read_text(encoding="utf-8")
+        except UnicodeDecodeError:
+            continue
+        for n, line in enumerate(text.splitlines(), 1):
+            for cite in DATED_CITE.findall(line):
+                if cite not in names:
+                    out.setdefault(cite, []).append(f"{rel}:{n}")
+    return out
+
+
+def test_dated_cites_resolve() -> None:
+    dangling = {
+        k.removesuffix(".md"): v
+        for k, v in dangling_cites(REPO_ROOT, tracked_files()).items()
+    }
+    new = {k: v for k, v in dangling.items() if k not in DANGLING_BASELINE}
+    assert new == {}, "cited dated doc is not a tracked file"
+    stale = DANGLING_BASELINE - dangling.keys()
+    assert not stale, "baseline entry no longer dangles — remove it"
+
+
+def test_planted_dangling_cite_is_reported(tmp_path: Path) -> None:
+    # Names are assembled so this file never cites them literally (the guard scans it).
+    day = "2026-01-0"
+    here, gone, binary = f"{day}1-here.md", f"{day}2-gone.md", f"{day}3-binary.md"
+    (tmp_path / here).write_text("x\n", encoding="utf-8")
+    (tmp_path / "a.py").write_text(
+        f"# see docs/{here}\n# see {gone}\n", encoding="utf-8"
+    )
+    (tmp_path / "b.bin").write_bytes(b"\xff" + binary.encode())
+    files = [here, "a.py", "b.bin"]
+    assert dangling_cites(tmp_path, files) == {gone: ["a.py:2"]}
