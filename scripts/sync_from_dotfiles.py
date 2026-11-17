@@ -3,7 +3,6 @@
 
 Source is dotfiles HEAD (never its working tree). Modes: sync (default),
 --dry-run (report only), --check (drift; exit 0 when dotfiles is absent).
-Plan: docs/plans/2026-09-26-dotfiles-sync-and-statusline-gif.md
 """
 
 from __future__ import annotations
