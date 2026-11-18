@@ -65,9 +65,9 @@ stays in the [README](../README.md). This page links to it and does not repeat i
     found that the bundled `/code-review` caught no more than a plain `code-reviewer` subagent, at
     many times the tokens.
   - The doc-link checker is a worked trail. Its first run
-    ([`78ccb45`](https://github.com/KristjanHS/claudeconf/commit/78ccb45)) found a dead anchor in
+    ([`fa5f3a6`](https://github.com/KristjanHS/claudeconf/commit/fa5f3a6)) found a dead anchor in
     `ADOPT.md`. The fresh review then found slug and code-fence gaps the author had missed
-    ([`78ccb45`](https://github.com/KristjanHS/claudeconf/commit/78ccb45)).
+    ([`fa5f3a6`](https://github.com/KristjanHS/claudeconf/commit/fa5f3a6)).
 
 ## Cost budget: stop a run before it burns its context
 
