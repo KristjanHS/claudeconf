@@ -36,7 +36,7 @@ choices shape all of them:
 | What the agent got wrong | Answered by | Proof |
 |---|---|---|
 | Docs grow faster than anyone re-reads them | [Bloat gate](../.claude/hooks/docs-bloat-gate.py) ([Gates](system.md#gates-flag-or-block-the-output-that-isnt)) | [What it costs you](../README.md#-what-it-costs-you): slop, density and new-doc signals nudge; only the opt-in size ratchet blocks |
-| A leak gate that reads its own error as "clean" | [PII check](../scripts/check-hardcoded-paths.sh), beside the [pre-commit](../hooks/pre-commit) secret gate and [gitleaks CI](../.github/workflows/gitleaks.yml) | [`c14c1f4`](https://github.com/KristjanHS/claudeconf/commit/c14c1f4): review found a git error printed "no leakage" and exited 0; now it fails closed, red demo in the message |
+| A leak gate that reads its own error as "clean" | [PII check](../scripts/check-hardcoded-paths.sh), beside the [pre-commit](../hooks/pre-commit) secret gate and [gitleaks CI](../.github/workflows/gitleaks.yml) | [`31b66e2`](https://github.com/KristjanHS/claudeconf/commit/31b66e2): review found a git error printed "no leakage" and exited 0; now it fails closed, red demo in the message |
 | Context burns until compaction drops the reasoning | [Budget governor](../.claude/hooks/impag-budget-check.py) ([Cost budget](system.md#cost-budget-stop-a-run-before-it-burns-its-context)) | [Budget governor detail](../README.md#-the-budget-governor-detail) |
 | Plausible code that passes the tests it wrote | Review loop in a fresh context ([Review loop](system.md#review-loop-catch-what-slips-past-the-gates)) | [`c0e11ebc`](https://github.com/KristjanHS/my-vector/commit/c0e11ebc): the old month test never crossed a month; review caught a seal a late restart could falsify |
 
