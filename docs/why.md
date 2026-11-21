@@ -36,9 +36,9 @@ choices shape all of them:
 | What the agent got wrong | Answered by | Proof |
 |---|---|---|
 | Docs grow faster than anyone re-reads them | [Bloat gate](../.claude/hooks/docs-bloat-gate.py) ([Gates](system.md#gates-flag-or-block-the-output-that-isnt)) | [What it costs you](../README.md#-what-it-costs-you): slop, density and new-doc signals nudge; only the opt-in size ratchet blocks |
-| A leak gate that reads its own error as "clean" | [PII check](../scripts/check-hardcoded-paths.sh), beside the [pre-commit](../hooks/pre-commit) secret gate and [gitleaks CI](../.github/workflows/gitleaks.yml) | [`31b66e2`](https://github.com/KristjanHS/claudeconf/commit/31b66e2): review found a git error printed "no leakage" and exited 0; now it fails closed, red demo in the message |
+| A leak gate that reads its own error as "clean" | [PII check](../scripts/check-hardcoded-paths.sh), beside the [pre-commit](../hooks/pre-commit) secret gate and [gitleaks CI](../.github/workflows/gitleaks.yml) | [`2ad3e5a`](https://github.com/KristjanHS/claudeconf/commit/2ad3e5a): review found a git error printed "no leakage" and exited 0; now it fails closed, red demo in the message |
 | Context burns until compaction drops the reasoning | [Budget governor](../.claude/hooks/impag-budget-check.py) ([Cost budget](system.md#cost-budget-stop-a-run-before-it-burns-its-context)) | [Budget governor detail](../README.md#-the-budget-governor-detail) |
-| Plausible code that passes the tests it wrote | Review loop in a fresh context ([Review loop](system.md#review-loop-catch-what-slips-past-the-gates)) | [`c0e11ebc`](https://github.com/KristjanHS/my-vector/commit/c0e11ebc): the old month test never crossed a month; review caught a seal a late restart could falsify |
+| Plausible code that passes the tests it wrote | Review loop in a fresh context ([Review loop](system.md#review-loop-catch-what-slips-past-the-gates)) | [`20a7475`](https://github.com/KristjanHS/my-vector/commit/20a7475): the old month test never crossed a month; review caught a seal a late restart could falsify |
 
 ## Worked trails
 
@@ -48,8 +48,8 @@ Each trail runs plan → building commit → the review fix that corrected it.
 real-use window.
 
 - Plan: [prod evidence](plans/2026-11-15-my-vector-prod-evidence.md)
-- Build: [`3d8b161c`](https://github.com/KristjanHS/my-vector/commit/3d8b161c) `make prod-check` (Stage 3)
-- Review fix: [`c0e11ebc`](https://github.com/KristjanHS/my-vector/commit/c0e11ebc): a day counts as final only before the last saved poll; the tag pins `origin/main`, never a local-only HEAD
+- Build: [`da037e6`](https://github.com/KristjanHS/my-vector/commit/da037e6) `make prod-check` (Stage 3)
+- Review fix: [`20a7475`](https://github.com/KristjanHS/my-vector/commit/20a7475): a day counts as final only before the last saved poll; the tag pins `origin/main`, never a local-only HEAD
 
 **[transcribe-offline](https://github.com/KristjanHS/transcribe-offline)**:
 hardening an offline transcriber.
