@@ -1,7 +1,7 @@
 # Plan: my-vector "in prod since" — derived from a sustained-use receipt
 
 - **Created:** 2026-11-15
-- **Status:** ACTIVE — Stages 1–3 DONE in my-vector (0758a2b9..c0e11ebc, reviewed); live from the next `make ship`. Stage 4 here, after `make prod-check` seals `prod/start`.
+- **Status:** ACTIVE — Stages 1–3 DONE in my-vector (c6dd28e..20a7475, reviewed); live from the next `make ship`. Stage 4 here, after `make prod-check` seals `prod/start`.
 - **Goal:** the hub's my-vector "In prod since" cell is computed from git, and means sustained, stable, real use.
 - **Rulings (2026-11-15):** (1) live `ship/*` receipt per green ship, **no backfill** (tagger dates are forgeable);
   (2) prod event = first day of a 7-day window of real use + zero unplanned restarts, sealed as a `prod/start` tag.
