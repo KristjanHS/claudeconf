@@ -24,7 +24,11 @@ _spec.loader.exec_module(stats)
 
 
 def git(repo: Path, *args: str) -> None:
-    subprocess.run(["git", "-C", str(repo), *args], check=True, capture_output=True)
+    # Hermetic: the user's global hooks/signing must not fire under no_scc's bare PATH.
+    env = {**os.environ, "GIT_CONFIG_GLOBAL": os.devnull, "GIT_CONFIG_NOSYSTEM": "1"}
+    subprocess.run(
+        ["git", "-C", str(repo), *args], check=True, capture_output=True, env=env
+    )
 
 
 def commit(repo: Path, files: dict[str, str], msg: str = "c") -> None:
