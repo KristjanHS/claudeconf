@@ -15,3 +15,14 @@ claude/.claude/hooks/docs-bloat-gate.py
 skills/condense/
 skills/de-bloat/
 claude/.claude/lib/docs_quality.py
+# 2026-11-24: third-party / unverified-provenance skills + ai-debt-sweep (private data).
+skills/ai-debt-sweep/
+skills/detect-ai-text-cl-op/
+skills/doc-coauthoring/
+skills/pdf/
+skills/performance-optimization/
+skills/security-best-practices/
+skills/security-reviewer/
+skills/skill-creator/
+skills/supabase-postgres-best-practices/
+skills/xlsx/
