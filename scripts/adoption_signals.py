@@ -6,8 +6,9 @@ Usage: adoption_signals.py --readme FILE --repo OWNER/NAME [--from-json DIR]
 Writes the table between the adoption markers in FILE. Any `gh` failure (no
 auth, 403 on traffic, bad JSON, missing field) is exit 2 with FILE untouched —
 never a block of zeros. `--from-json DIR` reads DIR/repo.json + DIR/clones.json
-instead of calling `gh`. `--check` writes nothing and calls nothing: exit 1 when
-the block's "on YYYY-MM-DD" is older than --max-age-days (or missing).
+instead of calling `gh`. A metric whose value is 0 gets no row. `--check`
+writes nothing and calls nothing: exit 1 when the block's "on YYYY-MM-DD" is
+older than --max-age-days (or missing).
 Exit 0 ok/fresh, 1 stale (--check), 2 input error.
 """
 
@@ -95,6 +96,8 @@ def collect(repo: str, payloads: dict[str, Any]) -> list[tuple[str, str, str]]:
         # bool is an int subclass; a missing/odd field is an error, never a 0.
         if not isinstance(v, int) or isinstance(v, bool) or v < 0:
             raise InputError(f"{eps[key]}: field {field!r} missing or not a count")
+        if v == 0:
+            continue  # zero rows are omitted (validated first, so never a silent gap)
         rows.append((metric, f"{v:,}", f"`{field}` from `gh api {eps[key]}`{note}"))
     return rows
 

@@ -159,6 +159,18 @@ def test_bad_payload_field_is_2_and_untouched(
     assert (repo / "README.md").read_bytes() == before
 
 
+def test_zero_valued_rows_are_omitted(repo: Path, tmp_path: Path):
+    fx = tmp_path / "fx"
+    shutil.copytree(FIXTURES, fx)
+    payload = json.loads((fx / "repo.json").read_text())
+    payload["stargazers_count"] = 0
+    (fx / "repo.json").write_text(json.dumps(payload))
+    assert cli("--from-json", str(fx)) == 0
+    text = (repo / "README.md").read_text()
+    assert "| Stars |" not in text
+    assert "| Forks | 12 |" in text  # the non-zero rows still render
+
+
 def test_from_json_missing_file_is_2(repo: Path, tmp_path: Path):
     fx = tmp_path / "fx"
     shutil.copytree(FIXTURES, fx)

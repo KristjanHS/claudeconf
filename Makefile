@@ -3,7 +3,7 @@
 # the same muscle memory. The bodies differ — this repo's suite is pytest over
 # .claude/hooks/*.py, not bats.
 
-.PHONY: help check test test-lint test-pytest test-paths test-drift test-cost cost-block advisory docs-report install-hooks sync
+.PHONY: help check test test-lint test-pytest test-paths test-drift test-cost cost-block adoption-block advisory docs-report install-hooks sync
 
 help:
 	@echo "make check         - alias for test"
@@ -14,6 +14,7 @@ help:
 	@echo "make test-drift    - fail if a synced file differs from dotfiles HEAD (skips without dotfiles)"
 	@echo "make test-cost     - fail if the README measured context-cost block is stale"
 	@echo "make cost-block    - rewrite the README measured context-cost block from the repo files"
+	@echo "make adoption-block - rewrite the README adoption block from public gh api signals"
 	@echo "make advisory      - alias for test-paths, kept for dotfiles parity"
 	@echo "make sync          - publish dotfiles HEAD per sync-manifest.txt, then PII + gitleaks gate it"
 	@echo "make docs-report   - advisory size report for instruction files (never blocks)"
@@ -62,6 +63,11 @@ test-cost:
 # Writes README.md; run after changing rules/references/CLAUDE.md/thresholds.
 cost-block:
 	@python3 scripts/context_cost.py --readme README.md
+
+# Writes README.md from live `gh api`; not in `test` (needs auth + network, and
+# the block ages by date). Any gh failure exits 2 and leaves README.md untouched.
+adoption-block:
+	@python3 scripts/adoption_signals.py --readme README.md --repo KristjanHS/claudeconf
 
 advisory: test-paths
 
