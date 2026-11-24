@@ -23,6 +23,10 @@ from pathlib import Path
 
 import yaml
 
+# Sibling import that survives `python3 -I` and by-path importlib loads (tests).
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from marker_block import MarkerError, has_markers, replace_between  # noqa: E402
+
 # lang -> (pathspec globs, git grep -E regex)
 LANGS: dict[str, tuple[list[str], str]] = {
     "ts": (["*.test.ts", "*.test.tsx", "*.spec.ts", "*.test.js"], r"^\s*(it|test)\("),
@@ -332,20 +336,6 @@ def render_block(rows: list[Row]) -> str:
     return "\n".join(lines) + "\n"
 
 
-def has_markers(text: str, markers: tuple[str, str]) -> bool:
-    return any(m in text for m in markers)
-
-
-def replace_between(text: str, start: str, end: str, body: str) -> str:
-    """Swap the bytes between exactly one `start` and one later `end`; all else untouched."""
-    if text.count(start) != 1 or text.count(end) != 1:
-        raise InputError(f"need exactly one {start} and one {end}")
-    i, j = text.index(start) + len(start), text.index(end)
-    if j < i:
-        raise InputError(f"{end} comes before {start}")
-    return text[:i] + "\n" + body + text[j:]
-
-
 def render_hub(stats: list[tuple[Repo, list[Row]]]) -> str:
     lines = [
         "| Repo | " + " | ".join(HUB_COLS) + " |",
@@ -380,7 +370,7 @@ def check_repo_block(repo: Repo, rows: list[Row]) -> bool:
         return True
     try:
         fresh = replace_between(text, *BLOCK_MARKERS, render_block(rows))
-    except InputError as e:
+    except MarkerError as e:
         raise InputError(f"{readme}: {e}") from e
     if fresh != text:
         print(f"stale: {readme}", file=sys.stderr)
@@ -396,7 +386,7 @@ def run_hub(hub: Path, repos: list[Repo], check: bool) -> int:
     body = render_hub([(r, collect(r)) for r in repos if r.hub])
     try:
         fresh = replace_between(text, *HUB_MARKERS, body)
-    except InputError as e:
+    except MarkerError as e:
         raise InputError(f"{hub}: {e}") from e
     if fresh == text:
         return 0

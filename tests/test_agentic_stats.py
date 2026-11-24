@@ -326,27 +326,9 @@ def test_unresolvable_upstream_exits_2(tmp_path, fake_scc, capsys):
     assert "does not resolve" in capsys.readouterr().err
 
 
+# replace_between/has_markers unit tests live in test_marker_block.py; the
+# MarkerError -> exit 2 mapping is covered by the *_exits_2 tests below.
 START, END = stats.BLOCK_MARKERS
-
-
-def test_replace_between_idempotent_and_preserves_outside():
-    text = f"head\n{START}\nold\n{END}\ntail  \n"
-    once = stats.replace_between(text, START, END, "new\n")
-    assert once == f"head\n{START}\nnew\n{END}\ntail  \n"
-    assert stats.replace_between(once, START, END, "new\n") == once
-
-
-@pytest.mark.parametrize(
-    "text",
-    [
-        f"{START}\nx\n",  # end missing
-        f"{START}\n{START}\n{END}\n",  # duplicate start
-        f"{END}\nx\n{START}\n",  # reversed
-    ],
-)
-def test_replace_between_bad_markers(text):
-    with pytest.raises(stats.InputError):
-        stats.replace_between(text, START, END, "b\n")
 
 
 def _check_setup(tmp_path: Path) -> tuple[Path, Path, str]:
