@@ -10,6 +10,46 @@
             "timeout": 5
           }
         ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "~/.claude/hooks/destructive-bash-gate.py",
+            "timeout": 5
+          },
+          {
+            "type": "command",
+            "command": "~/.claude/hooks/fetch-quarantine-gate.py",
+            "timeout": 5
+          },
+          {
+            "type": "command",
+            "command": "~/.claude/hooks/upstream-exec-gate.py",
+            "timeout": 5
+          }
+        ]
+      },
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "~/.claude/hooks/external-process-test-gate.py",
+            "timeout": 5
+          }
+        ]
+      },
+      {
+        "matcher": "Agent",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "~/.claude/hooks/agent-model-pin-gate.py",
+            "timeout": 5
+          }
+        ]
       }
     ],
     "PostToolUse": [
@@ -21,6 +61,28 @@
             "command": "~/.claude/hooks/impag-budget-check.py",
             "timeout": 5,
             "statusMessage": "impag budget check"
+          }
+        ]
+      },
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "~/.claude/hooks/ruff-check.sh",
+            "timeout": 15,
+            "statusMessage": "ruff check"
+          }
+        ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "~/.claude/hooks/ruff-check.sh --lint-only",
+            "timeout": 15,
+            "statusMessage": "ruff check (bash-touched .py)"
           }
         ]
       }
@@ -44,6 +106,40 @@
             "type": "command",
             "command": "~/.claude/hooks/post-compact-restore.py",
             "timeout": 5
+          }
+        ]
+      },
+      {
+        "matcher": "startup",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "~/.claude/hooks/session-start-health.py",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "~/.claude/hooks/ruff-check.sh --stop",
+            "timeout": 30,
+            "statusMessage": "ruff check (end of turn)"
+          }
+        ]
+      }
+    ],
+    "SubagentStop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "~/.claude/hooks/ruff-check.sh --stop",
+            "timeout": 30,
+            "statusMessage": "ruff check (sub-agent end)"
           }
         ]
       }

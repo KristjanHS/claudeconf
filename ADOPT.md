@@ -48,18 +48,31 @@ proves wiring, not that the rule changed an outcome.
 ## 3. Runtime hooks + `settings.json` wiring
 
 ```sh
-cp .claude/hooks/*.py ~/.claude/hooks/
-chmod +x ~/.claude/hooks/*.py
+cp .claude/hooks/*.py .claude/hooks/*.sh ~/.claude/hooks/
+chmod +x ~/.claude/hooks/*.py ~/.claude/hooks/*.sh
+mkdir -p ~/.claude/lib && cp .claude/lib/ask_paths.py ~/.claude/lib/
 ```
 
 Then **merge** (do not overwrite) the hook entries from `.claude/settings.json`
-into your own `~/.claude/settings.json`. The shipped file shows exactly the
-four hooks wired:
+into your own `~/.claude/settings.json`. The shipped file wires every hook.
+The context-management core is four of them:
 
 - `PreCompact` → `pre-compact.py`
 - `SessionStart` → `post-compact-restore.py` (on compact/resume)
 - `PreToolUse` (Write/Edit/Bash) → `docs-bloat-gate.py`
 - `PostToolUse` (Bash) → `impag-budget-check.py`
+
+The rest are optional guards - take the ones you want:
+
+- `PreToolUse` (Bash) → `destructive-bash-gate.py` (needs `~/.claude/lib/ask_paths.py`
+  for its ask-path check; without it only that check goes inert),
+  `fetch-quarantine-gate.py`, `upstream-exec-gate.py`
+- `PreToolUse` (Write/Edit) → `external-process-test-gate.py`
+- `PreToolUse` (Agent) → `agent-model-pin-gate.py` - pair it with the agent pins
+  (`cp .claude/agents/*.md ~/.claude/agents/`)
+- `PostToolUse` (Write/Edit, Bash `--lint-only`) + `Stop`/`SubagentStop` (`--stop`)
+  → `ruff-check.sh` (needs `ruff`)
+- `SessionStart` (startup) → `session-start-health.py`
 
 If you keep separate `settings.json` files, add the matchers to whichever one
 already holds your hooks. Confirm Claude Code reports no settings errors after.
@@ -113,7 +126,10 @@ manage Claude config and skills (the acquisition side of a copy-in catalog);
 are code-quality & dev-workflow exemplars; the seven `kaizen-*` skills are a
 coherent continuous-improvement family (copy them as a set or skip them);
 `detect-ai-text-humanize` flags AI-sounding prose and rewrites it human (point it
-at a doc with "humanize the AI text in X" or "check X for AI"). They are
+at a doc with "humanize the AI text in X" or "check X for AI"); `ext-repo-safety`
+vets an outside repo before you adopt it; `snapshot` saves a session by hand
+(`/snapshot`); `jev-gate` gates expensive work on an external typed decision
+(its router lives upstream). They are
 self-contained, and any reference to tooling you don't run is written as optional
 - except two with a non-optional reference dep: `mybrain` reads
 `~/.claude/references/ideation-techniques-library.md`, and `systematic-debugging`
