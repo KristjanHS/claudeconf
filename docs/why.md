@@ -1,5 +1,7 @@
 # Why this exists
 
+[← Hub](../README.md) · [System](system.md)
+
 The short version is in the [README](../README.md#-why-this-exists); the
 layers themselves are on [How the system works](system.md). This page is the
 reasoning behind them.
@@ -42,7 +44,8 @@ choices shape all of them:
 
 ## Worked trails
 
-Each trail runs plan → building commit → the review fix that corrected it.
+Each trail runs plan → building commit → the review fix that corrected it. The repos
+themselves are listed in [Built with this method](../README.md#-built-with-this-method).
 
 **[my-vector](https://github.com/KristjanHS/my-vector)**: sealing the first
 real-use window.
