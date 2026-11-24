@@ -272,3 +272,134 @@ def test_real_manifest_parses():
     dsts = [d for d, _ in pairs]
     assert len(dsts) == len(set(dsts))
     assert not set(dsts) & sync.NEVER_SYNC
+
+
+# --- --candidates ---------------------------------------------------------
+
+
+def cand(root: Path, capsys) -> str:
+    assert run(root, "--candidates") == 0
+    return capsys.readouterr().out
+
+
+def row(path: str, kind: str, size: int, summary: str, hit: str = "n") -> str:
+    return f"| `{path}` | {kind} | {size} | {summary} | {hit} | |"
+
+
+def test_candidates_exact_table(repos, capsys):
+    dot, root = repos
+    files = {
+        "claude/.claude/hooks/new.py": '#!/usr/bin/env python3\n# note\n"""\nNew hook.\n"""\n',
+        "skills/s2/SKILL.md": '---\nname: s2\ndescription: "Second skill."\n---\n# S2\n',
+        "skills/s2/ref.md": "extra\n",
+        "claude/.claude/references/r.md": "# Ref title\nbody\n",
+        "claude/.claude/commands/c.md": "intro\n## Cmd heading\n",
+    }
+    commit(dot, files)
+    s2 = len(files["skills/s2/SKILL.md"]) + len(files["skills/s2/ref.md"])
+
+    def size(rel: str) -> int:
+        return len(files["claude/.claude/" + rel])
+
+    assert cand(root, capsys).splitlines() == [
+        *sync.CANDIDATE_HEADER.splitlines(),
+        row(
+            "claude/.claude/commands/c.md",
+            "command",
+            size("commands/c.md"),
+            "Cmd heading",
+        ),
+        row("claude/.claude/hooks/new.py", "hook", size("hooks/new.py"), "New hook."),
+        row(
+            "claude/.claude/references/r.md",
+            "reference",
+            size("references/r.md"),
+            "Ref title",
+        ),
+        row("skills/s2/", "skill", s2, "Second skill."),
+        "",
+        "candidates: 4 rows, 0 withheld",
+    ]
+
+
+def test_candidates_private_term_description_withheld(repos, capsys):
+    dot, root = repos
+    body = "---\ndescription: SecretCo helper\n---\n"
+    commit(dot, {"skills/s2/SKILL.md": body})
+    out = cand(root, capsys)
+    assert row("skills/s2/", "skill", len(body), "[withheld]", "Y") in out
+    assert "secretco" not in out.lower()
+    assert "(private term 1)" in out
+
+
+def test_candidates_term_in_body_only_still_withheld(repos, capsys):
+    dot, root = repos
+    commit(
+        dot, {"skills/s2/SKILL.md": "# Fine title\n", "skills/s2/x.md": "secretco\n"}
+    )
+    out = cand(root, capsys)
+    assert row("skills/s2/", "skill", 22, "[withheld]", "Y") in out
+    assert "Fine title" not in out
+
+
+@pytest.mark.parametrize(
+    ("summary", "category"),
+    [
+        (f"see {HOME}x", "home path"),
+        ("mail a" + "@example.com", "email"),
+        ("we Folded it", "fold wording"),
+    ],
+)
+def test_candidates_exposing_summary_withheld(repos, capsys, summary, category):
+    dot, root = repos
+    body = f"# {summary}\n"
+    commit(dot, {"claude/.claude/references/r.md": body})
+    out = cand(root, capsys)
+    assert (
+        row("claude/.claude/references/r.md", "reference", len(body), "[withheld]")
+        in out
+    )
+    assert summary not in out
+    assert f"({category} 1)" in out
+
+
+def test_candidates_private_term_in_path_withholds_path(repos, capsys):
+    dot, root = repos
+    commit(dot, {"claude/.claude/rules/secretco-x.md": "# t\n"})
+    out = cand(root, capsys)
+    assert row("[withheld]", "rule", 4, "[withheld]") in out
+    assert "secretco" not in out.lower()
+
+
+def test_candidates_summary_cut_and_pipe_escaped(repos, capsys):
+    dot, root = repos
+    commit(
+        dot,
+        {"skills/s2/SKILL.md": "---\ndescription: >-\n  a|b " + "x" * 100 + "\n---\n"},
+    )
+    summary = cand(root, capsys).split("`skills/s2/` | skill | ")[1].split(" | ")[1]
+    assert summary.startswith("a\\|b x")
+    assert (
+        summary.endswith("…") and len(summary.replace("\\|", "|")) == sync.SUMMARY_MAX
+    )
+
+
+def test_candidates_missing_terms_fail_closed(repos, capsys):
+    dot, root = repos
+    commit(dot, {"skills/s2/SKILL.md": "# Visible?\n"})
+    git(dot, "rm", "-q", sync.TERMS)
+    git(dot, "-c", "user.name=t", "-c", "user.email=t@t", "commit", "-qm", "rm")
+    out = cand(root, capsys)
+    assert "Visible?" not in out
+    assert row("[withheld]", "skill", 11, "[withheld]", "?") in out
+
+
+def test_candidates_is_read_only(repos, capsys):
+    dot, root = repos
+    before = sorted(p.relative_to(root) for p in root.rglob("*"))
+    cand(root, capsys)
+    assert sorted(p.relative_to(root) for p in root.rglob("*")) == before
+    status = subprocess.run(
+        ["git", "-C", str(dot), "status", "--porcelain"], capture_output=True, text=True
+    )
+    assert status.stdout == ""
