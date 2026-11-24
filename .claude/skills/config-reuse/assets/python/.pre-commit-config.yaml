@@ -1,0 +1,39 @@
+default_stages: [pre-commit]
+default_install_hook_types: [pre-commit, pre-push]
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: check-added-large-files
+        args: [--maxkb=200]
+      - id: check-yaml
+      - id: end-of-file-fixer
+      - id: trailing-whitespace
+        args: [--markdown-linebreak-ext=md]
+  - repo: local
+    hooks:
+      # Local, not ruff-pre-commit: runs the ruff pinned in uv.lock, so hook and `make lint` never drift.
+      - id: ruff
+        name: ruff check
+        entry: uv run --locked ruff check --force-exclude
+        language: system
+        types: [python]
+      - id: ruff-format
+        name: ruff format
+        entry: uv run --locked ruff format --force-exclude
+        language: system
+        types: [python]
+      # Private/binary inputs belong in a gitignored dir, never in git.
+      - id: no-private-binaries
+        name: no PDFs/images/.blend outside docs/
+        entry: PDFs, images and .blend files belong in a gitignored dir, not in git
+        language: fail
+        files: '\.(pdf|png|jpe?g|tiff?|bmp|webp|blend|blend1|dxf|svg)$'
+        exclude: ^docs/
+      - id: push-gate
+        name: make push-gate
+        entry: make push-gate
+        language: system
+        pass_filenames: false
+        always_run: true
+        stages: [pre-push]

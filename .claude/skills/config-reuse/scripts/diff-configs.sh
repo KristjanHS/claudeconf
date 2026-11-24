@@ -8,6 +8,7 @@ set -euo pipefail
 SOURCE="${1:-}"
 CURRENT="${2:-$(pwd)}"
 GLOBAL="$HOME/.claude"
+DOTFILES="$(realpath -m "${DOTFILES:-$HOME/projects/dotfiles}")"
 
 [[ -z "$SOURCE" ]] && { echo "Usage: diff-configs.sh /path/to/source [/path/to/target]" >&2; exit 1; }
 SOURCE="$(realpath "$SOURCE")"
@@ -17,6 +18,23 @@ CURRENT="$(realpath "$CURRENT")"
 printf 'TYPE\tREL_PATH\tSTATUS\tMATCH_PATH\n'
 
 md5of() { [[ -f "$1" ]] && md5sum "$1" 2>/dev/null | cut -d' ' -f1 || echo MISSING; }
+
+# Stack items = each <source> of link-stack-config.sh's *_LINKS arrays; source only the array defs (the script links on run).
+STACK_ITEMS=()
+load_stack_items() {
+  local cfg="$DOTFILES/scripts/link-stack-config.sh" entry spec
+  [[ -f "$cfg" ]] || return 0
+  local -a STACKS=()
+  # shellcheck disable=SC1090
+  source <(awk '/^(STACKS|[A-Z_]+_LINKS)=\(/{f=1} f{print} f&&(/^\)/||/=\(.*\)[[:space:]]*$/){f=0}' "$cfg")
+  for entry in "${STACKS[@]}"; do
+    local -n _links="${entry##* }"
+    for spec in "${_links[@]}"; do STACK_ITEMS+=("$(realpath -m "$DOTFILES/${spec%%|*}")"); done
+    unset -n _links
+  done
+}
+load_stack_items
+is_stack_item() { local i; for i in "${STACK_ITEMS[@]}"; do [[ "$i" == "$1" ]] && return 0; done; return 1; }
 
 # Map source config → global equivalent (empty = no global equivalent)
 global_of() {
@@ -32,7 +50,16 @@ global_of() {
 
 compare() {
   local src="$1" type="$2" rel="$3"
-  local src_md5 gp pp
+  local src_md5 gp pp link=""
+
+  if [[ -L "$src" ]]; then link="$src"
+  elif [[ "$type" == skill && -L "${src%/SKILL.md}" ]]; then link="${src%/SKILL.md}"; fi
+  if [[ -n "$link" && ! -e "$link" ]]; then
+    printf '%s\t%s\t%s\t%s\n' "$type" "$rel" "broken_link" "$(readlink "$link")"; return
+  fi
+  if [[ -n "$link" ]] && is_stack_item "$(realpath "$link")"; then
+    printf '%s\t%s\t%s\t%s\n' "$type" "$rel" "stack_linked" "$(realpath "$link")"; return
+  fi
 
   src_md5=$(md5of "$src")
   gp=$(global_of "$type" "$rel")
@@ -66,7 +93,7 @@ done
 
 if [[ -d "$SOURCE/.claude/rules" ]]; then
   for f in "$SOURCE/.claude/rules/"*.md; do
-    [[ -f "$f" ]] || continue
+    [[ -f "$f" || -L "$f" ]] || continue
     compare "$f" rule ".claude/rules/$(basename "$f")"
   done
 fi
@@ -80,5 +107,6 @@ fi
 if [[ -d "$SOURCE/.claude/skills" ]]; then
   while IFS= read -r -d '' f; do
     compare "$f" skill "${f#"$SOURCE/"}"
-  done < <(find "$SOURCE/.claude/skills" -name "SKILL.md" -type f -print0 | sort -z)
+  done < <({ find "$SOURCE/.claude/skills" -name "SKILL.md" -type f -print0
+             find "$SOURCE/.claude/skills" -mindepth 1 -maxdepth 1 -type l -printf '%p/SKILL.md\0'; } | sort -z)
 fi

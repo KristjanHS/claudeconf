@@ -1,0 +1,25 @@
+[project]
+name = "PROJECT_NAME"
+version = "0.1.0"
+description = ""
+requires-python = ">=3.12"
+dependencies = []
+
+[tool.ruff]
+line-length = 120
+# extend-exclude, not exclude: the bare key replaces ruff's defaults (.venv, …).
+# **/*.md: ruff >=0.16 formats Python code blocks inside Markdown — keep docs/rules untouched.
+extend-exclude = ["**/*.md"]
+
+[tool.pyright]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[dependency-groups]
+dev = [
+    "pre-commit>=4.7.0",
+    "pyright>=1.1.414",
+    "pytest>=9.2.0",
+    "ruff>=0.17.6",
+]

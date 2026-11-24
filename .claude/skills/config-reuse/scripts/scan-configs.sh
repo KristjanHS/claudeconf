@@ -35,7 +35,8 @@ detect_markers() {
 emit() {
   local type="$1" file="$2" rel="$3"
   local md5 markers
-  md5=$(md5sum "$file" 2>/dev/null | cut -d' ' -f1)
+  md5=BROKEN
+  [[ -e "$file" ]] && md5=$(md5sum "$file" | cut -d' ' -f1)
   markers=$(detect_markers "$file")
   printf '%s\t%s\t%s\t%s\n' "$type" "$rel" "$md5" "${markers:-none}"
 }
@@ -52,7 +53,7 @@ done
 # Rules
 if [[ -d "$SOURCE/.claude/rules" ]]; then
   for f in "$SOURCE/.claude/rules/"*.md; do
-    [[ -f "$f" ]] || continue
+    [[ -f "$f" || -L "$f" ]] || continue
     emit rule "$f" ".claude/rules/$(basename "$f")"
   done
 fi
@@ -68,5 +69,6 @@ fi
 if [[ -d "$SOURCE/.claude/skills" ]]; then
   while IFS= read -r -d '' f; do
     emit skill "$f" "${f#"$SOURCE/"}"
-  done < <(find "$SOURCE/.claude/skills" -name "SKILL.md" -type f -print0 | sort -z)
+  done < <({ find "$SOURCE/.claude/skills" -name "SKILL.md" -type f -print0
+             find "$SOURCE/.claude/skills" -mindepth 1 -maxdepth 1 -type l -printf '%p/SKILL.md\0'; } | sort -z)
 fi
