@@ -49,7 +49,7 @@ themselves are listed in [Built with it](../README.md#built-with-it).
 **[my-vector](https://github.com/KristjanHS/my-vector)**: sealing the first
 real-use window.
 
-- Plan: [prod evidence](plans/2026-11-15-my-vector-prod-evidence.md)
+- Plan: [prod evidence](plans/archive/2026-11-15-my-vector-prod-evidence.md)
 - Build: [`da037e6`](https://github.com/KristjanHS/my-vector/commit/da037e6) `make prod-check` (Stage 3)
 - Review fix: [`20a7475`](https://github.com/KristjanHS/my-vector/commit/20a7475): a day counts as final only before the last saved poll; the tag pins `origin/main`, never a local-only HEAD
 
