@@ -16,7 +16,7 @@ Path scope:
                                subprocess use is established and scoped)
 
 Detected patterns (scope: heavyweight external systems, per
-~/.claude/rules/testing.md "External-process tests"):
+~/.claude/references/testing-deep-dives.md "External-process tests go in a manual tier"):
   1. import of `docker` / `playwright` / `selenium`
   2. `requests.<get|post|put|delete|patch|head|options>(` HTTP call
   3. `subprocess.<run|Popen|check_call|check_output|call|getoutput>(` whose
@@ -187,7 +187,7 @@ def handle(payload: dict, tool: str) -> int:
     sys.stderr.write(
         f"external-process-test-gate: {rel} adds external-process patterns "
         f"({', '.join(hits)}) outside the manual tier.\n"
-        "Per ~/.claude/rules/testing.md: external-process tests (docker, "
+        "Per ~/.claude/references/testing-deep-dives.md: external-process tests (docker, "
         "kubectl, headless browser, live HTTP) belong in tests/manual/ — "
         "they run on demand, not in `pytest tests/ -q`.\n"
         "Unblock: move the test under tests/manual/, or add "
