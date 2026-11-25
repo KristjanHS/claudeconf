@@ -20,7 +20,7 @@ _spec.loader.exec_module(cc)
 
 START, END = cc.BLOCK_MARKERS
 
-STATUSLINE = "STOP_PCT=75\nWINDOW=300000\n"
+STATUSLINE = "WINDOW=300000\n"
 
 HOOK = """\
 HARD_STOP_TOKENS = 200_000
@@ -56,6 +56,7 @@ FILES = {
     ".claude/statusline.sh": STATUSLINE,
     ".claude/hooks/impag-budget-check.py": HOOK,
     ".claude/hooks/other.py": "",
+    ".claude/hooks/lint.sh": "",
     ".claude/hooks/README.md": "",
     ".claude/skills/s1/SKILL.md": "",
     ".claude/skills/s2/SKILL.md": "",
@@ -76,7 +77,7 @@ EXPECTED = """\
 | Budget soft bands | 120,000 / 150,000 tokens |
 | Budget hard stop | 200,000 tokens |
 | Skills | 2 |
-| Hooks | 2 |
+| Hooks | 3 |
 
 <sub>Regenerate: `python3 scripts/context_cost.py --readme README.md`</sub>
 """

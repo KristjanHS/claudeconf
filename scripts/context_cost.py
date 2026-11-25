@@ -90,7 +90,8 @@ def collect(root: Path) -> list[Row]:
             raise InputError(f"missing directory {root / '.claude' / kind}")
     skill_dir = root / ".claude/skills"
     skills = sum(1 for p in skill_dir.iterdir() if p.is_dir() and p.name[0] != ".")
-    hooks = sum(1 for p in (root / ".claude/hooks").glob("*.py") if p.is_file())
+    hook_dir = root / ".claude/hooks"
+    hooks = sum(1 for p in hook_dir.iterdir() if p.suffix in (".py", ".sh"))
     return [
         Row(
             "Always loaded: `CLAUDE.md`",

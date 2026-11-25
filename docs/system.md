@@ -1,6 +1,6 @@
 # How the system works
 
-The four layers from [Why this exists](../README.md), drawn as the loop they form.
+The four layers from the [README](../README.md), drawn as the loop they form.
 What a session learns goes back into the rules.
 
 ```
@@ -9,8 +9,8 @@ What a session learns goes back into the rules.
     └──────── /retro, /reflect ◄───────────┘
 ```
 
-Each layer below names the files it lives in, what it stops, and where the evidence is. The detail
-stays in the [README](../README.md). This page links to it and does not repeat it.
+Each layer below names the files it lives in, what it stops, and where the evidence is. Per-piece
+detail is in the [catalog](catalog.md); this page links to it rather than repeating it.
 
 ## Rules: say what good looks like
 
@@ -22,7 +22,7 @@ stays in the [README](../README.md). This page links to it and does not repeat i
     matching its `paths:` frontmatter is touched.
   - [`.claude/references/`](../.claude/references/) holds longer references that load when a pointer fires.
 - **Stops:** rule text you don't need riding along on every turn. That is the bloat described in
-  [The problem](../README.md).
+  the [README](../README.md).
 - **Evidence:** [progressive disclosure keeps rule bodies out of every turn](../README.md#whats-measured).
 
 ## Gates: flag or block the output that isn't
@@ -82,8 +82,8 @@ stays in the [README](../README.md). This page links to it and does not repeat i
   drops the reasoning that lived only in the conversation.
 - **Evidence:**
   - The [measured table](../README.md#whats-measured) gives the governor's hard stop and
-    soft bands and the statusline thresholds, each read from the file that sets it by the command
-    printed under the table. The same section shows the statusline renders.
+    soft bands and the statusline window, each read from the file that sets it by the command
+    printed under the table.
   - [What happened in two real runs](../README.md#the-budget-governor) when the governor fired.
 
 ## Adopting it

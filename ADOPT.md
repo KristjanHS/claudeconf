@@ -1,7 +1,7 @@
 # Adopting the pieces
 
-This is the **"I'm convinced, now how do I adopt it"** path - the why for each
-piece (and where it isn't worth it) lives in the [README](README.md). Copy-in,
+This is the **"I'm convinced, now how do I adopt it"** path - what each piece
+does is in [docs/catalog.md](docs/catalog.md), and where it isn't worth it is in the [README](README.md#costs-and-limits). Copy-in,
 by hand, one piece at a time. **Back up anything you overwrite**, and **never
 blind-overwrite your own `~/.claude/settings.json`** - merge the hooks block
 instead. Everything below assumes your config lives at `~/.claude/`.

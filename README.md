@@ -56,7 +56,7 @@ If the line comes up blank, or you want different thresholds, see
 
 ## What's measured
 
-Only `CLAUDE.md` is loaded on every turn. Rules and references load when a matching file or pointer
+Of this repo's files, only `CLAUDE.md` and the one-line skill descriptions load on every turn. Rules and references load when a matching file or pointer
 fires. The table is generated from the repo, and `make test` fails when it goes stale.
 
 <!-- context-cost:start -->
@@ -70,27 +70,28 @@ fires. The table is generated from the repo, and `make test` fails when it goes 
 | Budget soft bands | 120,000 / 150,000 / 175,000 tokens |
 | Budget hard stop | 200,000 tokens |
 | Skills | 28 |
-| Hooks | 7 |
+| Hooks | 8 |
 
 <sub>Regenerate: `python3 scripts/context_cost.py --readme README.md`</sub>
 <!-- context-cost:end -->
 
 ## Costs and limits
 
-- Every Bash call runs four hooks. The Python ones took 25–40 ms each in a local timing, most of it
-  interpreter startup. They fail open, so a hook error never blocks you.
+- Every Bash call runs four hooks, each 25–55 ms in a local timing, mostly interpreter startup.
+  Internal errors exit 0, except in the destructive-command gate, which blocks a command it can't parse.
 - Setup is manual: about 125 lines of hooks config to merge into `settings.json`, and a pytest suite
   to keep up.
 - The bloat check sometimes flags dense writing that's fine. It only warns, except for the opt-in size
   ratchet, which blocks but can be overridden.
-- The budget hook stops you at its hard stop, ready or not. Raise `HARD_STOP_TOKENS` or drop the hook
-  if your tasks need more.
+- At its hard stop the budget hook tells Claude to wrap up, ready or not. Raise `HARD_STOP_TOKENS` or
+  drop the hook if your tasks need more.
 - If your sessions are short, skip all of this.
 
 ## The budget governor
 
-After each Bash call, `impag-budget-check.py` reads the exact token count from the transcript. Below the
-first soft band it says nothing. Each soft band gets a one-line FYI, and the hard stop injects this:
+After each commit (and after any Bash call once the transcript is large), `impag-budget-check.py` reads
+the exact token count from the transcript. Below the first soft band it says nothing. Each soft band
+gets a one-line FYI, and the hard stop injects an instruction to this effect:
 
 ```
 WRAP UP: do not start a new task. Finish what's in flight, save any remaining

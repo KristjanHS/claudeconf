@@ -11,7 +11,7 @@ reasoning behind them.
 A coding agent fails in two ways that compound. A long session gets slow,
 expensive and forgetful: the window fills with rule text, stale docs and
 re-derived state, and compaction drops the reasoning that lived only in the
-conversation ([README: The problem](../README.md)).
+conversation ([README](../README.md)).
 
 The second failure is quieter: the agent's output **looks done**. Code passes the
 tests it wrote for itself, a check reports green because it cannot fail, and a
@@ -36,15 +36,15 @@ choices shape all of them:
 
 | What the agent got wrong | Answered by | Proof |
 |---|---|---|
-| Docs grow faster than anyone re-reads them | [Bloat gate](../.claude/hooks/docs-bloat-gate.py) ([Gates](system.md#gates-flag-or-block-the-output-that-isnt)) | [What it costs you](../README.md#costs-and-limits): slop, density and new-doc signals nudge; only the opt-in size ratchet blocks |
+| Docs grow faster than anyone re-reads them | [Bloat gate](../.claude/hooks/docs-bloat-gate.py) ([Gates](system.md#gates-flag-or-block-the-output-that-isnt)) | [Costs and limits](../README.md#costs-and-limits): slop, density and new-doc signals nudge; only the opt-in size ratchet blocks |
 | A leak gate that reads its own error as "clean" | [PII check](../scripts/check-hardcoded-paths.sh), beside the [pre-commit](../hooks/pre-commit) secret gate and [gitleaks CI](../.github/workflows/gitleaks.yml) | [`2ad3e5a`](https://github.com/KristjanHS/claudeconf/commit/2ad3e5a): review found a git error printed "no leakage" and exited 0; now it fails closed, red demo in the message |
-| Context burns until compaction drops the reasoning | [Budget governor](../.claude/hooks/impag-budget-check.py) ([Cost budget](system.md#cost-budget-stop-a-run-before-it-burns-its-context)) | [Budget governor detail](../README.md#the-budget-governor) |
+| Context burns until compaction drops the reasoning | [Budget governor](../.claude/hooks/impag-budget-check.py) ([Cost budget](system.md#cost-budget-stop-a-run-before-it-burns-its-context)) | [The budget governor](../README.md#the-budget-governor) |
 | Plausible code that passes the tests it wrote | Review loop in a fresh context ([Review loop](system.md#review-loop-catch-what-slips-past-the-gates)) | [`20a7475`](https://github.com/KristjanHS/my-vector/commit/20a7475): the old month test never crossed a month; review caught a seal a late restart could falsify |
 
 ## Worked trails
 
 Each trail runs plan → building commit → the review fix that corrected it. The repos
-themselves are listed in [Built with this method](../README.md#built-with-it).
+themselves are listed in [Built with it](../README.md#built-with-it).
 
 **[my-vector](https://github.com/KristjanHS/my-vector)**: sealing the first
 real-use window.
