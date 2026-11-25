@@ -1,6 +1,6 @@
 # claudeconf
 
-Claude Code config for long sessions: lean context, guard hooks and a token budget.
+My Claude Code setup for long sessions, split into pieces you can copy.
 
 [![Secret scan](https://github.com/KristjanHS/claudeconf/actions/workflows/gitleaks.yml/badge.svg)](https://github.com/KristjanHS/claudeconf/actions/workflows/gitleaks.yml)
 [![Tests](https://github.com/KristjanHS/claudeconf/actions/workflows/tests.yml/badge.svg)](https://github.com/KristjanHS/claudeconf/actions/workflows/tests.yml)
@@ -10,19 +10,21 @@ Claude Code config for long sessions: lean context, guard hooks and a token budg
 
 ![Statusline filling toward the session's token budget](docs/statusline.gif)
 
-Long Claude Code sessions get slow and expensive. Once the context window fills, Claude compacts it to a
-summary, and reasoning that lived only in the conversation is gone. This is the config I use to put that
-off: rules stay out of the prompt until a matching file is touched, hooks flag or block bad output, a
-separate reviewer agent checks each finished change, and a budget hook stops a run before it overflows.
+Long Claude Code sessions get slow and expensive, and when the context window fills up, Claude compacts
+it into a summary. Anything that only existed in the conversation is lost at that point.
 
-It's for people who already use Claude Code. Nothing installs itself; you copy the pieces you want into
-`~/.claude/`. [docs/system.md](docs/system.md) shows how they fit together, and
-[docs/why.md](docs/why.md) has the mistakes that led to each one.
+I use this config to push that moment back. Rules stay out of the prompt until Claude touches a file
+they apply to. Hooks catch destructive commands and bloated docs. A separate reviewer agent reads every
+finished change, and a budget hook tells a long run to wrap up before the window overflows.
+
+It assumes you already use Claude Code. Nothing installs itself, so you copy what you want into
+`~/.claude/` by hand. [docs/system.md](docs/system.md) shows how the pieces connect and
+[docs/why.md](docs/why.md) has the mistakes behind each one.
 
 ## Quick start
 
-The statusline in the GIF shows how much of the session's token budget is used. It needs `bash`, `jq`
-and `git`.
+Start with the statusline from the GIF. It shows how much of the session's token budget you've used,
+and needs `bash`, `jq` and `git`.
 
 ```sh
 git clone https://github.com/KristjanHS/claudeconf
@@ -30,14 +32,14 @@ cp claudeconf/.claude/statusline.sh ~/.claude/statusline.sh
 chmod +x ~/.claude/statusline.sh
 ```
 
-Then add this to `~/.claude/settings.json`:
+Then add the `statusLine` entry to `~/.claude/settings.json`:
 
 ```json
 "statusLine": { "type": "command", "command": "~/.claude/statusline.sh", "padding": 0 }
 ```
 
-Thresholds and troubleshooting are in [docs/statusline_adopt.md](docs/statusline_adopt.md). For the rest
-of the kit, see [ADOPT.md](ADOPT.md).
+If the line comes up blank, or you want different thresholds, see
+[docs/statusline_adopt.md](docs/statusline_adopt.md). [ADOPT.md](ADOPT.md) covers everything else.
 
 ## What's in it
 
@@ -50,12 +52,12 @@ of the kit, see [ADOPT.md](ADOPT.md).
 | Skills | Context cleanup (`condense`, `de-bloat`), a plan executor (`impag`), debugging, testing, design and critique |
 | Budget | A hook that tells a long run to wrap up, a bloat check on Markdown writes, and the statusline |
 
-Every piece, with how it works and what it costs, is in [docs/catalog.md](docs/catalog.md).
+[docs/catalog.md](docs/catalog.md) lists every piece with how it works and what it costs.
 
 ## What's measured
 
 Only `CLAUDE.md` is loaded on every turn. Rules and references load when a matching file or pointer
-fires. `make test` fails if this table no longer matches the repo.
+fires. The table is generated from the repo, and `make test` fails when it goes stale.
 
 <!-- context-cost:start -->
 | Metric | Value |
@@ -75,20 +77,20 @@ fires. `make test` fails if this table no longer matches the repo.
 
 ## Costs and limits
 
-- Four hooks run on every Bash call. Each Python hook took 25–40 ms per call when timed locally, mostly
-  interpreter startup. All of them fail open: an error exits 0 and never blocks you.
-- Setup is by hand. The hooks block in `settings.json` is about 125 lines to merge, and you maintain the
-  pytest suite yourself.
-- The bloat check can flag dense writing that is fine. Its slop, density and new-file signals only warn;
-  the opt-in size ratchet is the one that blocks, and it can be overridden.
-- The budget hook interrupts at its hard stop whether you're ready or not. If a task needs more, raise
-  `HARD_STOP_TOKENS` or leave the hook out.
-- None of this pays off in short sessions. It assumes sessions long enough for context to be the bottleneck.
+- Every Bash call runs four hooks. The Python ones took 25–40 ms each in a local timing, most of it
+  interpreter startup. They fail open, so a hook error never blocks you.
+- Setup is manual: about 125 lines of hooks config to merge into `settings.json`, and a pytest suite
+  to keep up.
+- The bloat check sometimes flags dense writing that's fine. It only warns, except for the opt-in size
+  ratchet, which blocks but can be overridden.
+- The budget hook stops you at its hard stop, ready or not. Raise `HARD_STOP_TOKENS` or drop the hook
+  if your tasks need more.
+- If your sessions are short, skip all of this.
 
 ## The budget governor
 
-`impag-budget-check.py` reads the exact token count from the transcript after each Bash call. It stays
-quiet below the first soft band, posts a one-line FYI at each soft band, and at the hard stop it injects:
+After each Bash call, `impag-budget-check.py` reads the exact token count from the transcript. Below the
+first soft band it says nothing. Each soft band gets a one-line FYI, and the hard stop injects this:
 
 ```
 WRAP UP: do not start a new task. Finish what's in flight, save any remaining
@@ -96,14 +98,14 @@ tasks to project state, then review the code and close the branch - and record
 the retro as owed for the next session rather than running it at this context.
 ```
 
-In the runs where it fired, Claude committed the task in flight, wrote the leftover work to a notes file
-and stopped. The next session started from committed state, not from a compaction summary. Details are
-in [.claude/hooks/README.md](.claude/hooks/README.md).
+When it has fired, Claude committed what it was working on, wrote the leftover tasks to a notes file
+and stopped, so the next session picked up from a commit. More in
+[.claude/hooks/README.md](.claude/hooks/README.md).
 
 ## Built with it
 
-- [transcribe-offline](https://github.com/KristjanHS/transcribe-offline): 48 tests, 10 releases
-- [my-vector](https://github.com/KristjanHS/my-vector): a wire-pod fork, 576 tests added
-- [stt-faster](https://github.com/KristjanHS/stt-faster): 387 tests, 10 releases
+- [transcribe-offline](https://github.com/KristjanHS/transcribe-offline) (48 tests, 10 releases)
+- [my-vector](https://github.com/KristjanHS/my-vector), a wire-pod fork (576 tests added)
+- [stt-faster](https://github.com/KristjanHS/stt-faster) (387 tests, 10 releases)
 
-MIT licensed. By [Kristjan](https://github.com/KristjanHS).
+MIT licensed. Written by [Kristjan](https://github.com/KristjanHS).

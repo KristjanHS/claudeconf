@@ -44,7 +44,7 @@ stays in the [README](../README.md). This page links to it and does not repeat i
   - a bloated `.md` getting into future context;
   - a test that can't fail on a real bug;
   - a credential, private path or dead link reaching the public repo.
-- **Evidence:** the tax is written up, not hidden. See
+- **Evidence:** what each piece costs is listed in
   [Costs and limits](../README.md#costs-and-limits).
 
 ## Review loop: catch what slips past the gates

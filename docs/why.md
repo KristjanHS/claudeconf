@@ -26,8 +26,8 @@ choices shape all of them:
 - **Copy-in, not auto-install.** Auto-merging into someone's `settings.json` is
   the most likely way to break their config, so every piece is adopted by hand
   ([ADOPT.md](../ADOPT.md)).
-- **Written for the doubter.** Each piece states what it costs and where it
-  isn't worth it ([Costs and limits](../README.md#costs-and-limits)).
+- **Costs are written down.** Each piece says what it costs and when it isn't
+  worth using ([Costs and limits](../README.md#costs-and-limits)).
 - **A check must be able to fail.** A gate or test that passes by construction
   reads as proof forever, so new checks ship with a red demo: break the line it
   guards, watch it fail, restore it.

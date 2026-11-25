@@ -1,9 +1,11 @@
 # Catalog
 
-Every piece in this repo, grouped by what it does. Counts, byte sizes and token thresholds are in the
-README's [measured table](../README.md#whats-measured). To copy a piece, see [ADOPT.md](../ADOPT.md).
+Everything in this repo, grouped by what it does. For counts and token thresholds see the README's
+[measured table](../README.md#whats-measured); to copy a piece, see [ADOPT.md](../ADOPT.md).
 
-### Rules - loaded only when a matching file is touched
+### Rules
+
+Loaded only when a matching file is touched.
 
 | Piece | Purpose | How it works | Cost |
 |---|---|---|---|
@@ -15,7 +17,9 @@ README's [measured table](../README.md#whats-measured). To copy a piece, see [AD
 | `prose-budget.md` | Keep unasked-for prose short (docs, docblocks, comments) | Budget + cut list applied while writing | Loads on prose edits |
 | `python-refactors.md` | Avoid import/module-structure refactor traps | Gotcha list; detail in `python-refactors-deep-dives.md` | Loads on Python edits |
 
-### References - read only when a pointer fires
+### References
+
+Read only when a pointer fires.
 
 | Piece | Purpose | How it works | Cost |
 |---|---|---|---|
@@ -28,7 +32,9 @@ README's [measured table](../README.md#whats-measured). To copy a piece, see [AD
 | `python-refactors-deep-dives.md` | Mechanism + worked example per Python refactor trap | Backs `python-refactors.md` | None until triggered |
 | `spec-rework-audit.md` | Check whether a spec review caused re-work | Audit procedure cited by `mybrain-deep-dives.md` | None until triggered |
 
-### Hooks - runtime guards
+### Hooks
+
+Runtime guards.
 
 | Piece | Purpose | How it works | Cost |
 |---|---|---|---|
@@ -40,7 +46,9 @@ README's [measured table](../README.md#whats-measured). To copy a piece, see [AD
 | `external-process-test-gate.py` | Keep slow external-system tests out of the default suite | `PreToolUse` hook on Write/Edit of `tests/**/*.py`; docker/browser/HTTP tests must live in `tests/manual/` | Override sentinel for real exceptions |
 | `ruff-check.sh` | Stop new lint findings landing | `PostToolUse` on Write/Edit (+ Bash `--lint-only`), re-checked on `Stop`/`SubagentStop`; blocks only on lint counts above the committed baseline | Needs `ruff`; one lint run per Python edit |
 
-### Review loop - an independent second read
+### Review loop
+
+An independent second read.
 
 | Piece | Purpose | How it works | Cost |
 |---|---|---|---|
@@ -50,126 +58,78 @@ README's [measured table](../README.md#whats-measured). To copy a piece, see [AD
 
 ### Skills
 
-| Piece | Purpose | How it works | Cost |
-|---|---|---|---|
-| Skills | Context-hygiene core + config/session/quality/thinking exemplars | Hygiene core (`condense`, `de-bloat`, `claude-md-progressive-disclosurer`, `impag`, `qimpag`); exemplar groups: config & skill mgmt, session hygiene, design & critique, code quality & dev workflow, Kaizen improvement, writing & AI-text | Skill body loads when matched |
-| `snapshot` | Save a session by hand | `/snapshot` copies the transcript + plan/todo sidecar into a keep-10 pool automatic snapshots never evict | Loads when invoked |
+A skill's body loads only when you invoke it. The first group is about keeping context small; the
+others are general tools I keep around.
 
-### Budgets - stop before the context cliff
+### Context hygiene
 
-| Piece | Purpose | How it works | Cost |
-|---|---|---|---|
-| `docs-bloat-gate.py` | Keep bloated `.md` from entering context | `PreToolUse` hook on Write/Edit/Bash; signals (slop / density / new-audit-file advisory, size ratchet blocks) | Slop/density/new-file warn via a throttled nudge; only the opt-in size ratchet blocks (bypassable) |
-| `impag-budget-check.py` | Stop a long run before the context cliff | `PostToolUse` hook on Bash; exact token read; soft FYI heads-ups, then the hard-stop wrap-up | Only the hard-stop band interrupts; the soft bands just nudge |
-| `statusline.sh` | Show live context %, cost, distance-to-stop, 5h + 7d limits | Reads Claude Code's statusline JSON; needs `jq` + `git` | Negligible |
+- `condense` deduplicates `CLAUDE.md`, rules and project docs (spec, plans, runbooks) across the
+  hierarchy. Run it when the same guidance has drifted into several files.
+- `claude-md-progressive-disclosurer` rewrites a `CLAUDE.md` so it points at long content instead of
+  inlining it. Use it when rules are duplicated or keep being ignored; this repo's `CLAUDE.md` got its
+  shape that way.
+- `de-bloat` (only via `/de-bloat`) audits skill files in `~/.claude/skills/` and a project's
+  `.claude/skills/` for bloat and duplication. It edits nothing. It writes a plan for `impag` in two
+  passes: content (dedupe, compact), then root cause (which rules, references or skills caused it).
+- `impag` executes a plan with parallel subagents, start to finish, without stopping to ask. It takes
+  a plan path and defaults to the newest file in `docs/plans/`. The other skills hand their plans to it.
+- `qimpag` (only via `/qimpag`) runs `impag` unchanged, but asks one round of questions once it knows
+  which plan or stage it's about to build.
 
-The rules `testing.md` (test value gate) and `subagent-dispatch.md` and the reference
-`pre-ship-sweeps.md` are general habits rather than context tooling.
+### Config and skill management
 
-## Skills
+- `config-reuse` copies Claude configs, rules and settings from another project and detects its stack.
+- `install-skill` installs a skill from a GitHub URL or repo path into `~/.claude/skills/`.
+- `skills-discovery` looks for an existing skill that handles the current task better than the base model.
 
-Skill bodies load only when invoked. The first group is the context-hygiene core; the rest are
-general tools bundled because I use them.
+### Session hygiene
 
-**Context-hygiene core** - the leanness toolkit:
+- `reflect` reviews the session and proposes skill improvements. It runs only on `/reflect` or from a retro.
+- `retro` is the end-of-session retrospective: what was learned, and which memories and docs to update.
 
-- **`condense`** - deduplicate and consolidate `CLAUDE.md`, rules, and project
-  docs (spec.md, plans, runbooks) across the hierarchy. The periodic-cleanup
-  arm for when the same guidance has drifted into several files.
-- **`claude-md-progressive-disclosurer`** - restructure a `CLAUDE.md` so it
-  *points* at heavy content instead of inlining it. Reach for it when rules are
-  duplicated or keep getting ignored - it's how the `CLAUDE.md` in this repo got
-  its lean shape.
-- **`de-bloat`** (invoke only via `/de-bloat`) - audit skill files across
-  `~/.claude/skills/` and any project `.claude/skills/` for bloat and
-  duplication, then emit a plan executed via `impag`. Two passes: a content pass
-  (dedupe/compact) and a root-cause pass (which rules/refs/skills drove the
-  bloat). Makes no edits itself.
-- **`impag`** - implement a plan using parallel subagents, full-auto, never
-  stopping to ask. Takes a plan file path (defaults to the newest in
-  `docs/plans/`). The fan-out executor the other skills hand their plans to.
-- **`qimpag`** (invoke only via `/qimpag`) - questions-first variant of `impag`:
-  it launches `impag` unchanged but injects one interactive `AskUserQuestion`
-  round once the target plan/stage is resolved, so the questions are grounded in
-  the concrete work before execution begins.
+### Design and critique
 
-**Config & skill management** - the acquisition side of a copy-in catalog:
-
-- **`config-reuse`** - copy or sync Claude configs, rules, and settings from
-  another project into the current one; auto-detects the stack.
-- **`install-skill`** - install a skill from a GitHub URL or repo path into
-  `~/.claude/skills/`.
-- **`skills-discovery`** - search for and install a skill that handles the
-  current task better than base knowledge.
-
-**Session hygiene** - end-of-session pruning that feeds the leanness loop:
-
-- **`reflect`** - analyze the session and propose skill improvements (only on
-  explicit `/reflect`, or from a retro).
-- **`retro`** - session retrospective: reflect on what was learned, update
-  memories and project docs.
-
-**Design & critique** - general-purpose thinking tools:
-
-- **`senior-architect`** - system-architecture work: ADRs, tech-stack
-  evaluation, design review, dependency analysis, diagrams.
-- **`brutal-honesty-review`** - unfiltered technical critique when code, tests,
-  or claims need a harsh reality check.
-- **`deep-research`** - multi-source web research and critical analysis for
-  non-trivial investigative questions.
-- **`architecture-diagram-creator`** - generate HTML architecture diagrams
-  (data flow, components, deployment) for a system.
-- **`mybrain`** - refine rough ideas into designs via questioning and ideation,
-  before creative or strategic work. Pairs with the
+- `senior-architect`: ADRs, tech-stack evaluation, design review, dependency analysis, diagrams.
+- `brutal-honesty-review`: blunt critique of code, tests or claims.
+- `deep-research`: multi-source web research for questions that need more than one search.
+- `architecture-diagram-creator`: HTML architecture diagrams (data flow, components, deployment).
+- `mybrain` turns a rough idea into a design by questioning it. Goes with the
   `ideation-techniques-library.md` reference.
 
-**Code quality & dev workflow** - exemplars for test integrity and branch/debug
-discipline:
+### Code quality and dev workflow
 
-- **`testing-anti-patterns`** - catch mock-testing, production pollution with
-  test-only methods, and mocking without understanding dependencies. Reach for it
-  when writing or changing tests or adding mocks.
-- **`systematic-debugging`** - structured investigation before proposing fixes,
-  for any bug, test failure, or unexpected behavior. Pairs with the
-  `anti-patterns-common-rationalizations.md` reference.
-- **`python-simplifier`** - simplify or refactor complex Python: code smells,
-  duplication, coupling, readability (not Django).
-- **`finishing-a-development-branch`** - close out a stage or branch: verify
-  tests, report branch state, then merge the work into `main` and leave `main`
-  active (merges only if not already on it; never pushes).
+- `testing-anti-patterns` catches tests that only test their mocks, test-only methods leaking into
+  production code, and mocks set up without understanding the dependency. Use it when writing tests.
+- `systematic-debugging` makes Claude investigate before proposing a fix, for any bug, failing test or
+  odd behaviour. Pairs with the `anti-patterns-common-rationalizations.md` reference.
+- `python-simplifier` simplifies complex Python: smells, duplication, coupling. Not for Django.
+- `finishing-a-development-branch` verifies tests, reports branch state, merges into `main` and leaves
+  `main` checked out. It never pushes.
 
-**Kaizen improvement** - a coherent continuous-improvement family (all-or-nothing
-exemplar set):
+### Kaizen
 
-- **`kaizen-kaizen`** - apply Kaizen principles (iterative improvement,
-  error-proofing, YAGNI) to a specific change.
-- **`kaizen-analyse`** - pick a Kaizen method (Gemba / Value Stream / Muda) for a
-  target.
-- **`kaizen-analyse-problem`** - A3 one-page problem analysis: root cause plus
-  action plan.
-- **`kaizen-cause-and-effect`** - fishbone diagram across the 6M cause categories.
-- **`kaizen-plan-do-check-act`** - PDCA iterative experimentation cycle.
-- **`kaizen-root-cause-tracing`** - walk a single bug backward up the call chain
-  to where the bad value or wrong decision first entered - the narrow,
-  call-stack-tracing complement to `systematic-debugging`'s broad reproduce →
-  isolate → hypothesize → verify protocol.
-- **`kaizen-why`** - Five Whys: drill from symptom to fundamental cause.
+Seven continuous-improvement skills, meant to be copied as a set.
 
-**Writing & AI-text** - detection and rewriting of AI-sounding prose:
+- `kaizen-kaizen` applies Kaizen (small iterations, error-proofing, YAGNI) to one change.
+- `kaizen-analyse` picks a method (Gemba, Value Stream or Muda) for a target.
+- `kaizen-analyse-problem`: A3 one-page problem analysis, root cause plus actions.
+- `kaizen-cause-and-effect`: fishbone diagram over the 6M cause categories.
+- `kaizen-plan-do-check-act`: PDCA experiment cycle.
+- `kaizen-root-cause-tracing` follows one bug back up the call chain to where the bad value first came
+  in. `systematic-debugging` is the broad version; this is the narrow one.
+- `kaizen-why`: Five Whys, from symptom to cause.
 
-- **`detect-ai-text-humanize`** - two modes: Detection (analyze whether text is
-  AI-generated, with passage-level highlighting and reasoning) or Humanization
-  (rewrite AI-sounding text to read as human, surfacing no detection output).
+### Writing
+
+- `detect-ai-text-humanize` either checks whether text reads as AI-written, with reasons per passage,
+  or rewrites it to read as human without showing any detection output.
 
 ## Glossary
 
-- **Compaction** - when Claude Code summarizes a full context window to free
-  space; load-bearing reasoning can be lost in the summary.
-- **Progressive disclosure** - keeping detail out of the always-loaded prompt
-  and loading it only when triggered, so unused content costs nothing.
-- **Path-gated** - a rule that auto-loads only when you read/edit a file
-  matching one of its frontmatter `paths:` patterns.
-- **Context cliff** - the point where the window is nearly full and the next
-  action forces a compaction.
-- **Fan-out** - splitting work across parallel subagents, each with its own
-  context window.
+- **Compaction**: Claude Code summarizes a full context window to free space. Reasoning can get lost
+  in the summary.
+- **Progressive disclosure**: keep detail out of the always-loaded prompt and load it only when
+  something triggers it.
+- **Path-gated**: a rule that loads only when you read or edit a file matching its `paths:` patterns.
+- **Context cliff**: the point where the window is nearly full and the next action forces a compaction.
+- **Fan-out**: splitting work across parallel subagents, each with its own context window.
