@@ -32,7 +32,7 @@ test-lint:
 		echo "error: shellcheck not installed (apt install shellcheck)" >&2; \
 		exit 1; \
 	fi
-	@git ls-files -z '*.sh' 'hooks/*' ':!:.claude/skills/**' | xargs -0r shellcheck -x
+	@git ls-files -z '*.sh' 'hooks/*' 'bin/**' ':!:.claude/skills/**' | xargs -0r shellcheck -x
 	@echo "shellcheck: ok"
 	@if ! command -v ruff >/dev/null 2>&1; then \
 		echo "error: ruff not installed (pip install ruff)" >&2; \
@@ -70,7 +70,7 @@ sync:
 	@python3 scripts/sync_from_dotfiles.py; rc=$$?; \
 	./scripts/check-hardcoded-paths.sh --worktree || rc=1; \
 	if command -v gitleaks >/dev/null 2>&1; then \
-		gitleaks dir --no-banner --redact .claude || rc=1; \
+		for d in .claude bin; do [ ! -d "$$d" ] || gitleaks dir --no-banner --redact "$$d" || rc=1; done; \
 	else \
 		echo "WARNING: gitleaks not installed — skipping credential scan." >&2; \
 	fi; \
