@@ -163,7 +163,7 @@ Recommendations:
 
 ### Database Selection Workflow
 
-Use when choosing a database for a new project or migrating existing data. For the SQL/NoSQL decision matrix, database type comparisons, and quick decision flow, see `references/tech_decision_guide.md` (§1 Database Selection).
+Use when choosing a database for a new project or migrating existing data.
 
 **Document the decision:** Create an ADR (Architecture Decision Record) with:
 - Context and requirements
@@ -204,26 +204,6 @@ Use when designing a new system or refactoring existing architecture.
 | High read/write ratio difference | CQRS |
 | Audit trail required | Event Sourcing |
 | Third-party integrations | Hexagonal/Ports & Adapters |
-
-See `references/architecture_patterns.md` for detailed pattern descriptions.
-
----
-
-### Monolith vs Microservices Decision
-
-See `references/architecture_patterns.md` (§1–3 + decision table) — when-to-use criteria and the extract-when rule live there.
-
----
-
-## Reference Documentation
-
-Load these files for detailed information:
-
-| File | Contains | Load when user asks about |
-|------|----------|--------------------------|
-| `references/architecture_patterns.md` | 9 architecture patterns with trade-offs, code examples, and when to use | "which pattern?", "microservices vs monolith", "event-driven", "CQRS" |
-| `references/system_design_workflows.md` | 6 step-by-step workflows for system design tasks | "how to design?", "capacity planning", "API design", "migration" |
-| `references/tech_decision_guide.md` | Decision matrices for technology choices | "which database?", "which framework?", "which cloud?", "which cache?" |
 
 ---
 

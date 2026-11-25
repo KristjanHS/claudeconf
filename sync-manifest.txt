@@ -1,11 +1,12 @@
 # <claudeconf path> <- <dotfiles path>, read from dotfiles HEAD by scripts/sync_from_dotfiles.py.
-# Trailing / = dir mirror: adds + updates, never deletes. Targets are dotfiles-owned — edit there.
-.claude/statusline.sh <- claude/.claude/statusline.sh
+# Trailing / = dir mirror: adds, updates, and deletes files whose source is gone. Targets are dotfiles-owned — edit there.
+.claude/statusline.sh <- claudeconf-publish/statusline.sh
 .claude/hooks/impag-budget-check.py <- claude/.claude/hooks/impag-budget-check.py
 .claude/hooks/post-compact-restore.py <- claude/.claude/hooks/post-compact-restore.py
 .claude/hooks/pre-compact.py <- claude/.claude/hooks/pre-compact.py
 .claude/references/2026-04-11-context-optimization-research.md <- claude/.claude/references/2026-04-11-context-optimization-research.md
 .claude/references/anti-patterns-common-rationalizations.md <- claude/.claude/references/anti-patterns-common-rationalizations.md
+.claude/references/claude-code-persistence.md <- claude/.claude/references/claude-code-persistence.md
 .claude/references/ideation-techniques-library.md <- claude/.claude/references/ideation-techniques-library.md
 .claude/references/pre-ship-sweeps.md <- claude/.claude/references/pre-ship-sweeps.md
 .claude/references/reading-large-files-outline-first.md <- claude/.claude/references/reading-large-files-outline-first.md

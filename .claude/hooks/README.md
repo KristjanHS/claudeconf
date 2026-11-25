@@ -1,139 +1,110 @@
-# .claude/hooks - Claude Code runtime hooks
+# Claude Code runtime hooks
 
-These are **Claude Code runtime hooks**: scripts the Claude Code harness runs at
-lifecycle events (compaction, session start, tool use). They are wired in
-`.claude/settings.json`. Copy the ones you want into your own `~/.claude/hooks/`
-and merge the matching `settings.json` block by hand.
+Claude Code runs these scripts at lifecycle events; `.claude/settings.json` wires them up. To use one,
+copy it into `~/.claude/hooks/` and merge its `settings.json` block by hand. (The `hooks/` at the repo
+root is something else: git hooks.)
 
-> **Two `hooks/` directories - don't conflate them.** This directory is Claude
-> Code **runtime** hooks; the repo-root `hooks/` is **git** hooks (the secret
-> gate).
-
-**Every hook here fails open** (`try: main(); except Exception: pass;
-sys.exit(0)`). A hook bug must never block compaction, session start, or a tool
-call - the cost of a crash during compaction is worse than the cost of a missed
-check.
+Python hooks exit 0 on an internal error, so a hook bug never blocks compaction, session start or a tool
+call. The one exception is the destructive gate, which blocks a command it can't parse if it looks
+dangerous.
 
 ## The hooks
 
-| File | Event (matcher) | What it does + why it saves context |
+| File | Event (matcher) | What it does |
 |---|---|---|
-| `pre-compact.py` | `PreCompact` | Just before compaction, snapshots the transcript plus the active plan and todo state to a sidecar under `~/.claude/projects/<cwd-slug>/snapshots/`. Compaction keeps ~12% of the window and the 9-section summary can drop load-bearing reasoning; the sidecar is the full insurance copy. |
-| `post-compact-restore.py` | `SessionStart` (`compact\|resume`) | Reads the newest snapshot and prints its recovery pointer (active plan, current task, where the full pre-compact transcript lives). Compaction doesn't re-inject the startup skill listing or subdirectory `CLAUDE.md` files, so Claude re-orients from a cheap pointer instead of re-deriving lost state. |
-| `docs-bloat-gate.py` | `PreToolUse` (`Write\|Edit\|Bash`) | Watches `.md` writes so bloat never enters context in a future session. Signals: **S2** AI-slop stoplist phrase in net-added text and **S3** lexical density < 0.45 on a >100-char addition are *advisory* - the write proceeds and a one-line nudge is fed back via `additionalContext`, throttled to once per signal per session; **W1** a new audit-style `docs/*.md` root file is likewise advisory. Only **S1** (char-delta over a tier cap: rule<50 lines=150, doc=800, spec=2000 chars) *blocks* - bypassable (N=3 override sentinels/session, brand-new gated file, or L2-heading carve-out), opt-in per project. Every fire is logged for tuning. Memory paths are exempt. Self-contained: the slop list and density tokenizer are inlined, no external import. |
-| `impag-budget-check.py` | `PostToolUse` (`Bash`) | Injects a wrap-up reminder when accumulated context crosses `HARD_STOP_TOKENS`; detail below. |
-| `destructive-bash-gate.py` | `PreToolUse` (`Bash`) | Blocks destructive commands that prefix-match deny rules miss; [section below](#destructive-bash-gatepy). |
-| `external-process-test-gate.py` | `PreToolUse` (`Write\|Edit`) | Keeps docker/browser/HTTP tests in `tests/manual/`; [section below](#external-process-test-gatepy). |
-| `agent-model-pin-gate.py` | `PreToolUse` (`Agent`) | Blocks an Agent call whose model family differs from the agent's pin; [section below](#agent-model-pin-gatepy). |
-| `ruff-check.sh` | `PostToolUse` (`Write\|Edit`, `Bash`), `Stop`, `SubagentStop` | Lint ratchet against the committed baseline; [section below](#ruff-checksh). |
+| `pre-compact.py` | `PreCompact` | Copies the transcript to `~/.claude/projects/<cwd-slug>/snapshots/` before compaction, with the active plan, task and todos in `sidecar.json` |
+| `post-compact-restore.py` | `SessionStart` (`compact\|resume`) | Prints where the newest snapshot is and which plan and task were active |
+| `docs-bloat-gate.py` | `PreToolUse` (`Write\|Edit\|Bash`) | Nudges on bloated `.md` writes, blocks growth of capped files; [section below](#docs-bloat-gatepy) |
+| `impag-budget-check.py` | `PostToolUse` (`Bash`) | Tells a long `/impag` run when to wrap up; [section below](#impag-budget-checkpy) |
+| `destructive-bash-gate.py` | `PreToolUse` (`Bash`) | Blocks destructive commands that deny rules miss; [section below](#destructive-bash-gatepy) |
+| `external-process-test-gate.py` | `PreToolUse` (`Write\|Edit`) | Keeps docker, browser and HTTP tests in `tests/manual/`; [section below](#external-process-test-gatepy) |
+| `agent-model-pin-gate.py` | `PreToolUse` (`Agent`) | Blocks an Agent call whose model family differs from the agent's pin; [section below](#agent-model-pin-gatepy) |
+| `ruff-check.sh` | `PostToolUse` (`Write\|Edit`, `Bash`), `Stop`, `SubagentStop` | Lint ratchet against the committed baseline; [section below](#ruff-checksh) |
 
-## The budget governor - `impag-budget-check.py`
+Compaction keeps about 12% of the original tokens, and its summary can drop reasoning a task still needs.
+The snapshot is the full copy to go back to.
 
-`impag-budget-check.py` is a `PostToolUse` hook on `Bash` that makes a long
-`/impag` run stop taking new work before the session hits its context cliff:
+## Hook specs
 
-1. **Triggers** - primary: a `git commit` (the natural task boundary). Fallback:
-   any `Bash` call once the transcript exceeds a byte floor (a pure latency
-   guard - small sessions can't be near the bands), so a working-tree-only session
-   that never commits is still caught.
-2. **Measures** exact context usage by parsing the last assistant turn's
-   reported `usage` from the transcript tail (`input_tokens +
-   cache_creation_input_tokens + cache_read_input_tokens`). Compaction-aware and
-   bounded - reads only the final 64 KB, never the whole file.
-3. **Four graduated bands** (`BANDS` in the hook; values in the
-   [measured table](../../README.md#whats-measured)) - three soft
-   notices that say *keep going, no action*, each firing once per session on the
-   way up, then a hard stop at `HARD_STOP_TOKENS` that repeats on every commit
-   past it. Silent below the lowest soft band by design. Every band
-   injects via the `additionalContext` JSON envelope, because plain `PostToolUse`
-   stdout reaches only the Ctrl-R transcript, not Claude's context. The hard
-   band's text is the operative one: do not start a new task, finish in-flight
-   work, save remaining tasks to project state, then run code review, then finish
-   the branch - and *record* a retro as owed rather than running one, because a
-   retro at the hard stop costs more than it captures. A measured drop far below the
-   session highwater is read as a compaction and re-arms the bands.
-4. **Fail-open** - any error exits 0; never blocks a commit.
+### `docs-bloat-gate.py`
 
-The hook and `statusline.sh` **share the hard-stop mark _and_ the measurement**
-(the statusline turns yellow at the hook's `HARD_STOP_TOKENS`): both sum `input_tokens +
-cache_creation_input_tokens + cache_read_input_tokens`, so the *visual* warning
-and the *automated* wrap-up fire off the same number, not just the same
-threshold.
+Watches `.md` writes. It warns, and lets the write through, on three things: a stock slop phrase in the
+added text, an addition over 100 characters with lexical density under 0.45, or a new audit-style file at
+the `docs/` root. Each warning fires at most once per session.
 
-### Dependency note
+It blocks on gated files: `docs/spec.md` and `.claude/rules/*.md` when the project has them, or what
+`.claude/docs-bloat-gate.json` lists. An edit that grows one past its cap blocks, and so does any Bash
+command that writes to one (use Write or Edit). The cap goes by the file's current length: 150 characters
+under 50 lines, 800 under 500, 2000 above. A new file or a new `##` section of up to 30 lines passes.
+`<!-- docs-bloat-gate-override: <reason of 30+ chars> -->` lets an edit through unless the reason uses a
+word like "fix" or "update"; after three overrides every over-cap edit blocks until the next session.
+Memory files are exempt. Slop and density warnings log to `~/.claude/state/docs-bloat-blocks.log`; cap
+and audit-doc fires go to `docs/analysis/bloat-overrides.log` when that dir exists, else the same file.
 
-None. The hook reads exact, compaction-aware usage from the transcript tail with
-stdlib `json` only. (An earlier tool once imported
-`token_monitor.parser.parse_last_turn` for this; that function is ~40 lines of
-pure stdlib and is inlined here as `read_last_turn_context`, so there is no
-private dependency to reinstate and no accuracy caveat.)
+### `impag-budget-check.py`
 
-## The guard hooks
+Its job is to stop a long `/impag` run from taking on new work before the context fills. Checks happen on
+every `git commit`, plus any `Bash` call once the transcript is past 400 KB. Each check reads just the
+last 64 KB of the transcript and adds up three counts from the last assistant turn: `input_tokens`,
+`cache_creation_input_tokens` and `cache_read_input_tokens`. Nothing else is read.
 
-Each guard below is self-documenting: its module docstring is the full spec.
+At 120k, 150k and 175k tokens it sends a one-time note that says keep going. At 200k it tells Claude, on
+every commit, to start nothing new: finish what's in flight, save the remaining tasks, run code review,
+finish the branch and record the retro as owed. A sub-agent gets a note at 150k and a stop at 200k telling
+it to end with a report the next agent can continue from, checked only when it runs Bash.
+
+Notes go through the `additionalContext` JSON envelope, because plain `PostToolUse` stdout never reaches
+Claude. If the count drops 20k below the session's high, the hook takes it as a compaction and re-arms the
+notes. `statusline.sh` sums the same three counts and turns yellow at the same 200k.
 
 ### `destructive-bash-gate.py`
 
-`PreToolUse` (`Bash`). Blocks (exit 2) the destructive class that prefix-match
-deny rules can't catch: recursive `rm` on `/`, `~`, `$HOME`, bare-variable roots
-or top-level system dirs (and any `--no-preserve-root`); a downloader piped or
-substituted into a shell; write-actions into a `.ssh` dir. Write-actions into a
-path guarded by an `Edit(...)` ask rule get an *ask*, never a block (needs
-`~/.claude/lib/ask_paths.py`). Analysis is token-level, so text that only
-*mentions* `rm -rf /` (commit messages, heredoc bodies) passes. Fails open on
-errors and parse failures, except an unparseable command matching `RAW_DANGER`.
-**No in-band bypass** - a genuinely intended command is run by the user, or the
-user removes the hook from `settings.json`. Blocks log to
-`~/.claude/state/destructive-bash-blocks.log`.
+`PreToolUse` (`Bash`). Exits 2 on what prefix-match deny rules can't catch: recursive `rm` on `/`, `~`,
+`$HOME`, bare-variable roots or top-level system dirs (and any `--no-preserve-root`), a downloader piped or
+substituted into a shell, and writes into a `.ssh` dir. Writes into a path an `Edit(...)` ask rule guards
+get a prompt instead (needs `~/.claude/lib/ask_paths.py`). It reads tokens, not text, so a commit message
+or heredoc that only mentions `rm -rf /` passes. There is no bypass. Run the command yourself, or take the
+hook out of `settings.json`. Blocks log to `~/.claude/state/destructive-bash-blocks.log`.
 
 ### `external-process-test-gate.py`
 
-`PreToolUse` (`Write|Edit`), acting on `tests/**/*.py` except `tests/manual/**`,
-`tests/__init__.py` and `tests/conftest.py`. Blocks test code that drives
-heavyweight external systems - a `docker`/`playwright`/`selenium` import, a
-`requests.<verb>(` call, or `subprocess`/`os.system` launching
-`docker`/`kubectl`/`playwright`/`selenium` - so it lands in `tests/manual/` and
-stays out of the default `pytest` run. A project's own toolchain
-`subprocess.run` passes. **Override:** add
-`<!-- external-process-test-gate-override: <reason of 10+ chars> -->` to the
-content; overrides log to `~/.claude/logs/external-process-test-overrides.log`.
+`PreToolUse` (`Write|Edit`) on `tests/**/*.py`, except `tests/manual/**`, `tests/__init__.py` and
+`tests/conftest.py`. Blocks test code that imports `docker`, `playwright` or `selenium`, calls
+`requests.<verb>(`, or launches `docker`, `kubectl`, `playwright` or `selenium` through `subprocess` or
+`os.system`. Such tests belong in `tests/manual/`, where the default `pytest` run won't pick them up.
+Your project's own toolchain called through `subprocess.run` is fine. Need an exception? Add
+`<!-- external-process-test-gate-override: <reason of 10+ chars> -->` to the file; overrides are logged to
+`~/.claude/logs/external-process-test-overrides.log`.
 
 ### `agent-model-pin-gate.py`
 
-`PreToolUse` (`Agent`). Blocks (exit 2) an Agent call whose `model` family
-(opus/sonnet/haiku/fable, from an alias or a full ID) differs from the `model:`
-pin in the named subagent's definition - looked up in the project's
-`.claude/agents/`, then `~/.claude/agents/`. **No in-band bypass**: the cheap
-read-only tier is `Explore`, not a downshifted pinned agent. Fails open on
-errors; blocks log to `~/.claude/state/agent-model-pin-blocks.log`.
+`PreToolUse` (`Agent`). Exits 2 when an Agent call's `model` family (opus, sonnet, haiku or fable, from
+an alias or a full ID) differs from the `model:` pin in the subagent's definition. It looks in the
+project's `.claude/agents/` first, then `~/.claude/agents/`. There is no bypass. For a cheap read-only run,
+use `Explore`, not a downshifted pinned agent. Blocks log to `~/.claude/state/agent-model-pin-blocks.log`.
 
 ### `ruff-check.sh`
 
-`PostToolUse` on `Write|Edit` (lint + format) and on `Bash` with `--lint-only`
-(`.py` files a Bash write left dirty), re-checked on `Stop`/`SubagentStop` with
-`--stop`. Blocks only on lint keys `(code, message)` whose count grew against the
-file's committed baseline; format drift is fed back as `additionalContext`.
-Per-edit runs skip mid-edit codes (the `skip` list, e.g. `F401`, `F821`);
-`--stop` and any `git commit` check every code. Prefers the project's uv-locked
-`ruff`, else host `ruff`; needs `jq` and `git`. **Exception path:** the
-end-of-turn report fires once - fix the findings, or keep them deliberately and
-the turn ends on the re-entry.
+Runs lint and format checks after `Write|Edit`, lint only after `Bash` (on `.py` files the command left
+dirty), and every check again on `Stop`/`SubagentStop`. It blocks only when the count of a lint
+`(code, message)` pair grows past the file's committed baseline. Format drift comes back as a note.
+Per-edit runs skip codes that show up mid-edit (`F401`, `F821` and the rest of its `skip` list); the
+`Stop` pass and any `git commit` check them all. Uses the project's uv-locked `ruff` if there is one, else
+the host's. Needs `jq` and `git`. The end-of-turn report fires once: fix the findings, or end the turn
+again to keep them.
 
 ## Trying a hook in isolation
 
-Each hook reads a JSON event payload on stdin. Example for the bloat gate:
+Each hook reads a JSON event payload on stdin. For the bloat gate:
 
 ```sh
 echo '{"tool_name":"Write","tool_input":{"file_path":"/tmp/scratch.md","content":"We should leverage this approach."}}' \
   | python3 ~/.claude/hooks/docs-bloat-gate.py
-echo "exit code: $?"   # slop is advisory now: exit 0 + a JSON additionalContext
-                       # nudge on stdout (write allowed). Only the opt-in S1 size
-                       # ratchet exits 2 (blocked); its reason goes to stderr.
+echo "exit code: $?"   # expect exit 0 and a JSON nudge
 ```
 
 ## Automated tests
 
-Hook behaviour is pinned by a pytest suite in `tests/` (run `pytest` from the
-repo root). `tests/test_impag_budget_check.py` covers the budget governor:
-the exact tail-reader, the hard-stop and soft-band thresholds, the boundary
-below the lowest band, the compaction regression, and fail-open. Add cases there rather than scripting throwaway checks.
+`python3 -m pytest` runs the suite. `impag-budget-check.py` has `tests/test_impag_budget_check.py`;
+`tests/test_security_fixes.py` covers `pre-compact.py`'s input hardening and only the log-path containment
+of `docs-bloat-gate.py`.

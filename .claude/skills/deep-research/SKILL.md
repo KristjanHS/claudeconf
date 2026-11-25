@@ -37,7 +37,7 @@ Before concluding research, verify:
 
 - **WebSearch** / **WebFetch**: general information, current events, specific URLs.
 - **Context7**: library/framework documentation.
-- **Agent (`general-purpose` subagent)** — pinned **opus/medium**: multi-step investigations synthesize across sources, not just locate, so route them here rather than to Haiku `Explore` (routing + why → `~/.claude/references/claude-models.md`).
+- **Agent (`general-purpose` subagent)** — pinned **opus/medium**: multi-step investigations synthesize across sources, not just locate, so route them here rather than to Haiku `Explore`.
 
 ## Iteration
 

@@ -185,6 +185,6 @@ Per-step detail + gate examples → `~/.claude/references/iterative-spec-loop.md
 ## Model routing
 
 Mirrors `impag`: the **main brainstorm runs on Opus at `medium` effort** (the session default) -- every clarifying question and design section inherits its judgement, so a downshift there cascades.
-**Omit the `model` param by default** — unset runs the frontmatter pin (model-swap's control point); an explicit `model:` overrides the pin yet keeps pinned effort (no per-call knob). Pass one only where the table deliberately differs from the pin (tier labels = baseline pins, not params to copy) — never `sonnet` (retired: `~/.claude/references/claude-models.md`).
+**Omit the `model` param by default** — unset runs the frontmatter pin (model-swap's control point); an explicit `model:` overrides the pin yet keeps pinned effort (no per-call knob). Pass one only where the table deliberately differs from the pin (tier labels = baseline pins, not params to copy) — never `sonnet` (retired).
 
 Per-dispatch table -- architecture-assessment grounding (2.6), spec review (7), external research (1/3), ideation techniques (2.5) -- plus the `Explore`-pins-to-`low` caveat → `~/.claude/references/mybrain-deep-dives.md` §Model routing. Skip it entirely on a run that dispatches nothing.

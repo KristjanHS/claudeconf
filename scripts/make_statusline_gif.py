@@ -6,10 +6,6 @@ counts, parses its ANSI output, and paints each frame in the Windows Terminal
 "Campbell" palette. The README stills docs/statusline{,2}.png are exported
 from the same frames (STILLS) so they always match the GIF.
 
-The "| $cost" segment is stripped from each frame: once "← /clear soon" appears
-it pushes the trailing "5h:"/"7d:" limits off the frame edge, so dropping the
-spend keeps the rate-limit indicators visible end-to-end.
-
 Reproduce:  python3 scripts/make_statusline_gif.py
 Output:     docs/statusline.gif, docs/statusline.png, docs/statusline2.png
 """
@@ -42,16 +38,16 @@ FRAME = (250, 250, 250)
 MARGIN = 22  # frame thickness on every side
 RADIUS = 16  # rounded corners on the inner dark panel
 
-# (used_tokens, cost_usd, five_hour_pct, seven_day_pct) — the story against the
+# (used_tokens, five_hour_pct, seven_day_pct) — the story against the
 # 300k statusline: green -> amber + "/clear soon" -> red
 FRAMES = [
-    (27000, 0.42, 31, 14),
-    (83000, 1.75, 36, 15),
-    (147000, 3.40, 42, 17),
-    (186000, 5.05, 46, 18),
-    (201000, 6.20, 48, 19),  # crosses 200k: bar turns amber, "/clear soon" appears
-    (231000, 8.03, 50, 21),  # the hero frame (== docs/statusline2.png)
-    (252000, 9.30, 53, 22),  # crosses 240k: bar turns red
+    (27000, 31, 14),
+    (83000, 36, 15),
+    (147000, 42, 17),
+    (186000, 46, 18),
+    (201000, 48, 19),  # crosses 200k: bar turns amber, "/clear soon" appears
+    (231000, 50, 21),  # the hero frame (== docs/statusline2.png)
+    (252000, 53, 22),  # crosses 240k: bar turns red
 ]
 RED_FRAME = 6
 # Per-frame duration (ms); hold the cliff frame longer so the eye lands on it.
@@ -60,12 +56,11 @@ DURATIONS = [1100, 1100, 1100, 1200, 1500, 3000, 2400]
 STILLS = {"statusline.png": 2, "statusline2.png": 5}
 
 
-def render_line(used, cost, five_h, seven_d):
+def render_line(used, five_h, seven_d):
     """Run the real statusline script and return its raw ANSI string."""
     payload = {
         "model": {"display_name": "Opus 5.5"},
         "context_window": {"current_usage": {"input_tokens": used}},
-        "cost": {"total_cost_usd": cost},
         "rate_limits": {
             "five_hour": {"used_percentage": five_h},
             "seven_day": {"used_percentage": seven_d},
@@ -83,14 +78,6 @@ def render_line(used, cost, five_h, seven_d):
 
 
 SGR = re.compile(r"\033\[([0-9;]*)m")
-
-# The " | $cost" spend segment: leading space, DIM, "| $N.NN", RESET.
-COST_SEG = re.compile(r" \033\[2m\| \$[0-9.]+\033\[0m")
-
-
-def strip_cost(s):
-    """Drop the spend segment so the trailing 5h:/7d: limits stay on-frame."""
-    return COST_SEG.sub("", s)
 
 
 def parse_ansi(s):
@@ -137,7 +124,7 @@ def main():
             fill=BG,
         )
         x = MARGIN + PAD_X
-        for text, rgb in parse_ansi(strip_cost(line)):
+        for text, rgb in parse_ansi(line):
             draw.text((x, MARGIN + y), text, font=font, fill=rgb)
             x += draw.textlength(text, font=font)
         assert x - MARGIN <= W - PAD_X, (

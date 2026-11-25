@@ -195,7 +195,6 @@ DATED_CITE = re.compile(r"\d{4}-\d{2}-\d{2}-[\w.-]+\.md")
 DANGLING_BASELINE = frozenset(
     {
         "2026-04-18-precompact-hook-design",
-        "2026-08-09-session-token-audit-round-2",
         "2026-09-27-security-critique-todo",
     }
 )

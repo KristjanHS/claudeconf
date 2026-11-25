@@ -3,71 +3,82 @@
 Everything in this repo, grouped by what it does. For counts and token thresholds see the README's
 [measured table](../README.md#whats-measured); to copy a piece, see [ADOPT.md](../ADOPT.md).
 
-### Rules
+## Rules
 
-Loaded only when a matching file is touched.
+A rule loads only when Claude reads or edits a file matching its `paths:` patterns. `.claude/CLAUDE.md`
+loads every turn, so it holds pointers and a Rules Index instead of the rules themselves.
 
-| Piece | Purpose | How it works | Cost |
-|---|---|---|---|
-| `.claude/CLAUDE.md` | Keep rules out of the always-loaded prompt | "References" + "Rules Index" sections *point* at content instead of inlining it | Must keep the index in sync as rules change |
-| Path-gated rules | Topic rules that load only when relevant | Frontmatter `paths:` patterns load the body on a matching read/edit; the `CLAUDE.md` Rules Index names them so Claude knows they exist before a pattern fires | Loads on every matching file touch |
-| `external-sources.md` | Handle vendored copies, submodules and downloaded source trees safely | Fires on outside code a repo reuses; read and grep it, run it only via a reviewed project entry point | Loads on a matching touch |
-| `github-actions.md` | Run workflow jobs locally | Pointer to `github-actions-local-act.md` | Tiny pointer |
-| `hooks.md` | Avoid hook-authoring traps (PreCompact, SessionStart, PostToolUse I/O) | Gotcha list; detail in `hooks-deep-dives.md` | Loads on hook edits |
-| `prose-budget.md` | Keep unasked-for prose short (docs, docblocks, comments) | Budget + cut list applied while writing | Loads on prose edits |
-| `python-refactors.md` | Avoid import/module-structure refactor traps | Gotcha list; detail in `python-refactors-deep-dives.md` | Loads on Python edits |
+| Piece | What it does |
+|---|---|
+| `.claude/CLAUDE.md` | Points at rules and references instead of inlining them. The Rules Index names each rule, so Claude knows it exists before its pattern fires |
+| `claude-md-edits.md` | Holds `CLAUDE.md` edits until the session ends. Each line added to `CLAUDE.md` or `MEMORY.md` pushes one out |
+| `external-sources.md` | Read and grep vendored copies, submodules and downloaded trees, but run them only through a reviewed entry point |
+| `github-actions.md` | Points at `github-actions-local-act.md` |
+| `hooks.md` | Hook-authoring traps (PreCompact, SessionStart, PostToolUse I/O); detail in `hooks-deep-dives.md` |
+| `instruction-file-discipline.md` | What may go into `CLAUDE.md`, rules, references and `SKILL.md`, so they don't need condensing later |
+| `prose-budget.md` | Caps unasked prose (docs, docblocks, comments) at two lines per unit |
+| `python-refactors.md` | Import and module-structure refactor traps; detail in `python-refactors-deep-dives.md` |
+| `reading-large-files.md` | Forces offset/limit or Grep on lock, csv and minified files |
+| `testing.md` | When a test earns its place, test-to-code ratio, pytest defaults |
 
-### References
+## References
 
-Read only when a pointer fires.
+A reference loads only when a pointer in `CLAUDE.md`, a rule or a skill sends Claude to it.
 
-| Piece | Purpose | How it works | Cost |
-|---|---|---|---|
-| References | Long checklists/postmortems, on demand | Plain `.md`; loaded only when a `CLAUDE.md` pointer fires | None until triggered |
-| `architecture-assessment-gate.md` | Make the refactor-before-feature call deliberately | Checklist loaded once a planning pass decides a refactor-first assessment is warranted | None until triggered |
-| `github-actions-local-act.md` | Run GitHub Actions jobs locally with `act`, no Docker-in-Docker | Step-by-step setup | None until triggered |
-| `hooks-deep-dives.md` | Hook stdin/stdout contracts in detail | Backs `hooks.md` | None until triggered |
-| `instruction-file-discipline-deep-dives.md` | The pre-authorised moves for condensing instruction files | Backs `instruction-file-discipline.md` | None until triggered |
-| `mybrain-deep-dives.md` | Rationale behind the `mybrain` design-dialogue steps | Backs the `mybrain` skill | None until triggered |
-| `python-refactors-deep-dives.md` | Mechanism + worked example per Python refactor trap | Backs `python-refactors.md` | None until triggered |
-| `spec-rework-audit.md` | Check whether a spec review caused re-work | Audit procedure cited by `mybrain-deep-dives.md` | None until triggered |
+| Piece | What it does |
+|---|---|
+| `2026-04-11-context-optimization-research.md` | Startup token table and compaction behaviour, from a 30-source review |
+| `anti-patterns-common-rationalizations.md` | Excuses for skipping debugging or design discipline, each with its answer; read by `systematic-debugging` and `testing-anti-patterns` |
+| `architecture-assessment-gate.md` | Checklist for the refactor-before-feature call, once planning decides one is warranted |
+| `claude-code-persistence.md` | Where Claude Code keeps transcripts, subagent logs and memory under `~/.claude/projects/`, for hook and forensic scripts |
+| `github-actions-local-act.md` | Runs GitHub Actions jobs locally with `act`, no Docker-in-Docker |
+| `hooks-deep-dives.md` | The stdin/stdout contract of each hook event, for when `hooks.md` isn't enough |
+| `ideation-techniques-library.md` | Ideation techniques for `mybrain`'s deep mode |
+| `instruction-file-discipline-deep-dives.md` | The moves `instruction-file-discipline.md` allows when condensing an instruction file |
+| `mybrain-deep-dives.md` | Why each `mybrain` design-dialogue step exists |
+| `pre-ship-sweeps.md` | Sweeps to run before shipping a deny rule, a removal or a threshold change |
+| `python-refactors-deep-dives.md` | How each `python-refactors.md` trap bites, with a worked example |
+| `reading-large-files-outline-first.md` | Outline a 300–800-line file first, then read only the windows you need |
+| `recording-principles.md` | Where an asked-for note goes: `CLAUDE.md`, a rule, a reference or memory |
+| `spec-rework-audit.md` | Checks whether a spec review caused re-work |
+| `subagent-dispatch.md` | When delegating to a subagent pays, and how to brief one |
 
-### Hooks
+## Hooks
 
-Runtime guards.
+Hooks run on Claude Code events and cost nothing in context unless they print. Wiring and specs:
+[the hooks README](../.claude/hooks/README.md).
 
-| Piece | Purpose | How it works | Cost |
-|---|---|---|---|
-| `settings.json` | Wire the hooks | Matcher → script entries | One-time hand-merge |
-| `pre-compact.py` | Insurance copy before a compaction | `PreCompact` hook snapshots transcript + plan/todo to a sidecar | Runs on every compaction |
-| `post-compact-restore.py` | Re-orient cheaply after compaction | `SessionStart` hook prints the newest snapshot's recovery pointer | Runs on compact/resume |
-| `destructive-bash-gate.py` | Block destructive commands prefix-match deny rules miss | `PreToolUse` hook on Bash; recursive `rm` on roots, download-piped-to-shell, writes into `.ssh` → exit 2; writes into ask-guarded paths → ask | Blocks only the matched class |
-| `lib/ask_paths.py` | Share `settings.json` ask globs as path matchers | Imported by `destructive-bash-gate.py` from `~/.claude/lib/`; absent → that one check goes inert | None |
-| `external-process-test-gate.py` | Keep slow external-system tests out of the default suite | `PreToolUse` hook on Write/Edit of `tests/**/*.py`; docker/browser/HTTP tests must live in `tests/manual/` | Override sentinel for real exceptions |
-| `ruff-check.sh` | Stop new lint findings landing | `PostToolUse` on Write/Edit (+ Bash `--lint-only`), re-checked on `Stop`/`SubagentStop`; blocks only on lint counts above the committed baseline | Needs `ruff`; one lint run per Python edit |
+| Piece | What it does |
+|---|---|
+| `settings.json` | Wires each hook to its event and matcher. Merge it into yours by hand |
+| `pre-compact.py` | Before compaction (Claude Code summarizing a full window), copies the transcript to a snapshot dir, with the active plan, task and todos in `sidecar.json` |
+| `post-compact-restore.py` | After compaction or resume, prints where the newest snapshot is |
+| `destructive-bash-gate.py` | Blocks recursive `rm` on roots, download-piped-to-shell and writes into `.ssh`. Writes into ask-guarded paths get a prompt instead |
+| `lib/ask_paths.py` | Lets `destructive-bash-gate.py` match paths against the `settings.json` ask globs. Without it, that one check is skipped |
+| `docs-bloat-gate.py` | Warns when an `.md` write adds slop phrases, thin text or a new audit doc. Blocks growth past a size cap on `docs/spec.md` and rule files, and any Bash write to them |
+| `impag-budget-check.py` | Nudges an `impag` run at 120k, 150k and 175k tokens of context and stops it at 200k, reading the count from the transcript |
+| `external-process-test-gate.py` | Keeps docker, browser and HTTP tests in `tests/manual/`, out of the default suite |
+| `ruff-check.sh` | Needs `ruff`. After a Python edit lands, tells Claude to fix lint that pushes counts above the committed baseline |
+| `statusline.sh` | Status line: model, context use, a warning near the session stop, 5-hour and 7-day limits |
 
-### Review loop
+## Review loop
 
-An independent second read.
+| Piece | What it does |
+|---|---|
+| `agents/code-reviewer.md` | Reviews each finished change in a fresh context, pinned `opus`/`high`, given the plan and commit range but not the author's reasoning |
+| `agents/*.md` (7 built-in pins) | Pins each built-in subagent's model and effort, e.g. `Explore` → `haiku`/`low`, `Plan` → `opus`/`high` |
+| `agent-model-pin-gate.py` | Blocks an Agent call whose `model` family differs from the agent's pin |
 
-| Piece | Purpose | How it works | Cost |
-|---|---|---|---|
-| `agents/code-reviewer.md` | Review each finished change in a fresh context | Subagent pinned `opus`/`high`; dispatched with the plan + commit range, never the author's reasoning | One extra agent run per change |
-| `agents/*.md` (7 built-in pins) | Route each built-in subagent to a deliberate model | Frontmatter `model:`/`effort:` overrides, e.g. `Explore` → `haiku`/`low`, `Plan` → `opus`/`high` | Copy-in; tune to your plan |
-| `agent-model-pin-gate.py` | Keep Agent calls faithful to those pins | `PreToolUse` hook on Agent; blocks a `model` whose family differs from the agent's pin | Blocks only mismatches |
+## Skills
 
-### Skills
-
-A skill's body loads only when you invoke it. The first group is about keeping context small; the
-others are general tools I keep around.
+A skill's body loads only when you invoke it. The first group keeps context small; the rest are general
+tools I keep around.
 
 ### Context hygiene
 
 - `condense` deduplicates `CLAUDE.md`, rules and project docs (spec, plans, runbooks) across the
-  hierarchy. Run it when the same guidance has drifted into several files.
-- `claude-md-progressive-disclosurer` rewrites a `CLAUDE.md` so it points at long content instead of
-  inlining it. Use it when rules are duplicated or keep being ignored; this repo's `CLAUDE.md` got its
-  shape that way.
+  hierarchy. Run it when the same guidance has drifted into several files, or to move long `CLAUDE.md`
+  content into rules and references that load on demand, the method this repo's `CLAUDE.md` was shaped with.
 - `de-bloat` (only via `/de-bloat`) audits skill files in `~/.claude/skills/` and a project's
   `.claude/skills/` for bloat and duplication. It edits nothing. It writes a plan for `impag` in two
   passes: content (dedupe, compact), then root cause (which rules, references or skills caused it).
@@ -86,6 +97,8 @@ others are general tools I keep around.
 
 - `reflect` reviews the session and proposes skill improvements. It runs only on `/reflect` or from a retro.
 - `retro` is the end-of-session retrospective: what was learned, and which memories and docs to update.
+- `snapshot` (only via `/snapshot`) copies the session transcript into the project's snapshot dir, with
+  the active plan and todos in a sidecar, kept apart from the automatic pre-compact snapshots.
 
 ### Design and critique
 
@@ -93,43 +106,29 @@ others are general tools I keep around.
 - `brutal-honesty-review`: blunt critique of code, tests or claims.
 - `deep-research`: multi-source web research for questions that need more than one search.
 - `architecture-diagram-creator`: HTML architecture diagrams (data flow, components, deployment).
-- `mybrain` turns a rough idea into a design by questioning it. Goes with the
-  `ideation-techniques-library.md` reference.
+- `mybrain` turns a rough idea into a design by questioning it.
 
 ### Code quality and dev workflow
 
 - `testing-anti-patterns` catches tests that only test their mocks, test-only methods leaking into
   production code, and mocks set up without understanding the dependency. Use it when writing tests.
 - `systematic-debugging` makes Claude investigate before proposing a fix, for any bug, failing test or
-  odd behaviour. Pairs with the `anti-patterns-common-rationalizations.md` reference.
+  odd behaviour.
 - `python-simplifier` simplifies complex Python: smells, duplication, coupling. Not for Django.
 - `finishing-a-development-branch` verifies tests, reports branch state, merges into `main` and leaves
   `main` checked out. It never pushes.
 
 ### Kaizen
 
-Seven continuous-improvement skills, meant to be copied as a set.
+Continuous-improvement skills, meant to be copied as a set.
 
 - `kaizen-kaizen` applies Kaizen (small iterations, error-proofing, YAGNI) to one change.
 - `kaizen-analyse` picks a method (Gemba, Value Stream or Muda) for a target.
-- `kaizen-analyse-problem`: A3 one-page problem analysis, root cause plus actions.
-- `kaizen-cause-and-effect`: fishbone diagram over the 6M cause categories.
+- `kaizen-analyse-problem`: A3 one-page problem analysis, root cause plus actions; carries the 6M fishbone.
 - `kaizen-plan-do-check-act`: PDCA experiment cycle.
-- `kaizen-root-cause-tracing` follows one bug back up the call chain to where the bad value first came
-  in. `systematic-debugging` is the broad version; this is the narrow one.
 - `kaizen-why`: Five Whys, from symptom to cause.
 
 ### Writing
 
 - `detect-ai-text-humanize` either checks whether text reads as AI-written, with reasons per passage,
   or rewrites it to read as human without showing any detection output.
-
-## Glossary
-
-- **Compaction**: Claude Code summarizes a full context window to free space. Reasoning can get lost
-  in the summary.
-- **Progressive disclosure**: keep detail out of the always-loaded prompt and load it only when
-  something triggers it.
-- **Path-gated**: a rule that loads only when you read or edit a file matching its `paths:` patterns.
-- **Context cliff**: the point where the window is nearly full and the next action forces a compaction.
-- **Fan-out**: splitting work across parallel subagents, each with its own context window.

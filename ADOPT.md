@@ -1,32 +1,16 @@
 # Adopting the pieces
 
-This is the **"I'm convinced, now how do I adopt it"** path - what each piece
-does is in [docs/catalog.md](docs/catalog.md), and where it isn't worth it is in the [README](README.md#costs-and-limits). Copy-in,
-by hand, one piece at a time. **Back up anything you overwrite**, and **never
-blind-overwrite your own `~/.claude/settings.json`** - merge the hooks block
-instead. Everything below assumes your config lives at `~/.claude/`.
+Back up anything you are about to overwrite, and merge `settings.json` by hand rather than copying it over
+yours. Go in step order; [docs/catalog.md](docs/catalog.md) says what each piece does.
 
-Most steps end with a **smoke-test**: it confirms the piece is *wired and fires*,
-not that it improved your session. (The value question is the README's job.)
+Everything below assumes your config lives at `~/.claude/`. A smoke test only proves a piece is wired and
+fires, not that it made your sessions better.
 
-Steps 1-4 are the **context-management core** - the repo's primary focus. Step 5
-(skills) is a mix: the context-hygiene trio plus the **secondary** practices and
-conventions grouped by purpose (config & skill management, session hygiene,
-design & critique, writing & AI-text). Adopt the core first; pull in the rest as
-they're useful.
+## 1. The `CLAUDE.md` skeleton
 
-## 1. The progressive-disclosure `CLAUDE.md`
-
-`.claude/CLAUDE.md` is an **example skeleton**, not a config to copy verbatim.
-Adopt the *structure*, not the contents:
-
-- A **"References (read when triggered)"** section - point at L3 docs that load
-  only when a trigger fires.
-- A path-gated **"Rules Index"** table - one row per rule file, so the rule
-  body stays out of context until a matching file is touched.
-
-Merge that structure into your existing `CLAUDE.md`; fill the rows with your own
-rules.
+Don't copy `.claude/CLAUDE.md` as is; it's there to show the shape. Two sections are worth taking:
+References, which points at long docs Claude reads only when a trigger fires, and the Rules Index, with
+one row per rule file. Then fill them with your own rules.
 
 ## 2. Path-gated rules
 
@@ -34,18 +18,12 @@ rules.
 cp .claude/rules/*.md ~/.claude/rules/
 ```
 
-Each rule's frontmatter `paths:` list is the gating mechanism - it auto-loads only
-when a matching file is read/edited. Keep the frontmatter. The shipped
-rules are good as-is, but tune them to your stack. List each in your
-`CLAUDE.md` Rules Index table.
+Keep the `paths:` frontmatter; a rule loads only when Claude reads or edits a matching file, and that
+block is the whole mechanism. Tune the rules to your stack. List each in your Rules Index.
 
-**Smoke-test:** confirm the file is in `~/.claude/rules/` with its `paths:`
-frontmatter intact - that frontmatter is what the harness keys the gating on.
-There's no context-inspector to *watch* a rule load; the only observable effect
-is behavioral (Claude following the rule once you touch a matching file), which
-proves wiring, not that the rule changed an outcome.
+Smoke test: check the `paths:` block survived the copy.
 
-## 3. Runtime hooks + `settings.json` wiring
+## 3. Runtime hooks
 
 ```sh
 cp .claude/hooks/*.py .claude/hooks/*.sh ~/.claude/hooks/
@@ -53,86 +31,44 @@ chmod +x ~/.claude/hooks/*.py ~/.claude/hooks/*.sh
 mkdir -p ~/.claude/lib && cp .claude/lib/ask_paths.py ~/.claude/lib/
 ```
 
-Then **merge** (do not overwrite) the hook entries from `.claude/settings.json`
-into your own `~/.claude/settings.json`. The shipped file wires every hook.
-The context-management core is four of them:
+Then merge the hooks block from `.claude/settings.json` into your `~/.claude/settings.json` and check that
+Claude Code reports no settings errors. Dependencies:
 
-- `PreCompact` → `pre-compact.py`
-- `SessionStart` → `post-compact-restore.py` (on compact/resume)
-- `PreToolUse` (Write/Edit/Bash) → `docs-bloat-gate.py`
-- `PostToolUse` (Bash) → `impag-budget-check.py`
+- `destructive-bash-gate.py` needs `~/.claude/lib/ask_paths.py` for its ask-path check.
+- `agent-model-pin-gate.py` checks against the agent pins: `cp .claude/agents/*.md ~/.claude/agents/`.
+- `ruff-check.sh` needs `ruff`, `jq` and `git`.
 
-The rest are optional guards - take the ones you want:
-
-- `PreToolUse` (Bash) → `destructive-bash-gate.py` (needs `~/.claude/lib/ask_paths.py`
-  for its ask-path check; without it only that check goes inert)
-- `PreToolUse` (Write/Edit) → `external-process-test-gate.py`
-- `PreToolUse` (Agent) → `agent-model-pin-gate.py` - pair it with the agent pins
-  (`cp .claude/agents/*.md ~/.claude/agents/`)
-- `PostToolUse` (Write/Edit, Bash `--lint-only`) + `Stop`/`SubagentStop` (`--stop`)
-  → `ruff-check.sh` (needs `ruff`, `jq` and `git`)
-
-If you keep separate `settings.json` files, add the matchers to whichever one
-already holds your hooks. Confirm Claude Code reports no settings errors after.
-
-How the budget governor measures context (exact, compaction-aware, zero-dep) and
-why it shares the statusline's 200k mark is documented once in
-**[`.claude/hooks/README.md`](.claude/hooks/README.md#the-budget-governor---impag-budget-checkpy)** - read it there.
-
-**Smoke-test (hooks):** run a hook against a synthetic stdin payload and check
-its exit code - the bloat-gate example is in the
-[hooks README](.claude/hooks/README.md#trying-a-hook-in-isolation). A non-error
-exit (0, plus a JSON advisory nudge on stdout for the gate's slop/density
-signals; only its opt-in S1 size ratchet exits 2 = blocked) confirms it's
-installed and runs.
+Smoke test: pipe a sample payload into a hook, as in the
+[hooks README](.claude/hooks/README.md#trying-a-hook-in-isolation). Exit 0 means it is installed and runs.
 
 ## 4. Statusline
 
-```sh
-cp .claude/statusline.sh ~/.claude/statusline.sh
-chmod +x ~/.claude/statusline.sh
-```
+Install it as in the README's [quick start](README.md#quick-start). `WINDOW` sits below the model's real
+limit so the bar warns before native autocompact. The other four are fixed token counts that don't move
+with it, so edit them together:
 
-Point `statusLine` at it in `settings.json` (see the shipped example). It needs
-only `jq` and `git`. Note the context window is pinned to a personal 300k
-budget with a 200k/240k yellow/red mark - the same 200k the budget governor
-wraps up on. `WINDOW` is the token budget you choose to treat as your personal
-session cap (here 300k) - deliberately *below* the model's real context limit
-(e.g. 1M), so the bar fills and warns well before any native autocompact. Set it
-to whatever cap you want to pace yourself against; adjust the thresholds to match.
+| Line | Default | Controls |
+|---|---|---|
+| `WINDOW=300000` | 300k | 100% of the bar and the % shown |
+| `STOP=225000` | 225k | the stop point the warning counts down to |
+| `AMBER=200000` | 200k | bar turns yellow |
+| `RED=240000` | 240k | bar turns red |
+| `WARN=30000` | 195k | `← /clear soon` appears, 30k before the stop |
 
-**Smoke-test:** start a session and confirm the status line renders (context %,
-cost, distance-to-stop). If it's blank, check `jq`/`git` are on `PATH` and the
-`statusLine` path in `settings.json` is correct.
+If you run the budget governor (`impag-budget-check.py`), keep its 200k hard stop equal to the yellow mark.
+
+Smoke test: open a new session. The status line should show model, bar, %, tokens, folder and branch,
+followed by the 5-hour and 7-day limits. If it stays blank, `jq` or `git` is missing from `PATH`, or the
+`statusLine` path in `settings.json` points at the wrong file.
 
 ## 5. Skills
 
 ```sh
 cp -r .claude/skills/* ~/.claude/skills/
+cp .claude/references/*.md ~/.claude/references/
 ```
 
-`condense`, `de-bloat`, and `claude-md-progressive-disclosurer` are the
-context-hygiene trio; `impag` showcases the parallel-subagent fan-out, and
-`qimpag` is its questions-first variant (one interactive round, then the same
-full-auto run). The rest
-are bundled exemplars: `config-reuse`, `install-skill`, and `skills-discovery`
-manage Claude config and skills (the acquisition side of a copy-in catalog);
-`reflect` and `retro` are end-of-session hygiene; `senior-architect`,
-`brutal-honesty-review`, `deep-research`, `architecture-diagram-creator`, and
-`mybrain` are general-purpose design/critique tools; `testing-anti-patterns`,
-`systematic-debugging`, `python-simplifier`, and `finishing-a-development-branch`
-are code-quality & dev-workflow exemplars; the seven `kaizen-*` skills are a
-coherent continuous-improvement family (copy them as a set or skip them);
-`detect-ai-text-humanize` flags AI-sounding prose and rewrites it human (point it
-at a doc with "humanize the AI text in X" or "check X for AI"); `snapshot` saves
-a session by hand (`/snapshot`). They are
-self-contained, and any reference to tooling you don't run is written as optional
-- except two with a non-optional reference dep: `mybrain` reads
-`~/.claude/references/ideation-techniques-library.md`, and `systematic-debugging`
-reads `~/.claude/references/anti-patterns-common-rationalizations.md`; copy those
-files from `.claude/references/` into your `~/.claude/references/` alongside the
-skills.
+Several skills read files from `~/.claude/references/`, so copy the references along with them.
+[docs/catalog.md](docs/catalog.md#skills) lists every skill. The `kaizen-*` skills work as a set.
 
-**Smoke-test:** type `/` in a session and confirm the copied skills appear in
-the slash-command list (or invoke `/<name>` and watch it load). That proves
-they're discoverable; whether a skill helps is a per-task judgement.
+Smoke test: type `/` in a session and look for the copied skills in the list.

@@ -38,7 +38,7 @@ def commit(repo: Path, files: dict[str, str], msg: str = "c") -> None:
 @pytest.fixture
 def repos(tmp_path, monkeypatch):
     dot, root = tmp_path / "dotfiles", tmp_path / "claudeconf"
-    root.mkdir()
+    git(tmp_path, "init", "-q", str(root))
     git(tmp_path, "init", "-q", str(dot))
     commit(
         dot,
@@ -118,7 +118,9 @@ def test_sync_writes_manifest_files(repos, capsys):
     assert (root / ".claude/rules/a.md").read_text() == "see ~/x\n"
     assert (root / ".claude/skills/s1/ref/r.md").is_file()
     assert (root / ".claude/statusline.sh").stat().st_mode & 0o100
-    assert "sync: 4 changed, 0 unchanged, 0 refused" in capsys.readouterr().out
+    assert (
+        "sync: 4 changed, 0 unchanged, 0 refused, 0 deleted" in capsys.readouterr().out
+    )
 
 
 def test_second_run_is_idempotent(repos, capsys):
@@ -126,7 +128,9 @@ def test_second_run_is_idempotent(repos, capsys):
     run(root)
     capsys.readouterr()
     assert run(root) == 0
-    assert "sync: 0 changed, 4 unchanged, 0 refused" in capsys.readouterr().out
+    assert (
+        "sync: 0 changed, 4 unchanged, 0 refused, 0 deleted" in capsys.readouterr().out
+    )
 
 
 def test_dry_run_writes_nothing(repos, capsys):
@@ -143,13 +147,48 @@ def test_source_is_head_not_worktree(repos):
     assert (root / ".claude/rules/a.md").read_text() == "see ~/x\n"
 
 
-def test_dir_mirror_keeps_target_only_extras(repos):
+def test_dir_mirror_deletes_tracked_files_whose_source_is_gone(repos, capsys):
     _, root = repos
-    extra = root / ".claude/skills/s1/extra.md"
-    extra.parent.mkdir(parents=True)
-    extra.write_text("claudeconf-only\n")
+    commit(root, {".claude/skills/s1/old/extra.md": "x\n", ".gitignore": "*.pyc\n"})
+    orphan = root / ".claude/skills/s1/old/extra.md"
+    ignored = root / ".claude/skills/s1/x.pyc"
+    ignored.write_text("x\n")
+    assert run(root, "--dry-run") == 0
+    assert orphan.is_file()
+    assert "would delete .claude/skills/s1/old/extra.md" in capsys.readouterr().out
     assert run(root) == 0
-    assert extra.read_text() == "claudeconf-only\n"
+    assert not orphan.parent.exists()
+    assert ignored.is_file()
+    assert (root / ".claude/skills/s1/SKILL.md").is_file()
+    assert "1 deleted" in capsys.readouterr().out
+
+
+def test_untracked_orphan_is_refused_not_deleted(repos, capsys):
+    _, root = repos
+    draft = root / ".claude/skills/s1/notes.md"
+    draft.parent.mkdir(parents=True)
+    draft.write_text("wip\n")
+    assert run(root) == 1
+    assert draft.is_file()
+    assert "REFUSED .claude/skills/s1/notes.md: untracked" in capsys.readouterr().out
+
+
+def test_missing_source_dir_keeps_mirror(repos):
+    dot, root = repos
+    run(root)
+    commit(root, {})
+    git(dot, "rm", "-rq", "skills/s1")
+    git(dot, "-c", "user.name=t", "-c", "user.email=t@t", "commit", "-qm", "rm")
+    assert run(root) == 1
+    assert (root / ".claude/skills/s1/SKILL.md").is_file()
+
+
+def test_refused_mirror_file_is_held_not_deleted(repos):
+    dot, root = repos
+    run(root)
+    commit(dot, {"skills/s1/ref/r.md": "secretco\n"})
+    assert run(root) == 1
+    assert (root / ".claude/skills/s1/ref/r.md").is_file()
 
 
 def test_refused_file_is_not_written_and_exits_1(repos, capsys):
@@ -172,7 +211,9 @@ def test_missing_terms_file_fails_closed(repos, capsys):
     git(dot, "-c", "user.name=t", "-c", "user.email=t@t", "commit", "-qm", "rm")
     assert run(root) == 1
     assert not (root / ".claude").exists()
-    assert "sync: 0 changed, 0 unchanged, 4 refused" in capsys.readouterr().out
+    assert (
+        "sync: 0 changed, 0 unchanged, 4 refused, 0 deleted" in capsys.readouterr().out
+    )
 
 
 def test_never_sync_refuses_even_when_listed(repos, capsys):
@@ -230,6 +271,17 @@ def test_check_flags_hand_edit(repos, capsys):
     capsys.readouterr()
     assert run(root, "--check") == 1
     assert "DRIFT .claude/rules/a.md" in capsys.readouterr().out
+
+
+def test_check_flags_orphan_without_deleting(repos, capsys):
+    _, root = repos
+    run(root)
+    orphan = root / ".claude/skills/s1/extra.md"
+    orphan.write_text("stale\n")
+    capsys.readouterr()
+    assert run(root, "--check") == 1
+    assert "ORPHAN .claude/skills/s1/extra.md" in capsys.readouterr().out
+    assert orphan.is_file()
 
 
 def test_check_held_file_warns_exit_0(repos, capsys):
@@ -403,3 +455,8 @@ def test_candidates_is_read_only(repos, capsys):
         ["git", "-C", str(dot), "status", "--porcelain"], capture_output=True, text=True
     )
     assert status.stdout == ""
+
+
+def test_live_manifest_publishes_the_minimal_statusline_not_the_private_one():
+    pairs = dict(sync.parse_manifest(REPO_ROOT))
+    assert pairs[".claude/statusline.sh"] == sync.PUBLIC_STATUSLINE

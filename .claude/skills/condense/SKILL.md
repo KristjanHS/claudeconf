@@ -1,6 +1,6 @@
 ---
 name: condense
-description: Deduplicate and consolidate CLAUDE.md, rules, and project docs (spec.md, plans, runbooks) across the hierarchy.
+description: Deduplicate and consolidate CLAUDE.md, rules, and project docs (spec.md, plans, runbooks) across the hierarchy; also optimize CLAUDE.md via progressive disclosure when rules are duplicated or repeatedly ignored.
 ---
 
 # Instruction + Doc Condensation
@@ -45,6 +45,7 @@ Use Glob to search for both instruction files and project-doc reference files. T
 4. Trigger-table drift (NEW)
 5. Plan supersession (NEW)
 6. Section-size flagging (NEW)
+7. Disclosure candidates in CLAUDE.md (see Progressive-disclosure mode)
 
 ### Phase 2: Analysis
 
@@ -120,6 +121,43 @@ Pre-check failures are advisory - the user can proceed (and the hook stays the u
 - `./subdir/CLAUDE.md` - Only instructions specific to that subdirectory
 - `~/.claude/CLAUDE.md` - Personal preferences across all projects
 - `./CLAUDE.local.md` - Personal project-specific (not shared)
+
+## Progressive-disclosure mode
+
+Run it when CLAUDE.md rules are duplicated or keep getting ignored, or Claude re-derives the same code pattern each session. Long, rarely needed content moves out of CLAUDE.md and a one-line pointer stays.
+
+Findings still go through Phase 3 for approval, and Phase 4 applies them.
+
+**Classify each CLAUDE.md section:**
+- Stays: core commands, iron rules and prohibitions, copyable code patterns, error diagnostics (symptom → cause → fix), the directory map, the reference index.
+- Summary and trigger stay, body moves: SOPs (keep the key pitfalls), config examples (keep the one or two common ones), API docs (keep common signatures).
+- Moves whole: decision history, performance data, tech-debt lists, edge cases.
+- Neither triggered nor reference material: propose deleting it, name its canonical source, and keep a pointer to that source.
+
+**Pick the target:**
+- Path-specific (one language, directory or tool) → `.claude/rules/<topic>.md`, with a `paths:` glob for every file type it governs.
+- Reference-shaped (long checklist, SOP, postmortem) → `docs/references/<topic>.md`, or `~/.claude/references/<topic>.md` for user-level content.
+- Never move a directive, or how-to a normal run needs in order to proceed, into a reference.
+
+**Move verbatim.** Copy the passage as-is. You may add headings; don't trim, reword or merge it on the way. Trimming is its own condense item with its own approval.
+
+**Every pointer names its trigger.** A bare "see x.md" rarely gets opened. Say when to open the file and what's in it:
+
+```markdown
+**Read `docs/references/native-modules.md` when:** `ERR_DLOPEN_FAILED`, or adding a native module. Holds: ABI notes, lazy-load pattern.
+```
+
+With several references, use tables: a problem index near the top (`symptom | doc | holds`) and a read-before-changing table (`what you change | doc | key pitfall`).
+Both may point at the same doc. That is two entry points, not duplication, so Phase 2 leaves them alone. A copy of the problem index at the end of the file helps in long sessions.
+
+If CLAUDE.md has no rule for where new notes go, propose one at the top: used often → CLAUDE.md, otherwise a reference with a trigger pointer.
+
+**Verify.** Set `F` to the CLAUDE.md path (repo-relative, e.g. `.claude/CLAUDE.md`). Commit it before editing if git doesn't track it yet. All three must pass before closing:
+1. Every referenced file exists (exits non-zero on a missing one or a bad `F`):
+   `test -f "$F" && grep -oE '(~/\.claude|\.claude|docs)/[A-Za-z0-9_./-]+\.md' "$F" | sed "s|^~|$HOME|" | sort -u | xargs -r ls > /dev/null`
+2. Every `##` section of `HEAD:$F` survives in full: in `$F`, in the file it moved to, or in a named canonical source. Screen headings first (exits non-zero and prints each missing one), then compare content section by section:
+   `git cat-file -e HEAD:"$F" && ! git show HEAD:"$F" | grep '^## ' | while read -r h; do cat "$F" $(find docs .claude/rules ~/.claude/references -name '*.md' 2>/dev/null) | grep -qxF -- "$h" || echo "NOT FOUND: $h"; done | grep .`
+3. A shortened or missing passage gets restored, not sorted into "intentional deletion". Don't count lines or report line deltas.
 
 ## Resources
 

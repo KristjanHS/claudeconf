@@ -21,11 +21,12 @@ FALLBACK_PROBE_BYTES floor — guards working-tree-only sessions where no commit
 ever fires. The git-commit path always reads; the fallback path is gated by the
 byte floor first.
 
-Sub-agent sessions get their own branch (check_subagent): the settings.json
-matcher is `*`, and when the payload carries `agent_id` the hook measures the
-agent's OWN transcript under <sid>/subagents/ on ANY tool call — Read/Grep-heavy
-research agents are the ones that actually overrun. Main sessions stay Bash-only
-via the tool_name guard below.
+Sub-agent sessions get their own branch (check_subagent): wire the matcher
+as `*` (a `Bash` matcher sees Bash calls only), and when the payload carries
+`agent_id` the hook measures the agent's OWN transcript under <sid>/subagents/
+on every matched tool call — Read/Grep-heavy research agents are the ones
+that actually overrun. Main sessions stay Bash-only via the tool_name guard
+below.
 
 Emits four graduated bands as context grows: three mild FYI heads-ups at
 ~120k/150k/175k, then the 200k hard-stop WRAP-UP reminder. The soft bands lead
@@ -245,8 +246,8 @@ def check_subagent(payload: dict) -> None:
     references/claude-code-persistence.md), with the same assistant-usage
     records, so the tail-read works unchanged.
 
-    Fires on ANY tool call (the settings.json matcher is `*` so Read/Grep-heavy
-    research agents — the ones that actually blow up — are covered); the
+    Fires on every matched tool call; a `*` matcher, not `Bash`, is what covers
+    Read/Grep-heavy research agents (the ones that actually blow up). The
     byte-floor gate keeps per-call latency negligible below band range.
     """
     parent = Path(payload.get("transcript_path", ""))

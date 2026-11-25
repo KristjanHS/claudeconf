@@ -6,7 +6,7 @@ My Claude Code setup for long sessions, split into pieces you can copy.
 [![Tests](https://github.com/KristjanHS/claudeconf/actions/workflows/tests.yml/badge.svg)](https://github.com/KristjanHS/claudeconf/actions/workflows/tests.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
-[System](docs/system.md) · [Why](docs/why.md) · [Catalog](docs/catalog.md) · [Adopt](ADOPT.md) · [Quick start](#quick-start)
+[System](docs/system.md) · [Catalog](docs/catalog.md) · [Adopt](ADOPT.md) · [Quick start](#quick-start)
 
 ![Statusline filling toward the session's token budget](docs/statusline.gif)
 
@@ -18,13 +18,14 @@ they apply to. Hooks catch destructive commands and bloated docs. A separate rev
 finished change, and a budget hook tells a long run to wrap up before the window overflows.
 
 It assumes you already use Claude Code. Nothing installs itself, so you copy what you want into
-`~/.claude/` by hand. [docs/system.md](docs/system.md) shows how the pieces connect and
-[docs/why.md](docs/why.md) has the mistakes behind each one.
+`~/.claude/` by hand. [docs/system.md](docs/system.md) shows how the pieces connect and the mistakes behind
+each one.
 
 ## Quick start
 
 Start with the statusline from the GIF. It shows how much of the session's token budget you've used,
-and needs `bash`, `jq` and `git`.
+and needs `bash`, `jq` and `git`. The statusline is 23 lines of bash, short enough to read before you run it;
+[`tests/test_statusline.py`](tests/test_statusline.py) pins its claims (no network, no writes, no escapes from data).
 
 ```sh
 git clone https://github.com/KristjanHS/claudeconf
@@ -39,7 +40,12 @@ Then add the `statusLine` entry to `~/.claude/settings.json`:
 ```
 
 If the line comes up blank, or you want different thresholds, see
-[docs/statusline_adopt.md](docs/statusline_adopt.md). [ADOPT.md](ADOPT.md) covers everything else.
+[ADOPT.md §4](ADOPT.md#4-statusline).
+
+The statusline only shows you the number. Its partner, the [budget governor](#the-budget-governor), acts
+on it: at 200k tokens, where the bar turns yellow, the hook tells a long run to finish what's in flight
+and wrap up instead of sliding into compaction. Take both. The hook is one file plus a `settings.json`
+entry ([ADOPT.md §3](ADOPT.md#3-runtime-hooks)), and ADOPT covers everything else too.
 
 ## What's in it
 
@@ -62,14 +68,14 @@ fires. The table is generated from the repo, and `make test` fails when it goes 
 <!-- context-cost:start -->
 | Metric | Value |
 |---|---|
-| Always loaded: `CLAUDE.md` | 5,006 bytes (~1,251 tokens) |
+| Always loaded: `CLAUDE.md` | 2,872 bytes (~718 tokens) |
 | Path-gated rules | 9 |
-| References | 14 |
-| On demand: rules + references | 154,737 bytes |
+| References | 15 |
+| On demand: rules + references | 138,209 bytes |
 | Statusline budget window | 300,000 tokens |
 | Budget soft bands | 120,000 / 150,000 / 175,000 tokens |
 | Budget hard stop | 200,000 tokens |
-| Skills | 28 |
+| Skills | 25 |
 | Hooks | 8 |
 
 <sub>Regenerate: `python3 scripts/context_cost.py --readme README.md`</sub>
@@ -81,8 +87,8 @@ fires. The table is generated from the repo, and `make test` fails when it goes 
   Internal errors exit 0, except in the destructive-command gate, which blocks a command it can't parse.
 - Setup is manual: about 125 lines of hooks config to merge into `settings.json`, and a pytest suite
   to keep up.
-- The bloat check sometimes flags dense writing that's fine. It only warns, except for the opt-in size
-  ratchet, which blocks but can be overridden.
+- The bloat check sometimes flags dense writing that's fine. In a project with `docs/spec.md` or
+  `.claude/rules/` it also blocks oversized edits and Bash writes to those docs, unless overridden.
 - At its hard stop the budget hook tells Claude to wrap up, ready or not. Raise `HARD_STOP_TOKENS` or
   drop the hook if your tasks need more.
 - If your sessions are short, skip all of this.

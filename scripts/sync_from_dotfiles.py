@@ -27,7 +27,9 @@ PROPOSAL_DIRS = tuple(
     f"claude/.claude/{d}/"
     for d in ("hooks", "rules", "references", "lib", "agents", "commands")
 )
-PROPOSAL_FILES = ("claude/.claude/statusline.sh",)
+# dotfiles keeps two statuslines: claude/.claude/statusline.sh (own, full, private) and this minimal public one.
+PUBLIC_STATUSLINE = "claudeconf-publish/statusline.sh"
+PROPOSAL_FILES = (PUBLIC_STATUSLINE,)
 SKILLS_ROOT = "skills/"
 
 HOME_RE = re.compile(r"/(?:home|Users)/[A-Za-z0-9._-]+/")
@@ -66,6 +68,7 @@ class Result:
     unchanged: list[str] = field(default_factory=list)
     refused: list[tuple[str, str]] = field(default_factory=list)
     drift: list[str] = field(default_factory=list)
+    pruned: list[str] = field(default_factory=list)  # dir-mirror files with no source
     broken: list[str] = field(
         default_factory=list
     )  # config errors: drift in --check, never HELD
@@ -198,6 +201,27 @@ def expand(head: DotfilesHead, pairs: list[tuple[str, str]]) -> list[tuple[str, 
         else:
             files.append((dst, src) if src in head.tree else ("", src))
     return files
+
+
+def mirror_files(root: Path, dst: str) -> dict[str, bool]:
+    """On-disk files under a dir-mirror target -> tracked?; ignored files skipped."""
+    found: dict[str, bool] = {}
+    for flags, tracked in ((["-o", "--exclude-standard"], False), (["-c"], True)):
+        out = subprocess.run(
+            ["git", "-C", str(root), "ls-files", "-z", *flags, "--", dst],
+            capture_output=True,
+            check=True,
+        ).stdout.decode()
+        found |= {p: tracked for p in out.split("\0") if p and (root / p).is_file()}
+    return dict(sorted(found.items()))
+
+
+def prune(root: Path, path: str, dst: str) -> None:
+    (root / path).unlink()
+    d, stop = (root / path).parent, root / dst
+    while d != stop and not any(d.iterdir()):
+        d.rmdir()
+        d = d.parent
 
 
 def covered(path: str, entries: list[str]) -> bool:
@@ -382,6 +406,22 @@ def run(root: Path, dotfiles: Path, mode: str) -> tuple[Result, list[str], list[
             target.write_bytes(text.encode())
             target.chmod(0o755 if want_exec else 0o644)
 
+    for dst, src in pairs:
+        if not dst.endswith("/") or not any(p.startswith(src) for p in head.tree):
+            continue
+        for path, tracked in mirror_files(root, dst).items():
+            if path in published:
+                continue
+            if mode == "check":
+                res.pruned.append(path)
+                res.drift.append(path)
+            elif not tracked:  # git can't restore it: never delete
+                res.refused.append((path, "untracked, source gone: delete by hand"))
+            else:
+                res.pruned.append(path)
+                if mode == "sync":
+                    prune(root, path, dst)
+
     props = proposals(head, pairs, read_list(root / IGNORE)) if mode != "check" else []
     advisories = (
         sorted(f"{c} (cited by {d})" for d, c in cites) if mode != "check" else []
@@ -430,6 +470,9 @@ def main(argv: list[str] | None = None) -> int:
     verb = {"sync": "wrote", "dry-run": "would write", "check": "DRIFT"}[mode]
     for dst in res.changed:
         print(f"{verb} {dst}")
+    gone = {"sync": "deleted", "dry-run": "would delete", "check": "ORPHAN"}[mode]
+    for dst in res.pruned:
+        print(f"{gone} {dst}: source gone from dotfiles HEAD")
     for dst, why in res.refused:
         held = mode == "check" and dst not in res.broken
         print(f"{'HELD' if held else 'REFUSED'} {dst}: {why}")
@@ -446,7 +489,7 @@ def main(argv: list[str] | None = None) -> int:
         return 1 if res.drift or res.broken else 0
     print(
         f"sync: {len(res.changed)} changed, {len(res.unchanged)} unchanged, "
-        f"{len(res.refused)} refused"
+        f"{len(res.refused)} refused, {len(res.pruned)} deleted"
     )
     return 1 if res.refused else 0
 

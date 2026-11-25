@@ -1,7 +1,7 @@
 # Root-Cause Methods
 
 The two sub-methods A3 Step 4 (Root Cause Analysis) draws on. Read this when Step 4 needs more than a
-one-line cause statement. Merged here from the former `kaizen-why` and `kaizen-cause-and-effect` skills.
+one-line cause statement. Five Whys is also the live `kaizen-why` skill; Fishbone was merged in from `kaizen-cause-and-effect`.
 
 Pick by shape: a **single causal chain** you can walk backwards → Five Whys. A **problem with many
 plausible contributors across domains** → Fishbone. They compose — use Fishbone to enumerate, then Five

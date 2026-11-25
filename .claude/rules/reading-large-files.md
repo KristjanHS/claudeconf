@@ -1,6 +1,6 @@
 ---
 name: Reading large files
-description: Force offset/limit or Grep on file types/sizes where a full read blows the 300k session-stop budget. Unconditional for lock/csv/min; the ≥800-line conditional for source/prose lives in global CLAUDE.md §Efficiency.
+description: Force offset/limit or Grep on file types/sizes where a full read blows the 300k session-stop budget. Unconditional for lock/csv/min; ≥800-line threshold for source/prose.
 paths:
   - "**/*.lock"
   - "**/*.csv"

@@ -34,8 +34,7 @@ When bundling, ship as one commit — a chain of three separate CLAUDE.md commit
 
 `~/.claude/CLAUDE.md`, `<project>/CLAUDE.md` and `memory/MEMORY.md` are billed on **every turn of every
 session**, so a line added here is rent, not a one-time cost. ⛔ Not a byte cap — those are killed
-(`~/.claude/references/memory-system.md` §No size caps). The verb is the symmetric one
-a private project's plan-hygiene.md §Claims already applies to ordinals:
+(`~/.claude/references/memory-system.md` §No size caps). The verb is symmetric:
 
 **A line added to any of the three graduates a line OUT, in the same edit burst** — to a path-gated
 `.claude/rules/` file, a `~/.claude/references/` file, or a project doc. **If nothing can leave, the new
@@ -45,7 +44,3 @@ on that path) — **as ONE line, never a paragraph** (`~/.claude/rules/prose-bud
 Prefer the gated home *first*. Guidance needed only while editing a particular surface belongs to that
 surface's rule, where it costs nothing on the turns that don't touch it — and an existing rule already
 gated on that path is a better home than a new file, which would fire alongside it at the same seam.
-
-Evidence for the drift and the arithmetic →
-a private project's 2026-08-09-session-token-audit-round-2.md §1 (this rule fires in
-every project, so that cite is rooted, not stem-relative — and the doc shipped, so the path is terminal).

@@ -3,7 +3,7 @@
 Conditional/abnormal-only sub-procedures for the `mybrain` skill that are **mybrain-exclusive**. The body (`mybrain/SKILL.md`) holds every normal-path directive plus the gate that decides whether a branch here fires; nothing here repeats a body directive.
 **Read it only when a step points here and its gate has fired.** A Quick-mode run that skips spec review and dispatches nothing never needs this file. **Read SCOPED**: `grep -n '^## '` for the section the body pointer names, then Read only that section — never full-read.
 
-Shared references keep their own files (multiple skills/rules point at them): ideation technique playbooks + Deep-mode phases → `ideation-techniques-library.md`; the Iterate-mode loop → `iterative-spec-loop.md`; the step-2.6 contract → `architecture-assessment-gate.md`; the step-7 check-6 payload → `spec-rework-audit.md`; dispatch cost model → `subagent-dispatch.md`; model catalog → `claude-models.md`.
+Shared references keep their own files (multiple skills/rules point at them): ideation technique playbooks + Deep-mode phases → `ideation-techniques-library.md`; the Iterate-mode loop → `iterative-spec-loop.md`; the step-2.6 contract → `architecture-assessment-gate.md`; the step-7 check-6 payload → `spec-rework-audit.md`; dispatch cost model → `subagent-dispatch.md`.
 
 ---
 
