@@ -1,12 +1,12 @@
 # claudeconf
 
-My Claude Code setup for long sessions, split into pieces you can copy.
+My Claude Code setup for long sessions, in pieces you can copy.
 
 [![Secret scan](https://github.com/KristjanHS/claudeconf/actions/workflows/gitleaks.yml/badge.svg)](https://github.com/KristjanHS/claudeconf/actions/workflows/gitleaks.yml)
 [![Tests](https://github.com/KristjanHS/claudeconf/actions/workflows/tests.yml/badge.svg)](https://github.com/KristjanHS/claudeconf/actions/workflows/tests.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
-[System](docs/system.md) · [Catalog](docs/catalog.md) · [Adopt](ADOPT.md) · [Quick start](#quick-start)
+[System](docs/system.md) · [Catalog](docs/catalog.md) · [Adopt](ADOPT.md)
 
 ![Statusline filling toward the session's token budget](docs/statusline.gif)
 
@@ -42,10 +42,8 @@ Then add the `statusLine` entry to `~/.claude/settings.json`:
 If the line comes up blank, or you want different thresholds, see
 [ADOPT.md §4](ADOPT.md#4-statusline).
 
-The statusline only shows you the number. Its partner, the [budget governor](#the-budget-governor), acts
-on it: at 200k tokens, where the bar turns yellow, the hook tells a long run to finish what's in flight
-and wrap up instead of sliding into compaction. Take both. The hook is one file plus a `settings.json`
-entry ([ADOPT.md §3](ADOPT.md#3-runtime-hooks)), and ADOPT covers everything else too.
+The statusline only shows the number. The [budget governor](#the-budget-governor) acts on it, and it's
+one file plus a `settings.json` entry ([ADOPT.md §3](ADOPT.md#3-runtime-hooks)).
 
 ## What's in it
 
@@ -83,15 +81,17 @@ Regenerate: `python3 scripts/context_cost.py --readme README.md`
 
 ## Costs and limits
 
-- Every Bash call runs four hooks, each 25–55 ms in a local timing, mostly interpreter startup.
+- Every Bash call runs six hooks (four before, two after). Each took 29–77 ms across four runs of
+  [`scripts/time-hooks.sh`](scripts/time-hooks.sh), mostly interpreter startup.
   Internal errors exit 0, except in the destructive-command gate, which blocks a command it can't parse.
-- Setup is manual: about 125 lines of hooks config to merge into `settings.json`, and a pytest suite
+- Setup is manual: 152 lines of hooks config to merge into `settings.json`, and a pytest suite
   to keep up.
-- The bloat check sometimes flags dense writing that's fine. In a project with `docs/spec.md` or
-  `.claude/rules/` it also blocks oversized edits and Bash writes to those docs, unless overridden.
+- The bloat check warns when a Markdown write adds slop phrases, thin text or a new audit doc.
+  Dense writing that's fine can still trip it. In a project with `docs/spec.md` or `.claude/rules/`
+  it also blocks oversized edits and Bash writes to those docs, unless overridden.
 - At its hard stop the budget hook tells Claude to wrap up, ready or not. Raise `HARD_STOP_TOKENS` or
   drop the hook if your tasks need more.
-- If your sessions are short, skip all of this.
+- If your sessions stay under 120k tokens, the budget hook never fires.
 
 ## The budget governor
 
@@ -101,7 +101,7 @@ gets a one-line FYI, and the hard stop injects an instruction to this effect:
 
 ```
 WRAP UP: do not start a new task. Finish what's in flight, save any remaining
-tasks to project state, then review the code and close the branch - and record
+tasks to project state, then review the code and close the branch, and record
 the retro as owed for the next session rather than running it at this context.
 ```
 
@@ -111,8 +111,11 @@ and stopped, so the next session picked up from a commit. More in
 
 ## Built with it
 
-- [transcribe-offline](https://github.com/KristjanHS/transcribe-offline) (48 tests, 10 releases)
-- [my-vector](https://github.com/KristjanHS/my-vector), a wire-pod fork (576 tests added)
-- [stt-faster](https://github.com/KristjanHS/stt-faster) (387 tests, 10 releases)
+- [transcribe-offline](https://github.com/KristjanHS/transcribe-offline) (51 tests, 11 releases)
+- [my-vector](https://github.com/KristjanHS/my-vector), a wire-pod fork (609 tests added)
+- [stt-faster](https://github.com/KristjanHS/stt-faster) (388 tests, 10 releases)
+
+Tests are a static count of `def test_` and `func Test` at HEAD, and releases are `v*` tags, both
+counted by [`scripts/agentic_stats.py`](scripts/agentic_stats.py).
 
 MIT licensed. Written by [Kristjan](https://github.com/KristjanHS).
