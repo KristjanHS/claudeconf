@@ -1,4 +1,5 @@
 # README trim: critique and recommendations
+\n**Status: ✅ SHIPPED** (3514ba0, 13d09f1, review fixes)
 
 **Rulings (2026-11-25):** Built-with = hand list of transcribe-offline, my-vector, stt-faster
 (dewpoint-ts and kri-local-rag dropped); `agentic_stats.py` + tests kept, no longer rendered into the
