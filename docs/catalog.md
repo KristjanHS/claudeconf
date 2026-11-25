@@ -31,17 +31,25 @@ A reference loads only when a pointer in `CLAUDE.md`, a rule or a skill sends Cl
 | `anti-patterns-common-rationalizations.md` | Excuses for skipping debugging or design discipline, each with its answer; read by `systematic-debugging` and `testing-anti-patterns` |
 | `architecture-assessment-gate.md` | Checklist for the refactor-before-feature call, once planning decides one is warranted |
 | `claude-code-persistence.md` | Where Claude Code keeps transcripts, subagent logs and memory under `~/.claude/projects/`, for hook and forensic scripts |
+| `dataviz-gotchas.md` | Chart traps the `dataviz` skill's body doesn't spell out |
+| `edit-and-plan-gotchas.md` | Why an Edit or Write fails (unread file, stale anchor, duplicate match) and how to fix each |
+| `git-commit-gotchas.md` | Pathspec commits on a mixed index and other commit traps |
 | `github-actions-local-act.md` | Runs GitHub Actions jobs locally with `act`, no Docker-in-Docker |
 | `hooks-deep-dives.md` | The stdin/stdout contract of each hook event, for when `hooks.md` isn't enough |
 | `ideation-techniques-library.md` | Ideation techniques for `mybrain`'s deep mode |
+| `impag-deep-dives.md` | Rationale and abnormal-path procedures behind each `impag` step |
 | `instruction-file-discipline-deep-dives.md` | The moves `instruction-file-discipline.md` allows when condensing an instruction file |
+| `iterative-spec-loop.md` | Builds the next increment of a living spec without re-running the full design chain |
+| `memory-system.md` | What each memory layer is, who adds to and prunes it, and where retro writes go |
 | `mybrain-deep-dives.md` | Why each `mybrain` design-dialogue step exists |
 | `pre-ship-sweeps.md` | Sweeps to run before shipping a deny rule, a removal or a threshold change |
 | `python-refactors-deep-dives.md` | How each `python-refactors.md` trap bites, with a worked example |
 | `reading-large-files-outline-first.md` | Outline a 300–800-line file first, then read only the windows you need |
 | `recording-principles.md` | Where an asked-for note goes: `CLAUDE.md`, a rule, a reference or memory |
+| `skills-management.md` | Backing up, installing and removing skills without loading the backups |
 | `spec-rework-audit.md` | Checks whether a spec review caused re-work |
 | `subagent-dispatch.md` | When delegating to a subagent pays, and how to brief one |
+| `testing-deep-dives.md` | The falsifying-regime test forms and suite machinery behind `testing.md` |
 
 ## Hooks
 
@@ -59,7 +67,22 @@ Hooks run on Claude Code events and cost nothing in context unless they print. W
 | `impag-budget-check.py` | Nudges an `impag` run at 120k, 150k and 175k tokens of context and stops it at 200k, reading the count from the transcript |
 | `external-process-test-gate.py` | Keeps docker, browser and HTTP tests in `tests/manual/`, out of the default suite |
 | `ruff-check.sh` | Needs `ruff`. After a Python edit lands, tells Claude to fix lint that pushes counts above the committed baseline |
+| `pyright-check.sh` | Needs `pyright`. After a Python edit, feeds type errors back to Claude, using the config and venv nearest the file |
+| `fetch-quarantine-gate.py` | Blocks cloning or downloading foreign code into a trusted tree; it goes to `~/quarantine/` via `repo-fetch` instead |
+| `upstream-exec-gate.py` | Blocks running code from a `vendor/`, `third_party/`, `upstream/` or `quarantine/` dir outside the project's reviewed sandbox |
+| `session-start-health.py` | At startup, warns about a `MEMORY.md` near the truncation limit or a `project_state.md` section that doesn't belong |
 | `statusline.sh` | Status line: model, context use, a warning near the session stop, 5-hour and 7-day limits |
+
+## Quarantine helpers
+
+Shell tools in `bin/bin/` for vetting a foreign repo before any of it runs; `ext-repo-safety` walks through them.
+
+| Piece | What it does |
+|---|---|
+| `repo-fetch` | Fetches one pinned commit into `~/quarantine/<name>/src`, hooks off, depth 1 |
+| `repo-inspect` | Lists the tree's auto-exec surface (hooks, launch-time configs) without running anything |
+| `repo-adopt` | Copies a reviewed pin into your own repo, reading git objects as data; needs `repo-inspect` beside it |
+| `vendor-guard` | Refuses vendored code that drifted from its review; runs as a pre-commit check |
 
 ## Review loop
 
@@ -115,6 +138,7 @@ tools I keep around.
 - `systematic-debugging` makes Claude investigate before proposing a fix, for any bug, failing test or
   odd behaviour.
 - `python-simplifier` simplifies complex Python: smells, duplication, coupling. Not for Django.
+- `ext-repo-safety` vets an external repo before you adopt it: fetch into quarantine, inspect, then adopt.
 - `finishing-a-development-branch` verifies tests, reports branch state, merges into `main` and leaves
   `main` checked out. It never pushes.
 

@@ -36,7 +36,14 @@ Claude Code reports no settings errors. Dependencies:
 
 - `destructive-bash-gate.py` needs `~/.claude/lib/ask_paths.py` for its ask-path check.
 - `agent-model-pin-gate.py` checks against the agent pins: `cp .claude/agents/*.md ~/.claude/agents/`.
-- `ruff-check.sh` needs `ruff`, `jq` and `git`.
+- `ruff-check.sh` needs `ruff`, `jq` and `git`; `pyright-check.sh` needs `pyright` and `jq`.
+- `upstream-exec-gate.py` loads `fetch-quarantine-gate.py` from the same dir; copy both. Its per-project
+  config is `.claude/upstream-exec.json`, described in the [hooks README](.claude/hooks/README.md#upstream-exec-gatepy).
+- `fetch-quarantine-gate.py` does nothing until you list trusted trees, one absolute path per line:
+  `mkdir -p ~/.claude/safe-hashes && echo "$HOME/projects" >> ~/.claude/safe-hashes/trusted-dirs.txt`.
+  Put the helpers it points to on your `PATH`: `cp bin/bin/* ~/bin/` (keep them in one dir).
+- `session-start-health.py` warns at startup when `CLAUDE_SAFE=1` is unset outside a container. That flag
+  comes from the author's launcher, which isn't published; export it yourself or drop that check.
 
 Smoke test: pipe a sample payload into a hook, as in the
 [hooks README](.claude/hooks/README.md#trying-a-hook-in-isolation). Exit 0 means it is installed and runs.
@@ -70,5 +77,6 @@ cp .claude/references/*.md ~/.claude/references/
 
 Several skills read files from `~/.claude/references/`, so copy the references along with them.
 [docs/catalog.md](docs/catalog.md#skills) lists every skill. The `kaizen-*` skills work as a set.
+`ext-repo-safety` needs the `bin/bin/` helpers on your `PATH` (step 3).
 
 Smoke test: type `/` in a session and look for the copied skills in the list.

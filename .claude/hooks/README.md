@@ -20,6 +20,10 @@ dangerous.
 | `external-process-test-gate.py` | `PreToolUse` (`Write\|Edit`) | Keeps docker, browser and HTTP tests in `tests/manual/`; [section below](#external-process-test-gatepy) |
 | `agent-model-pin-gate.py` | `PreToolUse` (`Agent`) | Blocks an Agent call whose model family differs from the agent's pin; [section below](#agent-model-pin-gatepy) |
 | `ruff-check.sh` | `PostToolUse` (`Write\|Edit`, `Bash`), `Stop`, `SubagentStop` | Lint ratchet against the committed baseline; [section below](#ruff-checksh) |
+| `pyright-check.sh` | `PostToolUse` (`Write\|Edit`) | Feeds pyright errors on the edited `.py` file back to Claude |
+| `fetch-quarantine-gate.py` | `PreToolUse` (`Bash`) | Keeps foreign code out of trusted trees; [section below](#fetch-quarantine-gatepy) |
+| `upstream-exec-gate.py` | `PreToolUse` (`Bash`) | Blocks running vendored or quarantined code outside its sandbox; [section below](#upstream-exec-gatepy) |
+| `session-start-health.py` | `SessionStart` (`startup`) | Warns when `MEMORY.md` nears truncation or a `project_state.md` section is off-role |
 
 Compaction keeps about 12% of the original tokens, and its summary can drop reasoning a task still needs.
 The snapshot is the full copy to go back to.
@@ -92,6 +96,31 @@ Per-edit runs skip codes that show up mid-edit (`F401`, `F821` and the rest of i
 `Stop` pass and any `git commit` check them all. Uses the project's uv-locked `ruff` if there is one, else
 the host's. Needs `jq` and `git`. The end-of-turn report fires once: fix the findings, or end the turn
 again to keep them.
+
+### `fetch-quarantine-gate.py`
+
+`PreToolUse` (`Bash`). Exits 2 when a command would bring foreign code into a trusted tree: `git clone`,
+`git submodule add`, `gh repo clone`, a download piped into `tar`/`unzip` or saved as an archive, `pip
+download`, `npm pack <spec>`. Trusted trees are the paths in `~/.claude/safe-hashes/trusted-dirs.txt`
+(one absolute path per line) and everything below them. Without that file the hook allows everything.
+Fetch into quarantine instead: `repo-fetch OWNER/REPO SHA` puts it in `~/quarantine/<name>/src`, and the
+`ext-repo-safety` skill takes it from there. It shares the destructive gate's parser, so a commit message
+that only mentions `git clone` passes. There is no bypass; to fetch into a trusted tree, run the command yourself.
+
+### `upstream-exec-gate.py`
+
+`PreToolUse` (`Bash`). Exits 2 when a command runs code from a `vendor/`, `third_party/`, `external/`,
+`upstream/`, `quarantine/` or `*-src/` dir. Reading and grepping there stays allowed. It loads
+`fetch-quarantine-gate.py` from its own dir, so install both. A project can name one reviewed entry point
+in `.claude/upstream-exec.json` at its git root:
+
+```json
+{ "sandbox": "scripts/run_vendored.py", "names": ["vendored_pkg"] }
+```
+
+`sandbox` is a repo-relative path outside any marker dir. `names` lists the upstream module names: a
+command or Python script that names one is blocked unless it is the sandbox or imports its module. A
+missing or malformed file means no sandbox. There is no bypass; run the command yourself.
 
 ## Trying a hook in isolation
 
