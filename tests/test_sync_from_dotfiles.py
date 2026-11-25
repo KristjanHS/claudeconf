@@ -394,6 +394,18 @@ def test_candidates_term_in_body_only_still_withheld(repos, capsys):
     assert "Fine title" not in out
 
 
+def test_candidates_term_cleared_by_rewrite_is_n(repos, capsys):
+    dot, root = repos
+    body = "# SecretCo's plan\n"
+    commit(
+        dot,
+        {sync.REWRITES: "(?i)secretco\tprivate-app\n", "skills/s2/SKILL.md": body},
+    )
+    assert row("skills/s2/", "skill", len(body), "private-app's plan") in cand(
+        root, capsys
+    )
+
+
 @pytest.mark.parametrize(
     ("summary", "category"),
     [

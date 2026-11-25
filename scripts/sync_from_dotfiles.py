@@ -155,6 +155,12 @@ def load_rewrites(head: DotfilesHead) -> list[tuple[re.Pattern[str], str]]:
     return rules
 
 
+def apply_rewrites(text: str, rewrites: Sequence[tuple[re.Pattern[str], str]]) -> str:
+    for pattern, repl in rewrites:
+        text = pattern.sub(repl, text)
+    return text
+
+
 def sanitize(
     text: str,
     suffix: str,
@@ -162,8 +168,7 @@ def sanitize(
     rewrites: Sequence[tuple[re.Pattern[str], str]] = (),
 ) -> str:
     """Return publishable text or raise Refused naming the first blocking hit."""
-    for pattern, repl in rewrites:
-        text = pattern.sub(repl, text)
+    text = apply_rewrites(text, rewrites)
     if HOME_RE.search(text):
         if suffix == ".py":
             raise Refused(f"home path in .py, line {_line(text, HOME_RE.search(text))}")
@@ -325,10 +330,13 @@ def candidates(root: Path, dotfiles: Path) -> tuple[list[str], dict[str, int]]:
         for u in units
     }
     head.load([p for ps in members.values() for p in ps])
-    terms = load_terms(head)
+    terms, rewrites = load_terms(head), load_rewrites(head)
     rows, withheld = [], {}
     for unit in units:
-        texts = {p: head.read(p).decode("utf-8", "replace") for p in members[unit]}
+        texts = {
+            p: apply_rewrites(head.read(p).decode("utf-8", "replace"), rewrites)
+            for p in members[unit]
+        }
         size = sum(len(head.read(p)) for p in members[unit])
         main_file = (
             unit + "SKILL.md" if unit + "SKILL.md" in texts else members[unit][0]
