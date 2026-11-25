@@ -177,7 +177,7 @@ This is the one per-task dispatch that is **not** a budget regression: it replac
 
 ## Step 4f — the ~45-turn session boundary (evidence)
 
-Measured 2026-08-09 over 102 sessions (private-app a private design note §I8):
+Measured 2026-08-09 over 102 sessions (private-app session-token audit §I8):
 the **median session is 68 turns**; impag sessions average **83** (qimpag 89) against **55** for sessions that load no skill; **62% of all token volume sits past turn 40**, and a turn at position 90 costs **2.3×** a turn at position 10.
 The 3,395 turns past position 40 cost 433.6M tokens; re-run at the 21–40 band rate (~88k/turn) they cost 299M — a **~134M ≈ 19%** saving — and at the 1–20 rate (62k), 210M, a **32%** ceiling. The extra ~85 session starts cost ~51k of cold prefix each ≈ 4.3M, i.e. 3% of the saving.
 

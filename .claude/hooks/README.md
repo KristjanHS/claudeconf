@@ -23,7 +23,7 @@ dangerous.
 | `pyright-check.sh` | `PostToolUse` (`Write\|Edit`) | Feeds pyright errors on the edited `.py` file back to Claude |
 | `fetch-quarantine-gate.py` | `PreToolUse` (`Bash`) | Keeps foreign code out of trusted trees; [section below](#fetch-quarantine-gatepy) |
 | `upstream-exec-gate.py` | `PreToolUse` (`Bash`) | Blocks running vendored or quarantined code outside its sandbox; [section below](#upstream-exec-gatepy) |
-| `session-start-health.py` | `SessionStart` (`startup`) | Warns when `MEMORY.md` nears truncation or a `project_state.md` section is off-role |
+| `session-start-health.py` | `SessionStart` (`startup`) | Warns when `MEMORY.md` nears truncation or a `project_state.md` section is off-role, and on the host when `CLAUDE_SAFE=1` is unset |
 
 Compaction keeps about 12% of the original tokens, and its summary can drop reasoning a task still needs.
 The snapshot is the full copy to go back to.
@@ -102,24 +102,26 @@ again to keep them.
 `PreToolUse` (`Bash`). Exits 2 when a command would bring foreign code into a trusted tree: `git clone`,
 `git submodule add`, `gh repo clone`, a download piped into `tar`/`unzip` or saved as an archive, `pip
 download`, `npm pack <spec>`. Trusted trees are the paths in `~/.claude/safe-hashes/trusted-dirs.txt`
-(one absolute path per line) and everything below them. Without that file the hook allows everything.
+(one absolute path per line, `~` not expanded) and everything below them. Without that file the hook allows everything.
 Fetch into quarantine instead: `repo-fetch OWNER/REPO SHA` puts it in `~/quarantine/<name>/src`, and the
-`ext-repo-safety` skill takes it from there. It shares the destructive gate's parser, so a commit message
+`ext-repo-safety` skill takes it from there. It loads `destructive-bash-gate.py` from its own dir for parsing (missing, the
+hook allows everything), so a commit message
 that only mentions `git clone` passes. There is no bypass; to fetch into a trusted tree, run the command yourself.
 
 ### `upstream-exec-gate.py`
 
 `PreToolUse` (`Bash`). Exits 2 when a command runs code from a `vendor/`, `third_party/`, `external/`,
 `upstream/`, `quarantine/` or `*-src/` dir. Reading and grepping there stays allowed. It loads
-`fetch-quarantine-gate.py` from its own dir, so install both. A project can name one reviewed entry point
+`fetch-quarantine-gate.py` from its own dir, so install all three gates together. A project can name one reviewed entry point
 in `.claude/upstream-exec.json` at its git root:
 
 ```json
 { "sandbox": "scripts/run_vendored.py", "names": ["vendored_pkg"] }
 ```
 
-`sandbox` is a repo-relative path outside any marker dir. `names` lists the upstream module names: a
-command or Python script that names one is blocked unless it is the sandbox or imports its module. A
+`sandbox` is a repo-relative path outside any marker dir. `names` lists upstream module names: code a
+Python runner executes that contains one (substring match) is blocked unless it is the sandbox or has a
+line-start `import <sandbox-stem>`. A
 missing or malformed file means no sandbox. There is no bypass; run the command yourself.
 
 ## Trying a hook in isolation

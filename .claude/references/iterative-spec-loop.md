@@ -12,7 +12,7 @@ examples, the rationale, the living-spec definition, gate calibration, and the d
 A single doc per surface holding only: the **north star** (complex end target), **binding constraints**, an
 **unordered backlog** of candidate increments, and a **✅-shipped log** (one line per shipped increment + commits). It is
 an INDEX, not a plan — it never carries full build detail. private-app's
-a private design note is the reference shape: north star · build principle ·
+what-if dashboard spec is the reference shape: north star · build principle ·
 current-increment detail that collapses to a ✅ line on ship · candidate-next-increments backlog · binding constraints ·
 open calls parked.
 

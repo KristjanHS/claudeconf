@@ -69,8 +69,8 @@ Hooks run on Claude Code events and cost nothing in context unless they print. W
 | `ruff-check.sh` | Needs `ruff`. After a Python edit lands, tells Claude to fix lint that pushes counts above the committed baseline |
 | `pyright-check.sh` | Needs `pyright`. After a Python edit, feeds type errors back to Claude, using the config and venv nearest the file |
 | `fetch-quarantine-gate.py` | Blocks cloning or downloading foreign code into a trusted tree; it goes to `~/quarantine/` via `repo-fetch` instead |
-| `upstream-exec-gate.py` | Blocks running code from a `vendor/`, `third_party/`, `upstream/` or `quarantine/` dir outside the project's reviewed sandbox |
-| `session-start-health.py` | At startup, warns about a `MEMORY.md` near the truncation limit or a `project_state.md` section that doesn't belong |
+| `upstream-exec-gate.py` | Blocks running code from a marker dir (`vendor/`, `third_party/`, `quarantine/`, …) outside the project's reviewed sandbox |
+| `session-start-health.py` | At startup, warns about a `MEMORY.md` near the truncation limit or a `project_state.md` section that doesn't belong, and on the host when `CLAUDE_SAFE=1` is unset |
 | `statusline.sh` | Status line: model, context use, a warning near the session stop, 5-hour and 7-day limits |
 
 ## Quarantine helpers
@@ -82,7 +82,7 @@ Shell tools in `bin/bin/` for vetting a foreign repo before any of it runs; `ext
 | `repo-fetch` | Fetches one pinned commit into `~/quarantine/<name>/src`, hooks off, depth 1 |
 | `repo-inspect` | Lists the tree's auto-exec surface (hooks, launch-time configs) without running anything |
 | `repo-adopt` | Copies a reviewed pin into your own repo, reading git objects as data; needs `repo-inspect` beside it |
-| `vendor-guard` | Refuses vendored code that drifted from its review; runs as a pre-commit check |
+| `vendor-guard` | Refuses vendored code that drifted from its review; runs as a pre-commit check; needs `repo-inspect` beside it |
 
 ## Review loop
 

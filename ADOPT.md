@@ -37,9 +37,10 @@ Claude Code reports no settings errors. Dependencies:
 - `destructive-bash-gate.py` needs `~/.claude/lib/ask_paths.py` for its ask-path check.
 - `agent-model-pin-gate.py` checks against the agent pins: `cp .claude/agents/*.md ~/.claude/agents/`.
 - `ruff-check.sh` needs `ruff`, `jq` and `git`; `pyright-check.sh` needs `pyright` and `jq`.
-- `upstream-exec-gate.py` loads `fetch-quarantine-gate.py` from the same dir; copy both. Its per-project
+- `upstream-exec-gate.py` loads `fetch-quarantine-gate.py`, which loads `destructive-bash-gate.py`; keep all
+  three in one dir, or both gates silently allow everything. `upstream-exec-gate.py`'s per-project
   config is `.claude/upstream-exec.json`, described in the [hooks README](.claude/hooks/README.md#upstream-exec-gatepy).
-- `fetch-quarantine-gate.py` does nothing until you list trusted trees, one absolute path per line:
+- `fetch-quarantine-gate.py` does nothing until you list trusted trees, one absolute path per line (`~` is not expanded):
   `mkdir -p ~/.claude/safe-hashes && echo "$HOME/projects" >> ~/.claude/safe-hashes/trusted-dirs.txt`.
   Put the helpers it points to on your `PATH`: `cp bin/bin/* ~/bin/` (keep them in one dir).
 - `session-start-health.py` warns at startup when `CLAUDE_SAFE=1` is unset outside a container. That flag

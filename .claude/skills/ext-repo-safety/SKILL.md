@@ -12,8 +12,8 @@ the author's private hardening plan. This skill is the operational check.
 
 | Source | Action |
 |---|---|
-| Stranger, recruiter, "coding test", anything you already suspect | **Stop.** Don't clone locally and don't review it with Claude. Tell the user: use `claude --cloud`, a throwaway VM or Docker Sandboxes (guide Layer 1). |
-| Your own repo | Host is fine; autonomous/bypass runs go in the devcontainer (`devc`). |
+| Stranger, recruiter, "coding test", anything you already suspect | **Stop.** Don't clone locally and don't review it with Claude. Tell the user: use `claude --cloud`, a throwaway VM or Docker Sandboxes. |
+| Your own repo | Host is fine; autonomous/bypass runs go in the devcontainer. |
 | Public project being adopted (submodule, vendored copy, dependency) | Run this skill. |
 | Colleague / known org | Run steps 1–4, then open it only in the sandbox with a fresh `CLAUDE_CONFIG_DIR`. |
 
@@ -105,7 +105,7 @@ complete; every re-run command can fail; nothing is mis-tiered. Fix the findings
 
 ## 8. Hand-off: tell the user, don't do it unasked
 
-- Never open a quarantine repo in Claude (`claude-safe` refuses it): run it in an isolated container there, or adopt via `repo-adopt`.
-- Package-manager cooldowns and `ignore-scripts`: guide Layer 4.
+- Never open a quarantine repo in Claude: run it in an isolated container there, or adopt via `repo-adopt`.
+- Package-manager cooldowns and `ignore-scripts`: see your package manager's docs.
 - Copy-in: `repo-adopt ~/quarantine/<name> <repo>/vendor/<name> --review <this doc>` (dry run), then `--apply`.
   Install/build/test the foreign code only inside an isolated container started in `~/quarantine/<name>`.
