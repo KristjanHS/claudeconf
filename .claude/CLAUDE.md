@@ -7,7 +7,7 @@
 >
 > **Progressive disclosure** is the context-saving idea behind this layout.
 > Path-gated rules (`.claude/rules/*.md`) auto-load **only when you read or edit
-> a file their frontmatter `globs` match** - and references load **only when a
+> a file their frontmatter `paths:` patterns match** - and references load **only when a
 > pointer fires**. So topic-specific guidance stays out of every prompt and
 > costs tokens only when it's actually relevant, keeping the always-loaded
 > context lean.
@@ -59,7 +59,7 @@ turn. Examples (adapt or replace):
 ## Rules Index (rules deliver via path globs - reactive; this index makes them discoverable *before* a glob fires, the awareness layer the harness gives skills but not rules)
 
 The blurbs are recognition labels, not the rule - the body loads on a matching
-read/edit (globs in each file's frontmatter). `reading-large-files` earns its
+read/edit (the `paths:` globs in each file's frontmatter). `reading-large-files` earns its
 row most: its glob injects *after* the read, so only this index can shape the
 first one.
 
@@ -69,3 +69,8 @@ first one.
 | `claude-md-edits.md` | Batch edits; don't break cache |
 | `testing.md` | Test value gate |
 | `instruction-file-discipline.md` | Tier discipline (L1/L2/L3) |
+| `external-sources.md` | Outside code is read-only; run via a reviewed entry point |
+| `github-actions.md` | Run workflow jobs locally with `act` |
+| `hooks.md` | Hook I/O gotchas; confirm no settings errors |
+| `prose-budget.md` | Keep unasked-for prose short |
+| `python-refactors.md` | Import/module refactor traps |

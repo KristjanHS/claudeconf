@@ -174,17 +174,18 @@ def run(readme: Path, root: Path, check: bool, today: str) -> int:
         raise InputError(f"cannot read {readme}: {e}") from e
     if not has_markers(text, BLOCK_MARKERS):
         raise InputError(f"{readme}: no {BLOCK_MARKERS[0]} markers")
+    try:
+        replace_between(text, *BLOCK_MARKERS, "")  # validates the pair only
+    except MarkerError as e:
+        raise InputError(f"{readme}: {e}") from e
     rows = collect(root)
     command = command_for(readme, root)
     # The date alone never makes a block stale: reuse the one already written.
     inner = text.split(BLOCK_MARKERS[0], 1)[1].split(BLOCK_MARKERS[1], 1)[0]
     old = GENERATED_RE.search(inner)
-    try:
-        same_day = replace_between(
-            text, *BLOCK_MARKERS, render_block(rows, command, old[1] if old else today)
-        )
-    except MarkerError as e:
-        raise InputError(f"{readme}: {e}") from e
+    same_day = replace_between(
+        text, *BLOCK_MARKERS, render_block(rows, command, old[1] if old else today)
+    )
     if same_day == text:
         return 0
     if check:

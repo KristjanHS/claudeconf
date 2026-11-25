@@ -18,16 +18,6 @@
             "type": "command",
             "command": "~/.claude/hooks/destructive-bash-gate.py",
             "timeout": 5
-          },
-          {
-            "type": "command",
-            "command": "~/.claude/hooks/fetch-quarantine-gate.py",
-            "timeout": 5
-          },
-          {
-            "type": "command",
-            "command": "~/.claude/hooks/upstream-exec-gate.py",
-            "timeout": 5
           }
         ]
       },
@@ -105,16 +95,6 @@
           {
             "type": "command",
             "command": "~/.claude/hooks/post-compact-restore.py",
-            "timeout": 5
-          }
-        ]
-      },
-      {
-        "matcher": "startup",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "~/.claude/hooks/session-start-health.py",
             "timeout": 5
           }
         ]

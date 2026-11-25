@@ -34,12 +34,12 @@ rules.
 cp .claude/rules/*.md ~/.claude/rules/
 ```
 
-Each rule's frontmatter `globs` is the gating mechanism - it auto-loads only
-when a matching file is read/edited. Keep the frontmatter. The four shipped
+Each rule's frontmatter `paths:` list is the gating mechanism - it auto-loads only
+when a matching file is read/edited. Keep the frontmatter. The shipped
 rules are good as-is, but tune them to your stack. List each in your
 `CLAUDE.md` Rules Index table.
 
-**Smoke-test:** confirm the file is in `~/.claude/rules/` with its `globs`
+**Smoke-test:** confirm the file is in `~/.claude/rules/` with its `paths:`
 frontmatter intact - that frontmatter is what the harness keys the gating on.
 There's no context-inspector to *watch* a rule load; the only observable effect
 is behavioral (Claude following the rule once you touch a matching file), which
@@ -65,14 +65,12 @@ The context-management core is four of them:
 The rest are optional guards - take the ones you want:
 
 - `PreToolUse` (Bash) → `destructive-bash-gate.py` (needs `~/.claude/lib/ask_paths.py`
-  for its ask-path check; without it only that check goes inert),
-  `fetch-quarantine-gate.py`, `upstream-exec-gate.py`
+  for its ask-path check; without it only that check goes inert)
 - `PreToolUse` (Write/Edit) → `external-process-test-gate.py`
 - `PreToolUse` (Agent) → `agent-model-pin-gate.py` - pair it with the agent pins
   (`cp .claude/agents/*.md ~/.claude/agents/`)
 - `PostToolUse` (Write/Edit, Bash `--lint-only`) + `Stop`/`SubagentStop` (`--stop`)
-  → `ruff-check.sh` (needs `ruff`)
-- `SessionStart` (startup) → `session-start-health.py`
+  → `ruff-check.sh` (needs `ruff`, `jq` and `git`)
 
 If you keep separate `settings.json` files, add the matchers to whichever one
 already holds your hooks. Confirm Claude Code reports no settings errors after.
@@ -126,10 +124,8 @@ manage Claude config and skills (the acquisition side of a copy-in catalog);
 are code-quality & dev-workflow exemplars; the seven `kaizen-*` skills are a
 coherent continuous-improvement family (copy them as a set or skip them);
 `detect-ai-text-humanize` flags AI-sounding prose and rewrites it human (point it
-at a doc with "humanize the AI text in X" or "check X for AI"); `ext-repo-safety`
-vets an outside repo before you adopt it; `snapshot` saves a session by hand
-(`/snapshot`); `jev-gate` gates expensive work on an external typed decision
-(its router lives upstream). They are
+at a doc with "humanize the AI text in X" or "check X for AI"); `snapshot` saves
+a session by hand (`/snapshot`). They are
 self-contained, and any reference to tooling you don't run is written as optional
 - except two with a non-optional reference dep: `mybrain` reads
 `~/.claude/references/ideation-techniques-library.md`, and `systematic-debugging`

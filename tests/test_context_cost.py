@@ -201,6 +201,12 @@ def test_half_marker_pair_is_2(repo: Path):
     assert cli(repo) == 2
 
 
+def test_end_marker_only_is_2(repo: Path):
+    (repo / "README.md").write_text(f"# r\n{END}\nbody\n")
+    assert cli(repo, "--check") == 2
+    assert cli(repo) == 2
+
+
 def test_real_repo_sources_parse():
     """The live statusline/hook still match every regex (a rename fails here first)."""
     rows = {r.metric: r.value for r in cc.collect(REPO_ROOT)}
