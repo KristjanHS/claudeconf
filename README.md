@@ -71,14 +71,14 @@ fires. The table is generated from the repo, and `make test` fails when it goes 
 | Always loaded: `CLAUDE.md` | 2,872 bytes (~718 tokens) |
 | Path-gated rules | 9 |
 | References | 23 |
-| On demand: rules + references | 238,678 bytes |
+| On demand: rules + references | 238,677 bytes |
 | Statusline budget window | 300,000 tokens |
 | Budget soft bands | 120,000 / 150,000 / 175,000 tokens |
 | Budget hard stop | 200,000 tokens |
 | Skills | 26 |
 | Hooks | 12 |
 
-<sub>Regenerate: `python3 scripts/context_cost.py --readme README.md`</sub>
+Regenerate: `python3 scripts/context_cost.py --readme README.md`
 <!-- context-cost:end -->
 
 ## Costs and limits

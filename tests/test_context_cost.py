@@ -79,7 +79,7 @@ EXPECTED = """\
 | Skills | 2 |
 | Hooks | 3 |
 
-<sub>Regenerate: `python3 scripts/context_cost.py --readme README.md`</sub>
+Regenerate: `python3 scripts/context_cost.py --readme README.md`
 """
 
 

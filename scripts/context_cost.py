@@ -116,7 +116,7 @@ def _row(cells: list[str]) -> str:
 def render_block(rows: list[Row], command: str) -> str:
     lines = ["| Metric | Value |", "|---|---|"]
     lines += [_row([r.metric, r.value]) for r in rows]
-    lines += ["", f"<sub>Regenerate: `{command}`</sub>"]
+    lines += ["", f"Regenerate: `{command}`"]
     return "\n".join(lines) + "\n"
 
 
