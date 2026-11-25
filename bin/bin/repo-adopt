@@ -1,0 +1,113 @@
+#!/usr/bin/env bash
+# Copy a reviewed repo-fetch pin into an own-repo dir. Reads the pinned commit's objects as data through a scratch git dir:
+# the foreign .git/config and worktree are never used, nothing foreign runs. Exit 1 = refused, 2 = usage/tool error.
+set -u
+
+die() { echo "repo-adopt: $2" >&2; exit "$1"; }
+mapfile -t genv < <(git rev-parse --local-env-vars 2>/dev/null) && unset "${genv[@]}"
+usage="usage: repo-adopt <quarantine dir> <target dir> --review <doc> [--apply]"
+apply=0 review="" args=()
+while [ $# -gt 0 ]; do
+  case $1 in
+    --apply) apply=1 ;;
+    --review) [ $# -ge 2 ] || die 2 "$usage"; review=$2; shift ;;
+    -*) die 2 "$usage" ;;
+    *) args+=("$1") ;;
+  esac
+  shift
+done
+[ ${#args[@]} -eq 2 ] && [ -n "$review" ] || die 2 "$usage"
+RI="$(dirname "$(realpath "$0")")/repo-inspect"
+mapfile -t BAN < <("$RI" --launch-names) && [ ${#BAN[@]} -gt 0 ] || die 2 "repo-inspect --launch-names failed"
+BAN+=(.git)
+
+Q=$(realpath -e -- "${args[0]}" 2>/dev/null) && [ -d "$Q/src/.git/objects" ] \
+  || die 2 "not a repo-fetch quarantine dir (no src/.git/objects): ${args[0]}"
+{ read -r slug sha _ < "$Q/fetched"; } 2>/dev/null || die 1 "$Q/fetched missing — fetch with repo-fetch"
+[[ $slug =~ ^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$ && $sha =~ ^[0-9a-f]{40}$ ]] || die 1 "$Q/fetched is malformed"
+
+rsha=$("$RI" --reviewed-commit "$review" 2>&1) || die 1 "${rsha#\[FAIL\] }"
+[ "$rsha" = "$sha" ] || die 1 "review doc does not name the pinned commit $sha (Reviewed commit: $rsha)"
+
+[ -e "${args[1]}" ] || [ -L "${args[1]}" ] && die 1 "target exists: ${args[1]} (re-adopt/bump = vendor-guard)"
+parent=$(realpath -e -- "$(dirname -- "${args[1]}")" 2>/dev/null) || die 2 "target parent missing: ${args[1]}"
+tgt="$parent/$(basename -- "${args[1]}")"
+qroot=$(realpath -m -- "${REPO_FETCH_QUARANTINE:-$HOME/quarantine}")
+for r in "$Q" "$qroot"; do [[ $tgt == "$r" || $tgt == "$r"/* ]] && die 1 "target is inside the quarantine: $r"; done
+top=$(git -C "$parent" rev-parse --show-toplevel 2>/dev/null) || die 1 "target parent is not in a git repo: $parent"
+rev=$(realpath -e -- "$review") && [[ $rev == "$top"/* ]] || die 1 "review doc is not inside the target repo $top: $review"
+
+gd=$(mktemp -d -t adopt-git.XXXXXX) || die 2 "mktemp failed"
+stage=$(mktemp -d -t adopt-stage.XXXXXX) || { rm -rf -- "$gd"; die 2 "mktemp failed"; }
+trap 'rm -rf -- "$gd" "$stage"' EXIT
+export GIT_DIR="$gd"
+git init -q --bare "$gd" || die 2 "scratch git dir failed"
+{ echo "$sha" > "$gd/shallow" && echo "$Q/src/.git/objects" > "$gd/objects/info/alternates"; } || die 2 "alternates write failed"
+git rev-list --objects "$sha" 2>/dev/null | git pack-objects --stdout -q > "$gd/pin.pack"
+[ "${PIPESTATUS[*]}" = "0 0" ] || die 1 "pinned commit $sha not in $Q/src/.git/objects"
+# Falsifier: tests/repo_adopt.bats "tampered loose blob". index-pack re-hashes every object; with the alternates
+# gone, --strict refuses a pin whose closure no longer resolves (tampered object = new oid, original missing).
+rm -f -- "$gd/objects/info/alternates"
+git index-pack --strict --stdin < "$gd/pin.pack" >/dev/null || die 1 "pinned objects fail the re-hash (tampered?) — nothing copied"
+[ "$(git cat-file -t "$sha" 2>/dev/null)" = commit ] || die 1 "pinned commit $sha missing after re-hash"
+
+git ls-tree -r -z --full-tree "$sha" > "$gd/tree" || die 2 "ls-tree $sha failed"
+# Sets $hit to the path prefix ending at the first banned component ($g is a glob on purpose; set -f keeps $1 literal).
+# shellcheck disable=SC2053
+banned() { local - c g IFS=/; set -f; hit=; for c in $1; do hit+=${hit:+/}$c; for g in "${BAN[@]}"; do [[ $c == $g ]] && return 0; done; done; return 1; }
+# sha256sum escapes a backslash and newline in VENDORED.md, so vendor-guard could never match such a name; $REPLY = printable form.
+badname() { local LC_ALL=C; REPLY=${1//[^[:print:]]/?}; [[ $1 == *[\\[:cntrl:]]* ]]; }
+declare -A seen=(); excluded=() refused=() n=0
+while IFS= read -r -d '' ent; do
+  path=${ent#*$'\t'} meta=${ent%%$'\t'*}
+  read -r mode _ oid <<<"$meta"
+  if badname "$path" || [[ /$path/ == *//* || /$path/ == */./* || /$path/ == */../* ]]; then refused+=("bad path: $REPLY"); continue; fi
+  banned "$path" && { [ -n "${seen[$hit]:-}" ] || { seen[$hit]=1; excluded+=("$hit"); }; continue; }
+  case $mode in
+    100644|100755) ;;
+    120000) refused+=("symlink: $path"); continue ;;
+    *) refused+=("mode $mode: $path"); continue ;;
+  esac
+  [ "$path" = VENDORED.md ] && { refused+=("upstream VENDORED.md would be overwritten"); continue; }
+  [[ /$path == */.gitattributes ]] && { excluded+=("$path (repo-adopt writes its own)"); continue; }
+  mkdir -p -- "$stage/$(dirname -- "$path")" || die 2 "mkdir failed: $path"
+  git cat-file blob "$oid" > "$stage/$path" || die 2 "extract failed: $path"
+  [ "$mode" = 100755 ] && chmod +x -- "$stage/$path"
+  n=$((n + 1))
+done < "$gd/tree"
+[ ${#refused[@]} -eq 0 ] || { printf '[REFUSED] %s\n' "${refused[@]}"; die 1 "${#refused[@]} entries refused — nothing copied"; }
+[ "$n" -gt 0 ] || die 1 "nothing to copy"
+
+echo "repo-adopt: $slug@$sha → $tgt"
+[ ${#excluded[@]} -eq 0 ] || printf '  excluded: %s\n' "${excluded[@]}"
+mapfile -t files < <(cd "$stage" && find . -type f | sed 's|^\./||' | sort)
+printf '  + %s\n' "${files[@]:0:50}"
+[ "$n" -le 50 ] || echo "  … $((n - 50)) more (full list → VENDORED.md)"
+
+insp=$("$RI" "$stage" 2>&1); rc=$?
+[ "$rc" -le 1 ] || { echo "$insp" >&2; die 2 "repo-inspect over the copy set errored"; }
+grep '^\[FAIL\]' <<<"$insp" | sed "s|$stage/||g"
+# Backstop for a banned()/find mismatch — same list as BAN, so it cannot fire while the two agree.
+grep -q '^\[FAIL\] launch-time:' <<<"$insp" && die 1 "launch-time surface in the copy set — nothing copied"
+
+[ "$apply" -eq 1 ] || { echo "dry run — $n files; re-run with --apply"; exit 0; }
+rev=${rev#"$top"/}
+{
+  printf '# Vendored: %s\n\nsource: https://github.com/%s\ncommit: %s\ndate: %s\nreview: %s\n' \
+    "$slug" "$slug" "$sha" "$(date +%F)" "$rev"
+  printf 'excluded: %s\n' "${excluded[*]:-none}"
+  printf '\n## Files (sha256)\n\n'
+  (cd "$stage" && printf '%s\0' "${files[@]}" | xargs -0 sha256sum --)
+} > "$stage/VENDORED.md" || die 2 "cannot write VENDORED.md"
+# Blobs = the inventory: no add/checkout conversion (-text alone leaves working-tree-encoding on). vendor-guard pins this line.
+echo '* -text -filter -diff -ident -working-tree-encoding' > "$stage/.gitattributes" || die 2 "cannot write .gitattributes"
+unset GIT_DIR
+mkdir -p -- "$tgt" || die 2 "cannot create $tgt"
+cp -R -- "$stage/." "$tgt/" || die 2 "copy into $tgt failed"
+rel=${tgt#"$top"/}
+git -C "$top" add -f -- "$tgt" || die 2 "git add failed — files left at $tgt"
+git -C "$top" commit -q -m "vendor: adopt $slug@${sha:0:12} into $rel" -m "Vendored-From: $slug@$sha" -- "$tgt" \
+  || die 2 "commit failed — files left staged at $tgt"
+got=$(git -C "$top" ls-files -- "$tgt" | wc -l)
+[ "$got" -eq $((n + 2)) ] || die 2 "committed $got files, expected $((n + 2))"
+echo "adopted $n files → $(git -C "$top" rev-parse --short HEAD)"

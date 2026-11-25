@@ -1,0 +1,444 @@
+#!/usr/bin/env bash
+# List a foreign tree's auto-exec surface + inventory. Read-only: never sources, installs or executes target files.
+# Exit 1 = launch-time surface or red flag ([FAIL]); install-time files print [INFO] only; 2 = usage/tool error.
+set -u
+
+usage() { echo "usage: repo-inspect <dir> | --remote OWNER/REPO SHA | --scan <dir> <outdir> | --run-path <file>… | --imports <file>… | --manifest <dir> | --launch-names | --reviewed-commit <doc>" >&2; exit 2; }
+command -v jq >/dev/null || { echo "repo-inspect: jq required" >&2; exit 2; }
+fails=0 errs=0
+fail() { echo "[FAIL] $*"; fails=$((fails + 1)); }
+toolerr() { echo "[ERROR] $* failed — verdict unreliable" >&2; errs=$((errs + 1)); }
+verdict() {
+  if [ "$errs" -gt 0 ]; then echo "verdict: ERROR ($errs tool errors)"; exit 2; fi
+  if [ "$fails" -gt 0 ]; then echo "verdict: FAIL ($fails)"; exit 1; fi
+  echo "verdict: PASS"; exit 0
+}
+# Foreign path → $REPLY with every non-printable byte as '?': a newline/control byte can't forge an output line.
+san() { local LC_ALL=C; REPLY=${1//[^[:print:]]/?}; }
+# The one name source for both modes (find -name globs ≡ bash [[ == ]] globs on the basename).
+LAUNCH=(.mcp.json .claude CLAUDE.md CLAUDE.local.md AGENTS.md .vscode .envrc .devcontainer '*.pth' '*.blend')
+INSTALL=(setup.py setup.cfg pyproject.toml conftest.py .npmrc binding.gyp '*.so' '*.pyc' '*.whl' '*.exe'
+  'requirements*.txt' Dockerfile 'docker-compose*' Makefile)
+names() { local n; NAMES=(); for n; do NAMES+=(-o -name "$n"); done; NAMES=(\( "${NAMES[@]:1}" \)); }
+target() {
+  R=$(realpath -e -- "$1" 2>/dev/null) && [ -d "$R" ] || { echo "repo-inspect: not a directory: $1" >&2; exit 2; }
+  PRUNE=( \( -name .git -o -path "$R/node_modules" \) -prune -o )
+}
+has() { [ -n "$(find "$R" "${PRUNE[@]}" "$@" -print -quit)" ]; }
+# stdin: NUL-separated paths → file:line per $1 hit; grep error → a lone \001 line. Never prints the line (injection surface).
+hitlines() {
+  local f n nums
+  while IFS= read -r -d '' f; do
+    [ -n "$f" ] || continue
+    nums=$(grep -naE -e "$1" -- "$f" | cut -d: -f1; exit "${PIPESTATUS[0]}") || [ $? -eq 1 ] || { printf '\001\n'; continue; }
+    san "$f"
+    while IFS= read -r n; do [ -n "$n" ] && printf '%s:%s\n' "$REPLY" "$n"; done <<<"$nums"
+  done
+}
+# collect ERE NAME PATH…: HITS=(file:line…); each hitlines error counts as a tool error.
+collect() {
+  local h
+  HITS=()
+  while IFS= read -r h; do
+    if [ "$h" = $'\001' ]; then toolerr "grep $2"; else HITS+=("$h"); fi
+  done < <(printf '%s\0' "${@:3}" | hitlines "$1")
+}
+[ "${1:-}" = --launch-names ] && { printf '%s\n' "${LAUNCH[@]}"; exit 0; }   # repo-adopt's ban list
+
+# parse imports FILE… | manifest [--count] DIR: identifier-shaped names only; any other token is counted ([?]), never printed.
+parse() {
+  [ -x /usr/bin/python3 ] && [ -x /usr/bin/timeout ] || { echo "[ERROR] repo-inspect: /usr/bin/python3 + timeout required" >&2; return 2; }
+  /usr/bin/timeout 60 /usr/bin/python3 -I - "$@" <<'PY'
+import os, re, sys
+try: import configparser, json, tomllib
+except ImportError: print("[ERROR] repo-inspect parse: needs python >= 3.11", file=sys.stderr); sys.exit(2)
+A = re.ASCII
+PYMOD = re.compile(r"\.*[A-Za-z_]\w*(?:\.[A-Za-z_]\w*)*|\.+", A)
+JSSPEC = re.compile(r"[\w@./:-]+", A)
+PKG = re.compile(r"@?[\w.-]+(?:/[\w.-]+)?", A)
+SCRIPT = re.compile(r"[\w:.-]+", A)
+ENTRY = re.compile(r"[A-Za-z_][\w.]*(?::[A-Za-z_][\w.]*)?", A)
+OPT = re.compile(r"--?[A-Za-z][\w-]*", A)
+REQ = re.compile(r"\s*([A-Za-z0-9](?:[\w.-]*[A-Za-z0-9])?)\s*(?:\[[\w.,\s-]*\])?\s*(?=$|[<>=!~;@(\s])", A)
+HOOK = re.compile(r"(pre|post)?(install|prepare)|prepublish")
+MANI = re.compile(r"pyproject\.toml|setup\.cfg|setup\.py|package\.json|Pipfile|requirements[\w.-]*\.txt", A)
+JSEXT = (".js", ".jsx", ".mjs", ".cjs", ".ts", ".tsx", ".mts", ".cts")
+DEPS = ("deps", "dev", "optional", "build")
+CAP = 30
+
+def ok(rx, s): return isinstance(s, str) and len(s) <= 100 and rx.fullmatch(s) is not None
+def san(s): return "".join(c if " " <= c <= "~" else "?" for c in s)
+
+def lang(f):
+    e = os.path.splitext(f)[1].lower()
+    if e in (".py", ".pyi", ".pyw"): return "py"
+    if e in JSEXT: return "js"
+    with open(f, "rb") as h: first = h.readline(200)
+    if first.startswith(b"#!") and b"python" in first: return "py"
+    if first.startswith(b"#!") and re.search(rb"\b(node|deno|bun|tsx|ts-node)\b", first): return "js"
+    return None
+
+def root_of(d):
+    p = d
+    while not os.path.exists(os.path.join(p, ".git")):
+        if os.path.dirname(p) == p: return d
+        p = os.path.dirname(p)
+    return p
+
+def inside(c, root):
+    r = os.path.realpath(c)
+    return os.path.isfile(r) and r.startswith(root + os.sep)
+
+def py_mods(t):
+    hits = [(m.start(), m.group(1)) for m in re.finditer(r"^[ \t]*from[ \t]+(\S+)[ \t]+import\b", t, re.M)]
+    for m in re.finditer(r"^[ \t]*import[ \t]+([^#;\n]+)", t, re.M):
+        hits += [(m.start(), w.split()[0]) for w in re.sub(r"[()\\]", " ", m.group(1)).split(",") if w.split()]
+    return [s for _, s in sorted(hits)]
+
+def js_specs(t):
+    rxs = (r"""\bfrom\s*['"]([^'"\n]*)['"]""", r"""\bimport\s*['"]([^'"\n]*)['"]""",
+           r"""\b(?:require|import)\s*\(\s*['"]([^'"\n]*)['"]\s*\)""")
+    return [s for _, s in sorted((m.start(), m.group(1)) for rx in rxs for m in re.finditer(rx, t))]
+
+def py_resolve(mod, fdir, root):
+    dots = len(mod) - len(mod.lstrip("."))
+    parts = [p for p in mod[dots:].split(".") if p]
+    bases = [fdir, root, os.path.join(root, "src")]
+    if dots:
+        for _ in range(dots - 1): fdir = os.path.dirname(fdir)
+        bases = [fdir]
+    for b in bases:
+        for n in range(len(parts), -1 if dots else 0, -1):
+            p = os.path.join(b, *parts[:n])
+            for c in ([p + ".py"] if n else []) + [os.path.join(p, "__init__.py")]:
+                if inside(c, root): return c
+    return None
+
+def js_resolve(s, fdir, root):
+    if not s.startswith("."): return None
+    p = os.path.normpath(os.path.join(fdir, s))
+    cs = [p] + [p + e for e in JSEXT + (".json",)] + [os.path.join(p, "index" + e) for e in JSEXT]
+    if p.endswith((".js", ".jsx", ".mjs", ".cjs")): cs += [os.path.splitext(p)[0] + e for e in (".ts", ".tsx", ".mts", ".cts")]
+    return next((c for c in cs if inside(c, root)), None)
+
+def imports(files):
+    rc = 0
+    for f in files:
+        lbl = san(f)
+        if not (os.path.isfile(f) and os.access(f, os.R_OK)):
+            print(f"[ERROR] not a readable file: {lbl}", file=sys.stderr); rc = 2; continue
+        lg = lang(f)
+        if not lg:
+            print(f"[ERROR] {lbl}: unsupported language (not parsed)", file=sys.stderr); rc = 2; continue
+        with open(f, encoding="utf-8", errors="replace") as h: t = h.read()
+        fdir = os.path.dirname(os.path.realpath(f))
+        root, rows, bad, seen = root_of(fdir), [], 0, set()
+        for tok in (py_mods(t) if lg == "py" else js_specs(t)):
+            if tok in seen: continue
+            seen.add(tok)
+            if not ok(PYMOD if lg == "py" else JSSPEC, tok): bad += 1; continue
+            c = (py_resolve if lg == "py" else js_resolve)(tok, fdir, root)
+            rows.append(f"  local  {tok} -> {san(os.path.relpath(c))}" if c else
+                        f"  local  {tok} -> ? (unresolved)" if tok.startswith(".") else f"  ext    {tok}")
+        print(lbl)
+        for r in rows[:CAP]: print(r)
+        if len(rows) > CAP: print(f"  +{len(rows) - CAP} more")
+        if bad: print(f"  [?] {bad} non-conforming token(s) (not printed)")
+    return rc
+
+class M:
+    def __init__(s): s.cats, s.bad = {}, 0
+    def put(s, cat, v): s.cats.setdefault(cat, []).append(v)
+    def add(s, cat, name, rx=PKG, mark=""):
+        if ok(rx, name): s.put(cat, name + mark)
+        else: s.bad += 1
+    def req(s, cat, spec):
+        m = REQ.match(spec) if isinstance(spec, str) else None
+        if not m: s.bad += 1; return
+        s.add(cat, m.group(1), mark="(url)" if "@" in spec.split(";")[0][m.end(1):] else "")
+    def entry(s, cat, name, tgt):
+        if not ok(SCRIPT, name): s.bad += 1; return
+        t = tgt.split("[", 1)[0].strip() if isinstance(tgt, str) and len(tgt) <= 200 else None
+        if ok(ENTRY, t): s.put(cat, f"{name} -> {t}")
+        else: s.put(cat, f"{name} -> ?"); s.bad += 1
+    def items(s, x):
+        if isinstance(x, dict): return list(x.items())
+        if x is not None: s.bad += 1
+        return []
+    def each(s, x):
+        if isinstance(x, list): return x
+        if x is not None: s.bad += 1
+        return []
+
+def g(d, *ks):
+    for k in ks: d = d.get(k) if isinstance(d, dict) else None
+    return d
+
+def src_mark(v): return "(url)" if isinstance(v, dict) and any(k in v for k in ("git", "path", "url", "file")) else ""
+
+def pyproject(m, d):
+    for r in m.each(g(d, "project", "dependencies")): m.req("deps", r)
+    for k in (("project", "optional-dependencies"), ("dependency-groups",)):
+        for _, grp in m.items(g(d, *k)):
+            for r in m.each(grp):
+                if not isinstance(r, dict): m.req("optional", r)
+    for r in m.each(g(d, "build-system", "requires")): m.req("build", r)
+    if g(d, "build-system", "build-backend") is not None: m.add("backend", g(d, "build-system", "build-backend"), ENTRY)
+    if g(d, "build-system", "backend-path") is not None: m.put("backend", "(in-tree backend-path)")
+    for k in ("scripts", "gui-scripts"):
+        for n, t in m.items(g(d, "project", k)): m.entry("scripts", n, t)
+    for grp, eps in m.items(g(d, "project", "entry-points")):
+        for n, t in m.items(eps): m.entry("entry", f"{grp}:{n}", t)
+    for n, v in m.items(g(d, "tool", "poetry", "dependencies")):
+        if n != "python": m.add("deps", n, mark=src_mark(v))
+    for n, v in m.items(g(d, "tool", "poetry", "dev-dependencies")): m.add("dev", n, mark=src_mark(v))
+    for _, gd in m.items(g(d, "tool", "poetry", "group")):
+        for n, v in m.items(g(gd, "dependencies")): m.add("dev", n, mark=src_mark(v))
+    for n, t in m.items(g(d, "tool", "poetry", "scripts")): m.entry("scripts", n, t if isinstance(t, str) else g(t, "callable"))
+
+def setup_cfg(m, text):
+    if any(len(ln) > 1000 for ln in text.splitlines()): m.bad += 1; return   # configparser is quadratic on long lines
+    c = configparser.RawConfigParser(strict=False)
+    c.read_string(text)
+    lines = lambda v: [x.strip() for x in v.splitlines() if x.strip() and not x.strip().startswith("#")]
+    for cat, k in (("deps", "install_requires"), ("build", "setup_requires"), ("dev", "tests_require")):
+        for r in lines(c.get("options", k, fallback="")): m.req(cat, r)
+    if c.has_section("options.extras_require"):
+        for _, v in c.items("options.extras_require"):
+            for r in lines(v): m.req("optional", r)
+    if c.has_section("options.entry_points"):
+        for grp, v in c.items("options.entry_points"):
+            for ln in lines(v):
+                n, _, t = ln.partition("=")
+                m.entry("scripts" if grp in ("console_scripts", "gui_scripts") else "entry",
+                        n.strip() if grp in ("console_scripts", "gui_scripts") else f"{grp}:{n.strip()}", t)
+
+def requirements(m, text):
+    for ln in re.sub(r"\\\n", " ", text).splitlines():
+        ln = re.sub(r"(^|\s)#.*", "", ln).strip()
+        if not ln: continue
+        if ln.startswith("-"): m.add("opts", re.split(r"[\s=]", ln, maxsplit=1)[0], OPT)
+        else: m.req("deps", ln)
+
+def package_json(m, d):
+    for cat, k in (("deps", "dependencies"), ("dev", "devDependencies"), ("optional", "optionalDependencies"), ("optional", "peerDependencies")):
+        for n, v in m.items(g(d, k)): m.add(cat, n, mark="(url)" if isinstance(v, str) and re.search(r"[:/#]", v) else "")
+    for n, _ in m.items(g(d, "scripts")): m.add("scripts", n, SCRIPT, "(install-hook)" if HOOK.fullmatch(n) else "")
+    b = g(d, "bin")
+    if isinstance(b, str): m.put("bin", "(package name)")
+    else:
+        for n, _ in m.items(b): m.add("bin", n, SCRIPT)
+
+def pipfile(m, d):
+    for cat, k in (("deps", "packages"), ("dev", "dev-packages")):
+        for n, v in m.items(g(d, k)): m.add(cat, n, mark=src_mark(v))
+
+def manifest(args):
+    count = args[0] == "--count"
+    root = os.path.realpath(args[-1])
+    total = 0
+    for d, dirs, files in os.walk(root):
+        dirs[:] = sorted(x for x in dirs if x not in (".git", "node_modules"))
+        for f in sorted(x for x in files if MANI.fullmatch(x)):
+            p, m = os.path.join(d, f), M()
+            if f == "setup.py": m.put("info", "code, not parsed — read on the run path (§5)")
+            elif os.path.islink(p) or not os.path.isfile(p): m.bad += 1
+            else:
+                try:
+                    with open(p, "rb") as h: text = h.read().decode("utf-8", "replace")
+                    if f == "pyproject.toml": pyproject(m, tomllib.loads(text))
+                    elif f == "Pipfile": pipfile(m, tomllib.loads(text))
+                    elif f == "package.json": package_json(m, json.loads(text))
+                    elif f == "setup.cfg": setup_cfg(m, text)
+                    else: requirements(m, text)
+                except (OSError, ValueError, RecursionError, configparser.Error): m.bad += 1
+            total += sum(len(m.cats.get(k, [])) for k in DEPS)
+            if count: continue
+            print(san(os.path.relpath(p, root)))
+            for cat, vals in m.cats.items():
+                for v in (vals[:CAP] if cat in ("scripts", "entry", "bin", "info") else [" ".join(vals[:CAP])]):
+                    print(f"  {cat:<8} {v}")
+                if len(vals) > CAP: print(f"  {cat:<8} +{len(vals) - CAP} more")
+            if m.bad: print(f"  [?] {m.bad} non-conforming (not printed)")
+    if count: print(total)
+    return 0
+
+try:
+    sys.exit(imports(sys.argv[2:]) if sys.argv[1] == "imports" else manifest(sys.argv[2:]))
+except Exception as e:  # never a traceback: it would quote foreign text, and exit 1 would read as a verdict
+    print(f"[ERROR] repo-inspect parse: {type(e).__name__}", file=sys.stderr); sys.exit(2)
+PY
+  local rc=$?   # any undiscovered parser blowup on foreign input is bounded, and a timeout never reads as a verdict
+  [ "$rc" -ne 124 ] || { echo "[ERROR] repo-inspect parse: timed out" >&2; return 2; }
+  return "$rc"
+}
+if [ "${1:-}" = --imports ]; then [ $# -ge 2 ] || usage; shift; parse imports "$@"; exit; fi
+if [ "${1:-}" = --manifest ]; then [ $# -eq 2 ] || usage; target "$2"; parse manifest "$R"; exit; fi
+
+# The one pin a review doc covers (repo-adopt + vendor-guard): exactly one `Reviewed commit:` line (strict form)
+# and exactly one verdict row whose first cell starts with `source`, not NO-GO (other parts may be NO-GO).
+if [ "${1:-}" = --reviewed-commit ]; then
+  [ $# -eq 2 ] || usage
+  [ -f "$2" ] || { echo "[FAIL] review doc not found: $2"; exit 1; }
+  mapfile -t rc < <(grep -F 'Reviewed commit:' "$2")
+  [ ${#rc[@]} -eq 1 ] || { echo "[FAIL] review doc needs exactly one 'Reviewed commit:' line, has ${#rc[@]}: $2"; exit 1; }
+  # shellcheck disable=SC2016  # literal backticks, not a command substitution
+  re='^[[:space:]-]*(\*\*)?Reviewed commit:(\*\*)?[[:space:]]*`?([0-9a-f]{40})`?([^0-9A-Za-z]|$)'
+  [[ ${rc[0]} =~ $re ]] || { echo "[FAIL] 'Reviewed commit:' line is not '- **Reviewed commit:** \`<40-hex>\`': $2"; exit 1; }
+  sha=${BASH_REMATCH[3]}
+  mapfile -t src < <(grep -iE '^[[:space:]]*\|[[:space:]]*(\*\*)?[[:space:]]*source' "$2")
+  [ ${#src[@]} -eq 1 ] || { echo "[FAIL] review doc needs exactly one verdict row starting 'source', has ${#src[@]}: $2"; exit 1; }
+  IFS='|' read -r _ _ v _ <<<"${src[0]}"
+  [[ ${v^^} != *NO-GO* ]] || { echo "[FAIL] review doc's source row is NO-GO: $2"; exit 1; }
+  echo "$sha"; exit 0
+fi
+
+if [ "${1:-}" = --run-path ]; then
+  [ $# -ge 2 ] || usage
+  shift
+  for f; do [ -f "$f" ] && [ -r "$f" ] || { san "$f"; echo "repo-inspect: not a readable file: $REPLY" >&2; exit 2; }; done
+  # ext-repo-safety §5's broad grep — its only pattern source. name|ERE
+  RUNPATH=('eval(|eval\(' 'exec(|exec\(' 'compile(|compile\(' '__import__|__import__' 'importlib|importlib'
+    'marshal|marshal' 'pickle|pickle' 'base64|base64' 'subprocess|subprocess' 'os.system|os\.system' 'popen|popen'
+    'shell=True|shell=True' 'requests.|requests\.' 'urllib|urllib' 'socket|socket' 'http.client|http\.client'
+    'ftplib|ftplib' 'rmtree|rmtree' 'unlink|unlink' 'os.remove|os\.remove' 'child_process|child_process'
+    'Function(|Function\(' 'atob(|atob\(')
+  for e in "${RUNPATH[@]}"; do
+    collect "${e#*|}" "${e%%|*}" "$@"
+    for h in "${HITS[@]:0:10}"; do echo "[FLAG] ${e%%|*} $h"; done
+    [ "${#HITS[@]}" -le 10 ] || echo "[FLAG] ${e%%|*} +$((${#HITS[@]} - 10)) more"
+    fails=$((fails + ${#HITS[@]}))
+  done
+  verdict
+fi
+
+if [ "${1:-}" = --scan ]; then
+  [ $# -eq 3 ] || usage
+  target "$2"
+  O=$(realpath -m -- "$3") || exit 2
+  [[ $O != "$R" && $O != "$R/"* ]] || { echo "repo-inspect: <outdir> must be outside the target" >&2; exit 2; }
+  mkdir -p -- "$O" || exit 2
+  rm -f -- "$O"/{gitleaks,bandit,semgrep,osv}.{json,log}
+  T=$(mktemp -d) || exit 2
+  trap 'rm -rf -- "$T"' EXIT
+  # Our configs override the target's planted ones: gitleaks = defaults only, bandit/osv = empty.
+  { printf '[extend]\nuseDefault = true\n' >"$T/gitleaks.toml" && : >"$T/bandit.ini" && : >"$T/osv.toml"; } || exit 2
+  # gitleaks honours a planted .gitleaksignore whatever -i says (verified 8.30.1) → its presence fails.
+  while IFS= read -r -d '' p; do san "$p"; fail "scanner suppression file: $REPLY"; done \
+    < <(find "$R" -name .git -prune -o -name .gitleaksignore -print0)
+  # scan NAME JQ-COUNT CMD…: raw JSON → $O/NAME.json; the scanner's exit code is ignored, only missing JSON is an error.
+  scan() {
+    local n=$1 q=$2 c e rc
+    shift 2
+    command -v "$1" >/dev/null || { echo "[ERROR] $n: not installed" >&2; errs=$((errs + 1)); return; }
+    "$@" >"$O/$n.log" 2>&1; rc=$?
+    if [ "$n" = osv ] && [ "$rc" -eq 128 ] && [ ! -s "$O/osv.json" ]; then
+      echo "osv: n/a (no package sources)"
+      if ! d=$(parse manifest --count "$R") || ! [[ $d =~ ^[0-9]+$ ]]; then toolerr "manifest count"
+      elif [ "$d" -gt 0 ]; then echo "[WARN] osv: no lockfile — $d declared deps unscanned (repo-inspect --manifest)"; fi
+      return
+    fi
+    if ! c=$(jq -er "$q" "$O/$n.json" 2>/dev/null) || ! [[ $c =~ ^[0-9]+$ ]]; then
+      echo "[ERROR] $n: no JSON of the expected shape (log: $O/$n.log)" >&2; errs=$((errs + 1)); return
+    fi
+    case $n in
+      osv) c="$c advisory groups" ;;
+      bandit) e=$(jq '.errors | arrays | length' "$O/$n.json"); [ "${e:-0}" -eq 0 ] || c="$c ($e errors)" ;;
+      semgrep) e=$(jq '[.errors | arrays | .[] | select(type != "object" or .level == "error")] | length' "$O/$n.json")
+        [ "${e:-0}" -eq 0 ] || { echo "[ERROR] semgrep: $e error-level .errors in $O/semgrep.json" >&2; errs=$((errs + 1)); } ;;
+    esac
+    echo "$n: $c"
+  }
+  cfg=(--config p/secrets)
+  has -name '*.py' && py=1 && cfg+=(--config p/python)
+  has \( -name package.json -o -name '*.[cm]js' -o -name '*.js' -o -name '*.jsx' -o -name '*.ts' -o -name '*.tsx' \) \
+    && cfg+=(--config p/javascript --config p/typescript)
+  has -name 'Dockerfile*' && cfg+=(--config p/dockerfile)
+  scan gitleaks 'arrays | length' gitleaks dir "$R" --no-banner --redact -c "$T/gitleaks.toml" --ignore-gitleaks-allow \
+    -f json -r "$O/gitleaks.json"
+  if [ -n "${py:-}" ]; then
+    scan bandit '.results | arrays | length' bandit -q -r "$R" -ll --ini "$T/bandit.ini" --ignore-nosec -f json -o "$O/bandit.json"
+  else echo "bandit: n/a (no .py)"; fi
+  # --x-ignore-semgrepignore-files is [INTERNAL] (verified 1.173.0): if dropped, semgrep exits 2 with no JSON → ERROR.
+  scan semgrep '.results | arrays | length' semgrep scan --metrics=off --disable-nosem --x-ignore-semgrepignore-files \
+    "${cfg[@]}" -q --json -o "$O/semgrep.json" "$R"
+  scan osv '.results | arrays | [.[]?.packages[]?.groups[]?] | length' \
+    osv-scanner scan source -r --no-ignore --config "$T/osv.toml" --format json --output-file "$O/osv.json" "$R"
+  verdict
+fi
+
+if [ "${1:-}" = --remote ]; then
+  [ $# -eq 3 ] || usage
+  # Full SHA only: the trees endpoint also resolves a branch NAME, so a short hex could be a planted ref.
+  [[ $2 =~ ^[A-Za-z0-9._-]+/[A-Za-z0-9._-]+$ && /$2/ != */./* && /$2/ != */../* && $3 =~ ^[0-9a-f]{40}$ ]] \
+    || { echo "repo-inspect: want OWNER/REPO and a full 40-hex SHA" >&2; exit 2; }
+  if ! json=$(gh api "repos/$2/git/trees/$3?recursive=1") || ! jq -e '.truncated == false and (.tree|type) == "array"
+      and all(.tree[]; (.path|type) == "string" and (.type|type) == "string")' >/dev/null <<<"$json" \
+    || ! rows=$(jq -r '.tree[] | [.type, .path] | @tsv' <<<"$json"); then
+    toolerr "gh api tree (or truncated)"; verdict
+  fi
+  while IFS=$'\t' read -r t p; do
+    [ -n "$p" ] || continue
+    san "$p" && p=$REPLY
+    [ "$t" = commit ] && { echo "[INFO] submodule (not inspected): $p"; continue; }
+    case "$p" in node_modules|node_modules/*) continue ;; esac
+    b=${p##*/}
+    # shellcheck disable=SC2053  # unquoted RHS: the LAUNCH/INSTALL entries are globs
+    for n in "${LAUNCH[@]}"; do [[ $b == $n ]] && { fail "launch-time: $p"; continue 2; }; done
+    # shellcheck disable=SC2053
+    for n in "${INSTALL[@]}" package.json; do [[ $b == $n ]] && { echo "[INFO] install-time: $p"; continue 2; }; done
+    case "$p" in .github/workflows/*) echo "[INFO] workflow: $p" ;; esac
+  done <<<"$rows"
+  echo "[INFO] names only — npm lifecycle + red-flag content checks need: repo-inspect <fetched dir>"
+  verdict
+fi
+
+[ $# -eq 1 ] || usage
+target "$1"
+
+names "${LAUNCH[@]}"
+mapfile -d '' -t ps < <(find "$R" "${PRUNE[@]}" "${NAMES[@]}" -print0); wait $! || toolerr "find launch-time"
+for p in "${ps[@]}"; do san "$p"; fail "launch-time: $REPLY"; done
+
+mapfile -d '' -t ps < <(find "$R" "${PRUNE[@]}" -name package.json -xtype f -print0); wait $! || toolerr "find package.json"
+for pj in "${ps[@]}"; do
+  san "$pj" && p=$REPLY
+  while IFS= read -r s; do fail "npm lifecycle: $p: $s"; done < <(jq -r 'if (.scripts|type) == "object"
+    then .scripts | keys[] | select(test("^(pre|post)?(install|prepare)$|^prepublish$")) else empty end' "$pj" 2>/dev/null)
+done
+
+RED=(
+  'eval(|(^|[^.[:alnum:]_]|(window|globalThis|self)\.)eval[[:space:]]*\)?[[:space:]]*\('
+  'new Function(|new[[:space:]]+Function[[:space:]]*\('
+  'exec(|(^|[^.[:alnum:]_])exec[[:space:]]*\('
+  'b64decode|b64decode'
+  'atob(|atob\('
+  'base64 Buffer.from|Buffer\.from\([^)]*base64'
+  'child_process|child_process'
+  'curl-pipe-sh|(curl|wget)[^|]*\|[[:space:]]*(sudo([[:space:]]+-[[:alpha:]]+)*[[:space:]]+)?(/usr)?(/bin/)?(ba|z)?sh\b|(ba|z)?sh[[:space:]]+<\([[:space:]]*(curl|wget)'
+)
+for e in "${RED[@]}"; do
+  mapfile -d '' -t ps < <(grep -rlaZE --exclude-dir=.git -e "${e#*|}" -- "$R"); wait $! || [ $? -eq 1 ] || toolerr "grep ${e%%|*}"
+  keep=()
+  for f in "${ps[@]}"; do [[ $f == "$R/node_modules/"* ]] || keep+=("$f"); done
+  collect "${e#*|}" "${e%%|*}" "${keep[@]}"
+  for h in "${HITS[@]:0:5}"; do fail "red flag ${e%%|*}: $h"; done
+done
+
+info() { local p; while IFS= read -r -d '' p; do san "$p"; echo "[INFO] $1: $REPLY"; done; }
+names "${INSTALL[@]}"
+find "$R" "${PRUNE[@]}" "${NAMES[@]}" -print0 | info install-time
+find "$R/.github/workflows" -maxdepth 1 -type f -print0 2>/dev/null | info workflow
+# Extension histogram: only a 1-10 char alnum extension is printed; any other name text counts as (other).
+find "$R" "${PRUNE[@]}" -type f -print0 | while IFS= read -r -d '' p; do
+  b=${p##*/} x=
+  [[ $b == *.* ]] && x=${b##*.}
+  if [[ $x =~ ^[[:alnum:]]{1,10}$ ]]; then echo "$x"; else echo '(other)'; fi
+done | sort | uniq -c | sort -rn | head -20
+bait='curl|wget|sudo|\| *(ba)?sh'   # README "run this" bait: file:line + token, never the line
+while IFS= read -r -d '' f; do
+  san "$f"
+  while IFS=: read -r n t; do echo "[INFO] readme bait: $REPLY:$n $t"; done < <(grep -noiaE -e "$bait" -- "$f")
+done < <(grep -rlZiaE --exclude-dir=node_modules --exclude-dir=.git --include='*.md' -e "$bait" -- "$R") | head
+
+verdict

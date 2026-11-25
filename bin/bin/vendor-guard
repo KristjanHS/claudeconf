@@ -1,0 +1,197 @@
+#!/usr/bin/env bash
+# Refuse vendored code that drifted from its review: every VENDORED.md copy-in + each named submodule;
+# any other gitlink whose tree is on disk must carry no launch-time names (a nested CLAUDE.md loads).
+# --staged reads the index (pre-commit). Exit 1 = refused, 2 = usage/tool error.
+# pre-commit entry needs pass_filenames: false + always_run: true (it scans the whole index, not the changed files).
+set -u
+
+die() { echo "vendor-guard: $2" >&2; exit "$1"; }
+usage="usage: vendor-guard [--staged] [<submodule path>[=<review doc>]…]"
+staged=0 args=()
+for a in "$@"; do
+  case $a in
+    --staged) staged=1 ;;
+    -*) die 2 "$usage" ;;
+    *) args+=("$a") ;;
+  esac
+done
+RI="$(dirname "$(realpath "$0")")/repo-inspect"
+mapfile -t BAN < <("$RI" --launch-names) && [ ${#BAN[@]} -gt 0 ] || die 2 "repo-inspect --launch-names failed"
+BAN+=(.git)
+GA="* -text -filter -diff -ident -working-tree-encoding"   # = repo-adopt's <target>/.gitattributes line
+unset GIT_GLOB_PATHSPECS GIT_NOGLOB_PATHSPECS GIT_ICASE_PATHSPECS
+# The superproject keeps git's hook env (a pathspec commit's GIT_INDEX_FILE); submodule calls drop it.
+sg() { git --literal-pathspecs --no-replace-objects "$@"; }
+mapfile -t genv < <(git rev-parse --local-env-vars 2>/dev/null)
+subgit() {
+  env "${genv[@]/#/-u}" git --no-replace-objects -c core.fsmonitor=false -c core.hooksPath=/dev/null \
+    -c core.ignoreStat=false -c core.checkStat=default -C "$@"
+}
+top=$(git rev-parse --show-toplevel 2>/dev/null) || die 2 "not in a git repo"
+relpath() { local p; p=$(realpath -m -- "$1"); [[ $p == "$top"/* ]] || die 2 "outside the repo: $1"; echo "${p#"$top"/}"; }
+subs=() docs=()
+for a in "${args[@]}"; do
+  subs+=("$(relpath "${a%%=*}")")
+  if [[ $a == *=* ]]; then docs+=("$(relpath "${a#*=}")"); else docs+=("docs/security-review-$(basename -- "${a%%=*}").md"); fi
+done
+cd "$top" || die 2 "cd $top failed"
+tmp=$(mktemp -d) || die 2 "mktemp failed"
+trap 'rm -rf -- "$tmp"' EXIT
+
+fails=0 n=0
+san() { local LC_ALL=C; REPLY=${1//[^[:print:]]/?}; }
+fail() { san "$1: $2"; echo "[FAIL] $REPLY"; fails=$((fails + 1)); }
+failist() {   # dir, label, items… - capped at 10
+  local d=$1 l=$2 p; shift 2
+  fail "$d" "$l ($#)"; for p in "${@:1:10}"; do san "$p"; printf '  %s\n' "$REPLY"; done
+  [ $# -le 10 ] || echo "  +$(($# - 10)) more"
+}
+# Sets $hit to the first banned component of $1.
+# shellcheck disable=SC2053
+banned() { local - c g IFS=/; set -f; for c in $1; do for g in "${BAN[@]}"; do [[ $c == $g ]] && { hit=$c; return 0; }; done; done; return 1; }
+bannedlist() { local p out=(); for p in "${@:3}"; do banned "$p" && out+=("$p ($hit)"); done; [ ${#out[@]} -eq 0 ] || failist "$1" "$2" "${out[@]}"; }
+blob() {   # path → its regular-file content in the index (--staged) or worktree
+  local ent mode oid _
+  [ $staged -eq 1 ] || { cat -- "$1" 2>/dev/null; return; }
+  while IFS= read -r -d '' ent; do
+    [ "${ent#*$'\t'}" = "$1" ] || continue
+    read -r mode oid _ <<<"${ent%%$'\t'*}"
+    case $mode in 100644|100755) sg cat-file blob "$oid"; return ;; esac
+  done < <(sg ls-files -s -z -- "$1")
+  return 1
+}
+
+# dir, review doc (top-relative), pin
+reviewed() {
+  local out rc
+  blob "$2" > "$tmp/rev" || { fail "$1" "review doc missing$([ $staged -eq 1 ] && echo ' from the index'): $2"; return; }
+  out=$("$RI" --reviewed-commit "$tmp/rev" 2>&1); rc=$?
+  out=${out//"$tmp/rev"/$2}
+  [ $rc -eq 0 ] || { fail "$1" "${out#\[FAIL\] }"; return; }
+  [ "$out" = "$3" ] || fail "$1" "pin $3 is not the review's Reviewed commit $out ($2)"
+}
+
+# VENDORED.md is added by repo-adopt's commit (Vendored-From trailer) and never modified after.
+adoption() {   # dir, slug, pin
+  local d=$1 h=${hvm[$1]:-} tr
+  [ -z "$h" ] || [ "${ivm[$d]}" = "$h" ] || fail "$d" "VENDORED.md modified since adoption - re-adopt"
+  [ $staged -eq 0 ] || return 0
+  [ -n "$h" ] || { fail "$d" "VENDORED.md not committed - adopt with repo-adopt"; return; }
+  [ "$(sg hash-object --no-filters -- "$d/VENDORED.md" 2>/dev/null)" = "$h" ] \
+    || fail "$d" "VENDORED.md modified in the worktree - re-adopt"
+  tr=$(sg -c log.showSignature=false log -1 --format='%(trailers:key=Vendored-From,valueonly)' HEAD -- "$d/VENDORED.md")
+  [ "$tr" = "$2@$3" ] || fail "$d" "last commit of VENDORED.md lacks the trailer Vendored-From: $2@$3 - re-adopt"
+}
+
+copyin() {
+  local d=$1 vm pins revs line p mode oid _ missing=() extra=() edited=() odd=()
+  declare -A want=() have=()
+  vm=$(blob "$d/VENDORED.md") || { fail "$d" "VENDORED.md unreadable"; return; }
+  mapfile -t pins < <(sed -n 's/^commit: \([0-9a-f]\{40\}\)$/\1/p' <<<"$vm")
+  mapfile -t revs < <(sed -n 's/^review: \(..*\)$/\1/p' <<<"$vm")
+  [ ${#pins[@]} -eq 1 ] && [ ${#revs[@]} -eq 1 ] || { fail "$d" "VENDORED.md needs one commit: and one review: line"; return; }
+  [[ ${vm%%$'\n'*} =~ ^#\ Vendored:\ ([A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+)$ ]] || { fail "$d" "VENDORED.md lacks its '# Vendored: <slug>' header"; return; }
+  adoption "$d" "${BASH_REMATCH[1]}" "${pins[0]}"
+  case /${revs[0]}/ in //*|*/../*) fail "$d" "review doc outside the repo: ${revs[0]}"; return ;; esac
+  reviewed "$d" "${revs[0]}" "${pins[0]}"
+  # Like VENDORED.md, repo-adopt's .gitattributes is outside the inventory; its content is fixed.
+  { [ $staged -eq 1 ] || [ ! -L "$d/.gitattributes" ]; } && [ "$(blob "$d/.gitattributes")" = "$GA" ] \
+    || fail "$d" ".gitattributes is not repo-adopt's '$GA' - re-adopt"
+  while IFS= read -r line; do
+    [[ $line =~ ^([0-9a-f]{64})\ \ (.+)$ ]] && want[${BASH_REMATCH[2]}]=${BASH_REMATCH[1]}
+  done < <(sed -n '/^## Files (sha256)$/,$p' <<<"$vm")
+  [ ${#want[@]} -gt 0 ] || { fail "$d" "VENDORED.md has no sha256 inventory"; return; }
+  if [ $staged -eq 1 ]; then
+    sg ls-files -s -z -- "$d/" > "$tmp/ls" || die 2 "git ls-files $d failed"
+    while IFS= read -r -d '' line; do
+      p=${line#*$'\t'}; p=${p#"$d"/}; read -r mode oid _ <<<"${line%%$'\t'*}"
+      [ "$p" = VENDORED.md ] || [ "$p" = .gitattributes ] && continue
+      case $mode in 100644|100755) have[$p]=$(sg cat-file blob "$oid" | sha256sum | cut -c1-64) ;; *) odd+=("$p (mode $mode)") ;; esac
+    done < "$tmp/ls"
+  else
+    while IFS= read -r -d '' p; do
+      p=${p#"$d"/}
+      [ "$p" = VENDORED.md ] || [ "$p" = .gitattributes ] && continue
+      if [ -L "$d/$p" ] || { [ ! -f "$d/$p" ] && [ ! -d "$d/$p" ]; }; then odd+=("$p (not a regular file)")
+      elif [ -f "$d/$p" ]; then have[$p]=$(sha256sum -- "$d/$p" | cut -c1-64)
+      else banned "$p" && odd+=("$p ($hit)"); fi
+    done < <(find "$d" -mindepth 1 -print0)
+  fi
+  for p in "${!want[@]}"; do
+    if [ -z "${have[$p]+x}" ]; then missing+=("$p"); elif [ "${have[$p]}" != "${want[$p]}" ]; then edited+=("$p"); fi
+  done
+  for p in "${!have[@]}"; do [ -n "${want[$p]+x}" ] || extra+=("$p"); done
+  [ ${#edited[@]} -eq 0 ] || failist "$d" "edited since adoption - re-adopt" "${edited[@]}"
+  [ ${#extra[@]} -eq 0 ] || failist "$d" "not in the inventory" "${extra[@]}"
+  [ ${#missing[@]} -eq 0 ] || failist "$d" "missing" "${missing[@]}"
+  [ ${#odd[@]} -eq 0 ] || failist "$d" "non-regular or launch-time entries" "${odd[@]}"
+  bannedlist "$d" "launch-time names" "${!have[@]}"
+}
+
+submodule() {
+  local s=$1 doc=$2 mode oid _ head ent dirty odd=() names=()
+  read -r mode oid _ < <(sg ls-files -s -- "$s")
+  [ "${mode:-}" = 160000 ] || die 2 "not a submodule (no gitlink in the index): $s"
+  reviewed "$s" "$doc" "$oid"
+  if [ $staged -eq 0 ]; then
+    [ "$(subgit "$s" rev-parse --show-toplevel 2>/dev/null)" = "$top/$s" ] || { fail "$s" "submodule not checked out"; return; }
+    head=$(subgit "$s" rev-parse HEAD)
+    [ "$head" = "$oid" ] || fail "$s" "checkout $head is not the gitlink $oid"
+    mapfile -t dirty < <(subgit "$s" status --porcelain --ignored --untracked-files=all)
+    [ ${#dirty[@]} -eq 0 ] || failist "$s" "tree not clean (ignored files count)" "${dirty[@]}"
+    subgit "$s" ls-files -v -z > "$tmp/sv" || { fail "$s" "ls-files -v failed"; return; }
+    while IFS= read -r -d '' ent; do [ "${ent:0:2}" = 'H ' ] || odd+=("$ent"); done < "$tmp/sv"
+    [ ${#odd[@]} -eq 0 ] || failist "$s" "skip-worktree/assume-unchanged entries hide edits (tag != H)" "${odd[@]}"
+    odd=()
+  fi
+  subgit "$s" ls-tree -r -z "$oid" > "$tmp/st" 2>/dev/null && [ -s "$tmp/st" ] \
+    || { fail "$s" "gitlink commit $oid not in the submodule's objects"; return; }
+  while IFS= read -r -d '' ent; do
+    read -r mode _ <<<"${ent%%$'\t'*}"
+    case $mode in 100644|100755) names+=("${ent#*$'\t'}") ;; *) odd+=("${ent#*$'\t'} (mode $mode)") ;; esac
+  done < "$tmp/st"
+  [ ${#odd[@]} -eq 0 ] || failist "$s" "non-regular entries" "${odd[@]}"
+  bannedlist "$s" "launch-time names" "${names[@]}"
+}
+
+# Unguarded gitlink: only a checked-out tree loads - scan the gitlink commit's tree (if in its objects) + the checkout's index.
+gitlink() {   # path, oid
+  local s=$1 p; declare -A nm=()
+  [ "$(subgit "$s" rev-parse --show-toplevel 2>/dev/null)" = "$top/$s" ] \
+    || { san "$s"; echo "[INFO] submodule $REPLY: not checked out - skipped"; return; }
+  subgit "$s" ls-tree -r -z --full-tree --name-only "$2" > "$tmp/gl" 2>/dev/null
+  subgit "$s" ls-files -z >> "$tmp/gl" || { san "$s"; die 2 "git ls-files failed in submodule $REPLY"; }
+  while IFS= read -r -d '' p; do nm[$p]=1; done < "$tmp/gl"
+  bannedlist "$s" "launch-time names in submodule" "${!nm[@]}"
+}
+
+# Guarded set = every dir with a VENDORED.md in the index or in HEAD (path filter in bash, never a pathspec).
+declare -A ivm=() hvm=() all=() gl=()
+sg ls-files -s -z > "$tmp/idx" || die 2 "git ls-files failed"
+while IFS= read -r -d '' ent; do
+  p=${ent#*$'\t'}; read -r mode oid _ <<<"${ent%%$'\t'*}"
+  [ "$mode" = 160000 ] && gl[$p]=$oid
+  [[ $p == */VENDORED.md ]] && ivm[${p%/VENDORED.md}]=$oid
+done < "$tmp/idx"
+if sg rev-parse -q --verify 'HEAD^{commit}' >/dev/null; then
+  sg ls-tree -r -z --full-tree HEAD > "$tmp/head" || die 2 "git ls-tree HEAD failed"
+  while IFS= read -r -d '' ent; do
+    p=${ent#*$'\t'}; read -r mode _ oid <<<"${ent%%$'\t'*}"
+    [ "$mode" = 160000 ] && [ -z "${gl[$p]+x}" ] && gl[$p]=$oid
+    [[ $p == */VENDORED.md ]] && hvm[${p%/VENDORED.md}]=$oid
+  done < "$tmp/head"
+fi
+for d in "${!ivm[@]}" "${!hvm[@]}"; do all[$d]=1; done
+for d in "${!all[@]}"; do
+  if [ -z "${ivm[$d]+x}" ]; then
+    sg ls-files -z -- "$d/" > "$tmp/rest" || die 2 "git ls-files $d failed"
+    [ ! -s "$tmp/rest" ] || fail "$d" "VENDORED.md removed while files remain - delete the whole dir or re-adopt"
+    continue
+  fi
+  n=$((n + 1)); copyin "$d"
+done
+for i in "${!subs[@]}"; do n=$((n + 1)); submodule "${subs[$i]}" "${docs[$i]}"; unset 'gl[${subs[$i]}]'; done
+for s in "${!gl[@]}"; do gitlink "$s" "${gl[$s]}"; done
+
+[ "$fails" -eq 0 ] || { echo "vendor-guard: $fails failure(s) - vendored code differs from its review" >&2; exit 1; }
+echo "vendor-guard: $n vendored dir(s) match their review"

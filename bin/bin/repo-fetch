@@ -1,0 +1,31 @@
+#!/usr/bin/env bash
+# Fetch one pinned commit of a foreign repo into the quarantine root (ext-repo-safety §2): hooks off, LFS skipped, depth 1.
+# Exit 1 = dest already exists or HEAD ≠ SHA; 2 = usage or init/fetch/checkout/write failed (a failed run removes
+# what it created, so a retry with the same NAME works).
+# REPO_FETCH_QUARANTINE overrides the quarantine root (default ~/quarantine); REPO_FETCH_URL overrides the GitHub URL (test seam).
+# An override path without a `quarantine` component is invisible to upstream-exec-gate and the rule's paths: (test seam only).
+set -u
+
+die() { echo "repo-fetch: $2" >&2; exit "$1"; }
+[ $# -ge 2 ] && [ $# -le 3 ] || die 2 "usage: repo-fetch OWNER/REPO SHA [NAME]"
+slug=$1 sha=$2 name=${3:-${1#*/}}
+[[ $slug =~ ^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$ ]] || die 2 "bad OWNER/REPO: $slug"
+[[ $sha =~ ^[0-9a-f]{40}$ ]] || die 2 "SHA must be the full 40-hex commit: $sha"
+[[ $name =~ ^[A-Za-z0-9_.-]+$ && $name != . && $name != .. ]] || die 2 "bad NAME: $name"
+root=${REPO_FETCH_QUARANTINE:-$HOME/quarantine}
+url=${REPO_FETCH_URL:-https://github.com/$slug}
+dest=$root/$name/src
+[ -e "$dest" ] && die 1 "$dest already exists — pick another NAME or remove it"
+# Remove only what this run created: the whole $root/$name when it is new, else just src/.
+if [ -e "$root/$name" ]; then created=$dest; else created=$root/$name; fi
+fail() { rm -rf -- "$created"; die "$1" "$2"; }
+
+if ! { mkdir -p "$root/$name/out" && git init -q "$dest" && git -C "$dest" config core.hooksPath /dev/null; }; then
+  fail 2 "cannot init $dest"
+fi
+git -C "$dest" fetch -q --depth 1 "$url" "$sha" || fail 2 "fetch of $sha from $url failed"
+GIT_LFS_SKIP_SMUDGE=1 git -C "$dest" checkout -q FETCH_HEAD || fail 2 "checkout failed"
+head=$(git -C "$dest" rev-parse HEAD)
+[ "$head" = "$sha" ] || fail 1 "HEAD $head ≠ pinned $sha"
+printf '%s %s\n' "$slug" "$head" > "$root/$name/fetched" || fail 2 "cannot write $root/$name/fetched"   # repo-adopt's provenance
+echo "$dest @ $head"
