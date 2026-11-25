@@ -7,7 +7,7 @@ and merge the matching `settings.json` block by hand.
 
 > **Two `hooks/` directories - don't conflate them.** This directory is Claude
 > Code **runtime** hooks; the repo-root `hooks/` is **git** hooks (the secret
-> gate). Full table in the [README](../../README.md#two-hooks-directories--dont-conflate-them).
+> gate).
 
 **Every hook here fails open** (`try: main(); except Exception: pass;
 sys.exit(0)`). A hook bug must never block compaction, session start, or a tool
@@ -41,7 +41,7 @@ check.
    cache_creation_input_tokens + cache_read_input_tokens`). Compaction-aware and
    bounded - reads only the final 64 KB, never the whole file.
 3. **Four graduated bands** (`BANDS` in the hook; values in the
-   [measured table](../../README.md#-does-this-actually-work)) - three soft
+   [measured table](../../README.md#whats-measured)) - three soft
    notices that say *keep going, no action*, each firing once per session on the
    way up, then a hard stop at `HARD_STOP_TOKENS` that repeats on every commit
    past it. Silent below the lowest soft band by design. Every band

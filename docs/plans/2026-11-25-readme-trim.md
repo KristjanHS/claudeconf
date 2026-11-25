@@ -1,5 +1,10 @@
 # README trim: critique and recommendations
 
+**Rulings (2026-11-25):** Built-with = hand list of transcribe-offline, my-vector, stt-faster
+(dewpoint-ts and kri-local-rag dropped); `agentic_stats.py` + tests kept, no longer rendered into the
+README. "Does this actually work?" → "What's measured", no savings claim, no measurement owed. Adoption
+script, tests and Makefile target deleted.
+
 Target: `README.md` (503 lines, ~4,100 words, 31 emoji, 99 bold spans, ~86 spaced-hyphen dashes).
 Goal: cut it to about a quarter of its length (~120–150 lines), remove the AI-sounding prose, and drop the emoji.
 
