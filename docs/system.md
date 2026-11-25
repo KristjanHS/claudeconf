@@ -42,10 +42,10 @@ Files: [`docs-bloat-gate.py`](../.claude/hooks/docs-bloat-gate.py),
 
 ## Review loop: catch what slips past the gates
 
-`impag` runs a plan a stage at a time. At each stage boundary it runs the full suite, then hands the
+The plan executor (`impag`) runs a plan a stage at a time. At each stage boundary it runs the full suite, then hands the
 stage's commits to a fresh `code-reviewer` subagent, which reads the diff but not the reasoning behind it.
 In the [dispatch benchmark](../.claude/references/subagent-dispatch.md#code-review-dispatch--evidence)
-the bundled `/code-review` caught no more than that plain subagent, at many times the tokens.
+the bundled `/code-review` caught no more than that plain subagent, at ~14× the tokens.
 
 Two trails, each plan → build → the review fix that corrected it:
 

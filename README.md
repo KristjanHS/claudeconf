@@ -109,6 +109,14 @@ When it has fired, Claude committed what it was working on, wrote the leftover t
 and stopped, so the next session picked up from a commit. More in
 [.claude/hooks/README.md](.claude/hooks/README.md).
 
+## How it was built
+
+I built this repo with Claude Code, running written plans a stage at a time and handing each stage's
+commits to a fresh reviewer. Some of what the agent got wrong was in the checks themselves, like a leak
+gate that printed "no leakage" and exited 0 when git failed ([`2ad3e5a`](https://github.com/KristjanHS/claudeconf/commit/2ad3e5a))
+and a doc-link checker that missed slug and code-fence cases ([`d2f6c14`](https://github.com/KristjanHS/claudeconf/commit/d2f6c14)).
+Review caught both, and [docs/system.md](docs/system.md) walks through that loop.
+
 ## Built with it
 
 - [transcribe-offline](https://github.com/KristjanHS/transcribe-offline) (51 tests, 11 releases)
@@ -117,5 +125,12 @@ and stopped, so the next session picked up from a commit. More in
 
 Tests are a static count of `def test_` and `func Test` at HEAD, and releases are `v*` tags, both
 counted by [`scripts/agentic_stats.py`](scripts/agentic_stats.py).
+
+## Tests
+
+`make test` runs shellcheck and ruff, the pytest suite, a private-path scan, a drift check of the
+synced files against the source repo, and a staleness check on the measured-cost table. The drift
+check skips when the source repo isn't on disk. CI runs pytest on pushes to `main` and on pull
+requests, and gitleaks on every push and pull request.
 
 MIT licensed. Written by [Kristjan](https://github.com/KristjanHS).
