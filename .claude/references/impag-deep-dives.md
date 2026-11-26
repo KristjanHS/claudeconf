@@ -40,6 +40,8 @@ So the count that governs (a) is **large unheld READS, not files to edit**: a st
 
 **Why a dispatch is sized to ONE committable slice** (body: "not the whole multi-slice stage"): a pinned-default implementation subagent caps at ~one slice of recon+edit+verify (measured on opus/medium); a multi-slice dispatch budget-exhausts mid-stage.
 
+**Why the brief's wording is strict:** a per-task commit on `main` is shippable the moment it lands, so a lint deferred to step 6 first fires at the release; `&& git commit` after a `| tail` gate commits a red suite because the pipe exits with tail's status; the falsifier clause is pasted verbatim because a reference the orchestrator has read does NOT reach a subagent.
+
 ## Step 3 — research-style plans (conditional mode)
 
 For plans that are web research / analysis / docs with no code:
@@ -121,8 +123,10 @@ Same reasoning-economy motive behind the 2026-07-12 delegation-gate rewrite: on 
 **"Next action" pointer (why the body rewrites stale prose).** A pointer left describing an earlier stage misleads the resume target and can trip `impag-chain`'s paraphrase diagnostic — so each write rewrites it.
 (Default target = most-recent plan in `docs/plans/`; a pointer to a *different* plan overrides, step 1 honors it.)
 
-**Sentinel verification.** The driver consumes the sentinel after each detection — which is why the body re-emits it on every chaining stage.
-The verification grep — path AND regex — has ONE home: body §project_state. Don't restate it here (the two copies drifted apart until 2026-07-25: this file matched the legacy `: N` form, the body didn't, and both pointed at a project-relative path that never resolves).
+**Sentinel verification.** The driver consumes it after each detection — which is why the body re-emits it on every chaining stage; paraphrase or markdown formatting breaks unattended chained runs.
+The verification grep — path AND regex — has ONE home: body §project_state. Don't restate it here (the two copies drifted apart until 2026-07-25: this file matched the legacy `: N` form, the body didn't, and both pointed at a project-relative path that never resolves). A project-relative `memory/project_state.md` never resolves, so a check against it can never ESTABLISH.
+
+**Linked projects.** There the slug dir is a symlink into `<repo>/.claude/memory/`, made by `dotfiles/scripts/link-memory.sh`; the path skills use is unchanged, and git carries the files.
 **"Chain ARMED" in the wrap-up prose is a CLAIM — run that grep before writing it.** A 2026-07-18 Stage-0 wrap-up asserted "Chain ARMED (sentinel at the file's end)" into a file holding zero sentinel lines. Same class as plan-hygiene's "a recorded SHA is a claim", but strictly worse to detect: a false SHA fails loudly at the next `git show`, whereas an absent sentinel fails as *nothing happens* — no error, no re-fire, and the next session reads the prose and believes the chain is live. Emit the sentinel and grep it in the **same burst** as the prose that claims it.
 **User-decision carve-out rationale:** auto-firing into a blocked decision loops uselessly or steamrolls the deferral (operative rule at step 7).
 
@@ -219,3 +223,17 @@ The ≤200-char shape excludes `file.ts:LINE` cites, measured tables, review NTH
 **Tier 2 (`Needs you:`).** A line is admitted only if all three hold: a user-aimed verb (Push/Decide/Approve/Choose/Run); you can name what breaks if ignored; nothing future-dated. Each line may carry ≤1 clause naming what it unblocks, and nothing else — no rationale, evidence or file lists. Rejected: hedges, mere reports, discovered findings (those are tier 3).
 **The mirror routing.** Any tier-2 line other than the push goes into memory the same turn — a do-next → project_state "Next action" **only when it is THE armed/in-flight item** (a do-next for any other plan joins the roadmap menu as one ▶); decisions and eyeball items → roadmap `§OWED[USER]`.
 **Tier 3.** Each bullet names the outcome, not the edits — a per-change list is the defect. Durable gotchas may claim one bullet; anything else is dropped, not appended.
+
+## Cloud session — push and foreground (rationale)
+
+Why step 8 makes the push the session's own: there is no host to hand it to. Why 4d pushes after every commit: the container is reclaimed when the session idles out, so an unpushed commit is a lost commit; the session's own `claude/*` branch is the safety net, and step 8 lands it on the integration branch.
+
+Why cloud executors run foreground: the launcher's own Stop hook (`~/.claude/stop-hook-git-check.sh`, wired from its `launcher-settings.json`, rewritten every session) blocks on uncommitted files each time the turn ends, and a backgrounded executor ends the turn exactly while its slice is uncommitted. The one-line answer works because the hook exits 0 on `stop_hook_active`, so the second stop passes; committing instead would put an unverified half-slice on `main`. It runs only when the session cwd is itself a git repo — a multi-repo session (cwd = the repos' parent) never sees it.
+
+## Rules — per-stage plan files (rationale)
+
+Why the test is a non-executing reader: an unconditional one-file-per-stage rule manufactures files by construction. Why never append to a growing design doc: later sessions re-read every prior stage.
+
+## Step 7 — nice-to-have findings drop (rationale)
+
+Why filing a nice-to-have is the default defect: you have already ruled it not worth doing, so its backlog entry's only drain (the commit that ships it) is the event that by construction never fires. "Would be nicer", "add a pin", "tighten this", "unreachable today" file nowhere.
