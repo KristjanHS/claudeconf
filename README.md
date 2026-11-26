@@ -81,7 +81,7 @@ Regenerate: `python3 scripts/context_cost.py --readme README.md`
 
 ## Costs and limits
 
-- Every Bash call runs six hooks (four before, two after). Each took 29–77 ms across four runs of
+- Every Bash call runs six hooks (four before, two after). Each took 26–54 ms across four runs of
   [`scripts/time-hooks.sh`](scripts/time-hooks.sh), mostly interpreter startup.
   Internal errors exit 0, except in the destructive-command gate, which blocks a command it can't parse.
 - Setup is manual: 152 lines of hooks config to merge into `settings.json`, and a pytest suite
