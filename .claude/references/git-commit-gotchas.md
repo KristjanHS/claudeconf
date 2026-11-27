@@ -13,7 +13,7 @@ Alternative when you don't want to enumerate paths: unstage the unrelated change
 
 ## Multi-paragraph messages go via `-F`, never `-m "…"`
 
-`-m` takes a **double-quoted** string, so the shell expands `` `backticks` `` (command substitution) and `$vars` before git ever sees them. A message citing a symbol as `` `limit` `` silently loses the word and emits `limit: command not found` (2026-07-17, private-app Stage 1.3 — amended via `-F`). Nothing warns you; the commit succeeds with a mangled message.
+`-m` takes a **double-quoted** string, so the shell expands `` `backticks` `` (command substitution) and `$vars` before git ever sees them. A message citing a symbol as `` `limit` `` silently loses the word and emits `limit: command not found` (2026-07-17, crash-dash Stage 1.3 — amended via `-F`). Nothing warns you; the commit succeeds with a mangled message.
 
 For any message longer than one plain line, or containing backticks/`$`/`!`, pipe a heredoc with a **quoted** delimiter:
 
@@ -29,9 +29,9 @@ The quoted `'MSGEOF'` is what disables expansion — an unquoted `MSGEOF` re-ope
 
 ## Backticked identifiers in a `-m` message VANISH — and the commit still succeeds
 
-The same expansion hole, in the shape you hit most often. `git commit -m "…\`cross-asset\`…"` runs command substitution on the message: backticked identifiers — the natural way to write `` `cross-asset` `` or `` `R4_HY_TAIL` `` — are silently dropped, `bash: cross-asset: command not found` scrolls past, and the commit **SUCCEEDS** with a mangled body (2026-07-31: two family names vanished from a private-app commit).
+The same expansion hole, in the shape you hit most often. `git commit -m "…\`cross-asset\`…"` runs command substitution on the message: backticked identifiers — the natural way to write `` `cross-asset` `` or `` `R4_HY_TAIL` `` — are silently dropped, `bash: cross-asset: command not found` scrolls past, and the commit **SUCCEEDS** with a mangled body (2026-07-31: two family names vanished from a crash-dash commit).
 
-**Worse variant — the commit HANGS.** When the backticked word is a real command that reads stdin (`` `fold` ``, `` `cat` ``, `` `sort` ``), the substitution runs it against the terminal, so `git commit` never receives its `-m` argument, blocks forever and holds `.git/index.lock` — indistinguishable from a hung tool call (2026-09-20, private-app). Same fix; the quoted-delimiter heredoc is the only one safe by construction.
+**Worse variant — the commit HANGS.** When the backticked word is a real command that reads stdin (`` `fold` ``, `` `cat` ``, `` `sort` ``), the substitution runs it against the terminal, so `git commit` never receives its `-m` argument, blocks forever and holds `.git/index.lock` — indistinguishable from a hung tool call (2026-09-20, crash-dash). Same fix; the quoted-delimiter heredoc is the only one safe by construction.
 
 Fix: pass the message via a heredoc with a **quoted** delimiter (`git commit -F - <<'MSG' … MSG`, so nothing expands), or single-quote the whole `-m` argument. Never double-quote a commit message that contains backticks.
 
@@ -49,7 +49,7 @@ Fix: pass the message via a heredoc with a **quoted** delimiter (`git commit -F 
 
 ## Pathspec commits skip UNTRACKED files — `git add` them first
 
-**`git commit -a` skips untracked files too** — `-a` stages *modified tracked* files only, so a brand-new file (e.g. a test registered in a shared `vitest.shared.ts` manifest) silently stays out while the commit message claims it. The commit is then RED IN ISOLATION: its own manifest references a file that isn't in the tree at that SHA. `git add <newfile>` first, or `git status --short` after the commit and look for `??` lines the message claimed (2026-08-20, private-app `d99393a7` → backfilled by `cf6096bb`).
+**`git commit -a` skips untracked files too** — `-a` stages *modified tracked* files only, so a brand-new file (e.g. a test registered in a shared `vitest.shared.ts` manifest) silently stays out while the commit message claims it. The commit is then RED IN ISOLATION: its own manifest references a file that isn't in the tree at that SHA. `git add <newfile>` first, or `git status --short` after the commit and look for `??` lines the message claimed (2026-08-20, crash-dash `d99393a7` → backfilled by `cf6096bb`).
 
 `git commit -m "msg" -- <path>` fails with `pathspec '<path>' did not match any file(s) known to git` when `<path>` is a new/untracked file — the pathspec only scopes content git already knows. For a new file: `git add <path> && git commit -m "msg" -- <path>` (the pathspec still protects against sweeping in other staged changes).
 
@@ -59,7 +59,7 @@ The inverse of the sweep-everything trap, and it fails in the direction you don'
 `git commit` (no `-a`) commits **exactly the index** — so after a narrow `git add a.ts b.ts`, a subagent's
 other modified files stay in the working tree while the commit message claims them. Nothing errors: the
 tree is right, the suite stays green, only `HEAD` is wrong — and the gap surfaces later as a "shipped"
-stage whose code isn't in the commit (2026-07-18, private-app `3c02d80` → `cfc6d24` had to backfill the
+stage whose code isn't in the commit (2026-07-18, crash-dash `3c02d80` → `cfc6d24` had to backfill the
 other half).
 
 **Always end a commit with `git status --short`.** Leftover modified files that the message claimed are
@@ -94,6 +94,6 @@ then.
 
 ## A heredoc in a compound command binds to the LAST command, not the one you wrote it after
 
-`git commit -F - <<'MSGEOF' … MSGEOF && git log --oneline -3` does **not** feed the heredoc to `git commit`. The shell attaches the here-document to the *whole* compound list's final redirection slot, so `git commit` gets the terminal's stdin instead — it blocks forever waiting for a message, holding `.git/index.lock`, and looks exactly like a hung tool call (2026-09-06, private-app). Killing it leaves the stale lock behind.
+`git commit -F - <<'MSGEOF' … MSGEOF && git log --oneline -3` does **not** feed the heredoc to `git commit`. The shell attaches the here-document to the *whole* compound list's final redirection slot, so `git commit` gets the terminal's stdin instead — it blocks forever waiting for a message, holding `.git/index.lock`, and looks exactly like a hung tool call (2026-09-06, crash-dash). Killing it leaves the stale lock behind.
 
 Never chain anything after a heredoc-fed `git commit`. Write the message to a file and use `-F <file>`, or make the commit its own command and run `git log` in a separate call.

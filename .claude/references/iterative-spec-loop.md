@@ -11,7 +11,7 @@ examples, the rationale, the living-spec definition, gate calibration, and the d
 
 A single doc per surface holding only: the **north star** (complex end target), **binding constraints**, an
 **unordered backlog** of candidate increments, and a **✅-shipped log** (one line per shipped increment + commits). It is
-an INDEX, not a plan — it never carries full build detail. private-app's
+an INDEX, not a plan — it never carries full build detail. Crash-dash's
 what-if dashboard spec is the reference shape: north star · build principle ·
 current-increment detail that collapses to a ✅ line on ship · candidate-next-increments backlog · binding constraints ·
 open calls parked.
@@ -38,7 +38,7 @@ Run this instead of re-running the design-doc → spec-doc chain.
 
 Gate calibration:
 
-Worked on private-app's backlog: *read-only method cards* / mechanical *active-5 overlays* → no gate, straight
+Worked on crash-dash's backlog: *read-only method cards* / mechanical *active-5 overlays* → no gate, straight
 to qimpag. *Greenfield feed engine (#R1)* / *scenario mode* → gate fires (new feed engine / new interaction
 model), so `mybrain`-quick first.
 

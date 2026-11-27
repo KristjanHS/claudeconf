@@ -38,7 +38,7 @@ A shell script that documents each env var twice — once in the `#`-comment hea
 
 ## A rename sweep whose stem is an ordinary English word
 
-Before a repo-wide rename, ask whether the old identifier is also a normal word (`rot`, `late`, `stale`, `hold`, `band`, `run`). If it is, every sweep pattern must be **position-anchored** — property access (`\.rot\b`), key position (`\brot:`), the exact `CONST_ROT` casing — never bare-word, never case-insensitive. A first pass on the private-app LATE/ROT → LAG/DEEP-LAG rename (2026-08-06) matched the English verb "rot" in prose across 8 files. Size the risk *before* editing: `grep -rn '<bare pattern>' | wc -l` against the anchored pattern's count — a large gap IS the finding, and prose hits are the tell. `replace_all` leaves you no per-hit diff to catch them in.
+Before a repo-wide rename, ask whether the old identifier is also a normal word (`rot`, `late`, `stale`, `hold`, `band`, `run`). If it is, every sweep pattern must be **position-anchored** — property access (`\.rot\b`), key position (`\brot:`), the exact `CONST_ROT` casing — never bare-word, never case-insensitive. A first pass on the crash-dash LATE/ROT → LAG/DEEP-LAG rename (2026-08-06) matched the English verb "rot" in prose across 8 files. Size the risk *before* editing: `grep -rn '<bare pattern>' | wc -l` against the anchored pattern's count — a large gap IS the finding, and prose hits are the tell. `replace_all` leaves you no per-hit diff to catch them in.
 
 ## Plan-reality mid-execution conflicts
 

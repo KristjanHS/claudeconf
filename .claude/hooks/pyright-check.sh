@@ -5,7 +5,7 @@ f=$(jq -r '.tool_input.file_path // empty' 2>/dev/null)
 
 dir=$(cd -- "$(dirname -- "$f")" 2>/dev/null && pwd -P) || exit 0
 
-# Config and venv can live below the session CWD (private-app: scripts/backtest/)
+# Config and venv can live below the session CWD (crash-dash: scripts/backtest/)
 # or above the edited file (src/pkg/mod.py -> repo root), so search upward from
 # the FILE, not from CWD. Bound the walk by the enclosing git repo. Outside a
 # repo, DON'T climb: a loose script's config/venv lives in its own dir, and

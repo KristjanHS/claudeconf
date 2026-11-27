@@ -47,7 +47,7 @@ Before finalizing a removal design, grep:
 
 …for the thing being removed; rewrite or delete each in the same PR.
 
-**A purge premise needs its census probe run BEFORE the DELETE ships.** A data-purge migration encodes a claim ("these rows are ghosts"); run the probe that counts the target rows against prod FIRST, and read its number against the claim — a purge that ships on the story alone deletes real rows (private-app 2026-09-04: 1774 real Friday bars restored from backups after an unprobed `=X` ghost purge).
+**A purge premise needs its census probe run BEFORE the DELETE ships.** A data-purge migration encodes a claim ("these rows are ghosts"); run the probe that counts the target rows against prod FIRST, and read its number against the claim — a purge that ships on the story alone deletes real rows (crash-dash 2026-09-04: 1774 real Friday bars restored from backups after an unprobed `=X` ghost purge).
 
 ## Private→public repo sanitization sweep
 

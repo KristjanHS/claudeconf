@@ -12,7 +12,7 @@ So **delegation never saves a round-trip.** It is purely a content-size trade, a
 
 **Threshold.** Under ~1k tokens of raw output, or whenever the parent needs the bytes themselves (the `git status --short` file list it is about to scope-gate against), run it inline. Delegate when the output is several thousand tokens **and** collapses to a verdict the parent can act on without ever seeing the raw bytes.
 
-Worked, from the 2026-07-10 private-app chain:
+Worked, from the 2026-07-10 crash-dash chain:
 - `git status --short` emitted 114 chars ≈ 30 tokens. Inline, that costs ~190 billed tokens over 50 remaining turns (`1.25×30` to cache, `0.1×30×50` to re-read) ≈ **$0.001**. Delegated, the parent still spends ~300 *output* tokens writing the brief (output is the 5×-priced line) and the report re-enters context anyway, plus ~15k of Haiku prefix from zero: ≈ **$0.04, roughly 40× worse — and you still pay the parent round-trip.** Delegating small-output recon is strictly a loss.
 - One bare `git diff` emitted 7,804 chars ≈ 2,000 tokens; keeping it out over 58 remaining turns saves ~11.6k tokens — which roughly *cancels* the sub-agent's cost. A wash, and the wrong question: the rule (`CLAUDE.md` git-recon bullet, impag step 4a) says don't run it at all. **Eliminating overproduction beats optimizing transportation** — check whether the call is needed before deciding where to run it.
 - Five `git show HEAD:<blob>` extractions feeding python diffs to answer "did the regen still match" — thousands of tokens of JSON in, one line of verdict out. **This is the shape that pays**: one dispatch, one sentence back. Same shape as `git show BASE..HEAD` inside the step-6 `code-reviewer`, and as a history audit ("which of these 40 commits touched X").
@@ -38,7 +38,7 @@ Only parallelize sub-agents when they modify independent files. After sub-agents
 
 **Parallel siblings share ONE session scratchpad** — tell each to prefix its helper files (`<agent-tag>-mut.py`); same-name helpers overwrite each other mid-run.
 
-A parallel research fan-out (5 web-research agents, ~580k subagent tokens, private-app 2026-10-12) leaves the
+A parallel research fan-out (5 web-research agents, ~580k subagent tokens, crash-dash 2026-10-12) leaves the
 parent at ~266k before any code — dispatch the fan-out from a fresh session that ONLY banks the reports as docs,
 and synthesize/execute in a second session at a small prefix.
 
@@ -68,7 +68,7 @@ direct") doesn't catch this: it's read-depth-into-one-file, not edit-file-count,
 budget-constrained/chained session, dispatch a subagent to extract the pattern (exact snippets + line
 numbers + a compact written contract) rather than reading it inline — cheaper than the orchestrator paying
 full file-context cost twice (once to understand, again implicitly held for the edit). Symptom seen twice
-in the same private-app session chain: qimpag hit the ~130k wrap-up hook on inline recon of a 1499-line
+in the same crash-dash session chain: qimpag hit the ~130k wrap-up hook on inline recon of a 1499-line
 Python file before any edit landed, both times.
 
 ## Background agents auto-notify — don't poll
@@ -111,13 +111,13 @@ Two failure modes, both 2026-08-04, both invisible in the transcript because the
 
 ## Verify-agent briefs
 
-2026-09-11 (private-app leg-chart Stage 3): one verify agent was briefed with the full gate + an open-ended prod-drift hunt + a browser check. Bundled, each item's output is re-billed on every later call of the others.
+2026-09-11 (crash-dash leg-chart Stage 3): one verify agent was briefed with the full gate + an open-ended prod-drift hunt + a browser check. Bundled, each item's output is re-billed on every later call of the others.
 
 **Rule: one heavy-output item per dispatch.** Split a gate, a prod measurement and a browser check into separate dispatches — the gate itself runs in the orchestrator as `tail`-bounded background Bash (impag step 6). Hand each the exact command, pre-resolved in the parent. Never `Read` screenshots: assert in the script, report paths. Grep support scripts for the port/URL, never full-read them. Don't re-read diffs a parallel code review already covers. Omit the red-demo clause unless the brief authors assertions.
 
 ## Size ONE dispatch to ONE committable slice — a multi-slice brief has no ceiling
 
-2026-09-08, private-app business-day feed-lag qimpag: one executor was briefed to carry **four**
+2026-09-08, crash-dash business-day feed-lag qimpag: one executor was briefed to carry **four**
 committable slices in a single dispatch. It burned **38M cache-read across 212 turns** — the
 sub-agent's own context grows with every file it opens, and each later turn re-reads the whole
 accumulated prefix, so a brief spanning N slices pays the sum of N prefixes, not N times a small one.

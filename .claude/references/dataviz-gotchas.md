@@ -14,5 +14,5 @@ categories) as 4 scatter colors.
 don't re-encode the whole 2×2.** E.g. if the x/y position already carries one factor of a 2×2, the
 color/shape channel should carry just the *other* factor (2 levels), not all four combinations. Re-
 encoding the already-positioned axis wastes the channel and pushes past the categorical-on-scatter cap.
-(private-app 2026-07-22: a 2×2 overlay tried 4 CVD tints on a scatter; the fix was to color by the one
+(crash-dash 2026-07-22: a 2×2 overlay tried 4 CVD tints on a scatter; the fix was to color by the one
 un-positioned axis.)

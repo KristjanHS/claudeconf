@@ -65,7 +65,7 @@ When the plan schedules ONE full-range review at its final stage and a budget wr
 
 ## Steps 1/3 + Rules — token-efficiency levers (evidence)
 
-2026-07-02 private-app qimpag retro: a planning-only pass hit 149k context in 14 min / 30 API calls (~3.26M cumulative cache-read — inflated, and *not* the dominant cost; see the 2026-07-09 correction at the end of this paragraph).
+2026-07-02 crash-dash qimpag retro: a planning-only pass hit 149k context in 14 min / 30 API calls (~3.26M cumulative cache-read — inflated, and *not* the dominant cost; see the 2026-07-09 correction at the end of this paragraph).
 The questions round cost only ~8k; the budget went to recon-in-parent and full-doc reads: full Read of the growing multi-stage design doc +14.7k (a later 4.3k `grep -A40` of the same doc proved sufficient), full `roadmap.md` read +4.3k just to pick one item, inline plan-authoring recon +16.3k, and post-commit test recon +17.1k whose only deliverable was a 488-byte roadmap note.
 These drove step 1's scoped plan-load, gate clause (d), and the two late-session/per-stage Rules bullets.
 That tension (`/retro` on a ~142k context adds ~8k more at peak) is resolved as of 2026-07-16 by step 9's budget-deferral: past the 4f zone, retro is owed via project_state's Next-action and runs at the next chained session's small prefix. Step 9 is also capture-gated the same date: only a concrete capture item earns a retro — stage-done/task-count alone never do.
@@ -73,7 +73,7 @@ Separate observation from the paired 2.5-h impag session: ~360k tokens of cache 
 Two more data points behind the same levers (moved here out of the always-loaded body): an earlier full modes-and-markets recon in the parent cost **~7M** billed tokens re-discovering cacheable seams/constants — the extreme case driving step 1b's "read the architecture doc, brief `Explore` to grep only the gaps";
 and a C3b qimpag planning pass hit **~155k vs ~90–100k** purely from inline-reading ~1k lines "to be sure of the port" — reads that re-bill as `cache_read` every turn (behind the late-session / per-stage recon Rules bullets).
 
-**2026-07-10 private-app execution chain — the round-trip, not the payload.** 62 logical assistant messages, 58 issuing tools: **51 fired exactly one tool call and none fired 3+.**
+**2026-07-10 crash-dash execution chain — the round-trip, not the payload.** 62 logical assistant messages, 58 issuing tools: **51 fired exactly one tool call and none fired 3+.**
 Recon content was already lean — 46k chars of Bash output over 45 calls, 7 of 9 Reads used `offset`/`limit`, no file read twice — yet `cache_read` reached **16.8M tokens (43% of the bill)** against `output` at 187k (24%).
 The driver is `Σ prefix over calls`: context grew 0 → 161k with **no compaction** (`isCompactSummary` count 0), so an identical probe at message 62 re-billed 161k where the same probe at message 2 re-billed 42k — **3.8× for arriving later**.
 Batching the clearly-independent runs (four consecutive fixed greps at msgs 4–7; three separate `wc -c` size probes at the stage end; two adjacent `scoring_constants.json` diffs) saves ~8–12 of 58 calls ≈ **6% of the bill** — real, but **not** the ~16% CLAUDE.md headline, because most of impag's loop is *genuinely* sequential-dependent (regen → verify tree; grep → windowed read at the line it found).
@@ -97,12 +97,12 @@ The steps 4b/5/7 escalations stay legitimate; only their *shape* changes past th
 
 Recognition cue: a rotted line-cite tempting a subsystem re-read = the banned pre-implementation sweep — re-anchor with one grep + a narrow window, never a sweep.
 
-2026-07-04 private-app qimpag session — the chained *execution* session, not a planning one — spent its entire recon budget (~150k tokens, two wrap-up warnings) tracing a 7-file symbol chain (`resolveCuts`→`indicatorReadingSeries`→`ownSeriesZ`→`calibratedZ`→`confirmedSeries`→`CALIB_MAP`→an unrelated `CREDIT_WARMUP`) to derive one padding constant `LOOKBACK_PAD` by hand — and never landed a value;
+2026-07-04 crash-dash qimpag session — the chained *execution* session, not a planning one — spent its entire recon budget (~150k tokens, two wrap-up warnings) tracing a 7-file symbol chain (`resolveCuts`→`indicatorReadingSeries`→`ownSeriesZ`→`calibratedZ`→`confirmedSeries`→`CALIB_MAP`→an unrelated `CREDIT_WARMUP`) to derive one padding constant `LOOKBACK_PAD` by hand — and never landed a value;
 it punted the decision to `project_state` for the next session, so the research cost was paid and the decision *still* wasn't made, with all of it in the main loop (re-billed as `cache_read` every turn).
 This is why "Contract/planning recon ≠ execution recon" isn't the whole story: execution recon needs a bound too, just applied to *implementation-correctness* (grep + narrow window → edit; pick-and-test) instead of *contract grounding* — this WAS the chained execution session and it still blew the budget on research alone with zero code written.
 The one-sided-verifiable caveat is from the same case: a too-large `LOOKBACK_PAD` passes the left-edge-fidelity test silently, so "let the test decide" needs a sanity bound for padding/lookback constants.
 Root cause driving fix-at-planning: the plan cited `LOOKBACK_PAD` with **no value**, stranding an underdetermined numeric decision into execution — step 1's hedge clause now treats an unspecified constant as a plan hedge to resolve at author time.
-*(Graduated 2026-07-13 at N=2. Second private-app execution session, same failure: a "hold the context" direct-edit call on Stage 4 pulled a full-subsystem inline sweep — all of run.ts + notify_format.ts + alert-band.ts + two ~2900-line test surfaces — climbing 48k→130k before a single commit landed.
+*(Graduated 2026-07-13 at N=2. Second crash-dash execution session, same failure: a "hold the context" direct-edit call on Stage 4 pulled a full-subsystem inline sweep — all of run.ts + notify_format.ts + alert-band.ts + two ~2900-line test surfaces — climbing 48k→130k before a single commit landed.
 Fix: the delegation gate now leads with "the READ is the cost" and reverses the "4+ files ⇒ direct" override — grounding that needs large unheld reads delegates; inline recon is kept to three exceptions (already-held / bounded grep-window / short-file-being-edited).)*
 
 ---
@@ -114,11 +114,11 @@ The body keeps the snapshot definition (never-a-SHIPPED-log, pointer-only with o
 **Write discipline — why batch, never dribble.** Nothing resumes mid-stage, so per-task writes are wasted churn — the commit log is the per-task record. (The once-per-turn / at-a-wrap-up-boundary / whole-burst mechanics are in the body.)
 
 **Reconcile scope — advanced items + cheap falsifiers, not an exhaustive sweep (capped 2026-07-12).** The body caps each wrap-up reconcile to the items being advanced plus any live claim whose falsifier is a one-liner already in hand (`git log --grep`, a `migration list` just run).
-It does NOT force fresh recon over every roadmap item each write — that scaled wrap-up *reasoning* with roadmap size (measured: ~9k output on one wrap-up re-deriving all live claims, private-app `eb55c849`, where reasoning was ~86% of the session's output).
+It does NOT force fresh recon over every roadmap item each write — that scaled wrap-up *reasoning* with roadmap size (measured: ~9k output on one wrap-up re-deriving all live claims, crash-dash `eb55c849`, where reasoning was ~86% of the session's output).
 The stale-intent guard the old "reconcile ALL items every write" mandate provided is now *deferred, not preserved unchanged*: a stale sibling claim whose falsifier isn't a one-liner already in hand can survive this write and — if the session then crashes before another impag run — persist in `project_state.md` until the next Step 1 resume reconciles it (at a *small* prefix).
-That later, narrower window is the accepted cost of not re-deriving every live claim at the heavy wrap-up prefix; the gap is bounded by the next impag invocation, whose **step 1 resume read IS that sweep** — the body says so explicitly, because the cap was for a while read as "old items are simply never revisited" and the pointer grew a per-plan ▶ log (private-app, 13.2 KB / 8 ▶ items, 2026-07-25).
+That later, narrower window is the accepted cost of not re-deriving every live claim at the heavy wrap-up prefix; the gap is bounded by the next impag invocation, whose **step 1 resume read IS that sweep** — the body says so explicitly, because the cap was for a while read as "old items are simply never revisited" and the pointer grew a per-plan ▶ log (crash-dash, 13.2 KB / 8 ▶ items, 2026-07-25).
 **The cap never covered deletions.** A non-advanced item still loses its delete-class content (shipped recap, doc-recorded evidence, surplus ▶) at every write — that needs no falsifier and no recon, so it costs no wrap-up reasoning.
-Same reasoning-economy motive behind the 2026-07-12 delegation-gate rewrite: on the private-app evening sessions, output was thinking-dominated (prose only 2.4%), so the lever is shrinking ceremony that gets re-reasoned each turn, not shortening prose.
+Same reasoning-economy motive behind the 2026-07-12 delegation-gate rewrite: on the crash-dash evening sessions, output was thinking-dominated (prose only 2.4%), so the lever is shrinking ceremony that gets re-reasoned each turn, not shortening prose.
 
 **"Next action" pointer (why the body rewrites stale prose).** A pointer left describing an earlier stage misleads the resume target and can trip `impag-chain`'s paraphrase diagnostic — so each write rewrites it.
 (Default target = most-recent plan in `docs/plans/`; a pointer to a *different* plan overrides, step 1 honors it.)
@@ -181,7 +181,7 @@ This is the one per-task dispatch that is **not** a budget regression: it replac
 
 ## Step 4f — the ~45-turn session boundary (evidence)
 
-Measured 2026-08-09 over 102 sessions (private-app session-token audit §I8):
+Measured 2026-08-09 over 102 sessions (crash-dash session-token audit §I8):
 the **median session is 68 turns**; impag sessions average **83** (qimpag 89) against **55** for sessions that load no skill; **62% of all token volume sits past turn 40**, and a turn at position 90 costs **2.3×** a turn at position 10.
 The 3,395 turns past position 40 cost 433.6M tokens; re-run at the 21–40 band rate (~88k/turn) they cost 299M — a **~134M ≈ 19%** saving — and at the 1–20 rate (62k), 210M, a **32%** ceiling. The extra ~85 session starts cost ~51k of cold prefix each ≈ 4.3M, i.e. 3% of the saving.
 
