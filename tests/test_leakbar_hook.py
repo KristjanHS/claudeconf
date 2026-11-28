@@ -97,6 +97,13 @@ def test_hit_before_remote_tip_is_out_of_range(repo, env):
     assert run(repo, env, new).returncode == 1  # same commits, new-branch range
 
 
+def test_scrub_of_published_line_passes(repo, env):
+    old = commit(repo, env, f"keep\n{TERM} already published\n")
+    new = commit(repo, env, "keep\nscrubbed\n")
+    r = run(repo, env, new, remote=old)
+    assert r.returncode == 0, r.stderr
+
+
 def test_unset_key_skips(repo, env):
     sha = commit(repo, env, f"{TERM}\n")
     git(repo, env, "config", "--unset", "leakbar.termsFile")

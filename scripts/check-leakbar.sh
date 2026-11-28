@@ -34,8 +34,12 @@ while read -r _lref lsha _rref rsha; do
     # under `set -e` (push blocked) instead of reading as "no commits, clean".
     commits="$(git rev-list "${range[@]}")"
     for c in $commits; do
-        text="$(git log -1 -p --format=%B "$c")"
-        out="$(grep -aiE -f "$patterns" <<<"$text" || true)"
+        # Added lines + new names only: a removed/context line came from an earlier commit,
+        # already pushed or flagged where it was added — scrub commits must pass.
+        msg="$(git log -1 --format=%B "$c")"
+        patch="$(git show --format= -p -M "$c")"
+        added="$(grep -aE '^(\+|rename to |copy to )' <<<"$patch" || true)"
+        out="$(grep -aiE -f "$patterns" <<<"$msg"$'\n'"$added" || true)"
         [[ -n "$out" ]] || continue
         subject="$(git log -1 --format='%h %s' "$c")"
         while IFS= read -r line; do
