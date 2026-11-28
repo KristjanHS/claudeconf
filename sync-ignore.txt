@@ -26,3 +26,4 @@ skills/security-reviewer/
 skills/skill-creator/
 skills/supabase-postgres-best-practices/
 skills/xlsx/
+claude/.claude/references/portfolio-docs-style.md
