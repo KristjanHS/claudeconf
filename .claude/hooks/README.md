@@ -2,7 +2,8 @@
 
 Claude Code runs these scripts at lifecycle events; `.claude/settings.json` wires them up. To use one,
 copy it into `~/.claude/hooks/` and merge its `settings.json` block by hand. (The `hooks/` at the repo
-root is something else: git hooks.)
+root is something else: git hooks. Its pre-push runs `scripts/check-leakbar.sh` over outgoing commits against the
+regex file named by local-only `git config leakbar.termsFile`; unset or missing = one skip line, any hit blocks.)
 
 Python hooks exit 0 on an internal error, so a hook bug never blocks compaction, session start or a tool
 call. The one exception is the destructive gate, which blocks a command it can't parse if it looks

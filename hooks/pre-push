@@ -6,6 +6,10 @@
 # Activate with `./install.sh` (sets core.hooksPath to this directory).
 set -Eeuo pipefail
 
+# Leak-bar term check over the outgoing commits — first, because it consumes
+# git's pre-push stdin and must run even when gitleaks is absent (exit 0 below).
+"$(git rev-parse --show-toplevel)/scripts/check-leakbar.sh" || exit 1
+
 if ! command -v gitleaks >/dev/null 2>&1; then
     echo "WARNING: gitleaks not installed — skipping pre-push secret scan." >&2
     echo "  Install: https://github.com/gitleaks/gitleaks#installing" >&2

@@ -14,12 +14,12 @@ set -Eeuo pipefail
 repo_root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 cd "$repo_root"
 
-chmod +x hooks/pre-commit hooks/pre-push scripts/check-hardcoded-paths.sh
+chmod +x hooks/pre-commit hooks/pre-push scripts/check-hardcoded-paths.sh scripts/check-leakbar.sh
 git config core.hooksPath hooks
 
 echo "ok: git hooks activated (core.hooksPath -> hooks/)"
 echo "  pre-commit: gitleaks --staged + blocking identity/PII check"
-echo "  pre-push:   full working-tree gitleaks scan + identity/PII check"
+echo "  pre-push:   leak-bar term check (if leakbar.termsFile set) + full working-tree gitleaks scan + identity/PII check"
 echo "  note: these in-repo scripts run on every commit/push — review hooks/ and scripts/ before trusting an unfamiliar clone."
 if ! command -v gitleaks >/dev/null 2>&1; then
     echo "note: gitleaks is not installed — the hooks will warn and skip the"
