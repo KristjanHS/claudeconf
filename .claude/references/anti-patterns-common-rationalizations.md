@@ -51,7 +51,8 @@ nothing ever contradicts it. The shapes:
 - **A vacuous falsifier.** Grepping a TypeScript symbol in `.sql` files returns zero for every state of the
   repo; a single-file grep cannot stand in for a transitive import-graph property.
   **Rule: a falsifier owes a demonstration that it CAN return non-zero** — run it against a state where the
-  claim is false (or invert it and confirm the inversion hits). Can't build that state cheaply? Say the check
+  claim is false (or invert it and confirm the inversion hits); for a test, on the narrowest suite slice that
+  executes the guarded line. Can't build that state cheaply? Say the check
   is decoration instead of recording it.
 - **A fixture whose values are all EQUAL, pinning per-id wiring.** Seeding both sides of a pair with the same
   number makes a transposition algebraically invisible. A mapping guard needs DISTINCT values (100/200).

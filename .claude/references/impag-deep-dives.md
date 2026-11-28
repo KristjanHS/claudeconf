@@ -138,6 +138,7 @@ Body carries the full (a)(b)(c) sequence (Explore recon → `Plan` authors → w
 
 - **Arch-doc consult (a):** the stable-architecture doc (`docs/architecture-overview.md` / `ARCHITECTURE.md`) holds only system-specific AND durable design invariants — never a lessons ledger. Read it first, then brief the `Explore` agents to grep only for facts it lacks or that look stale, not to re-derive the whole subsystem.
 - **`Plan` dispatch (b):** run it at its pinned frontmatter default. The Refactor-first assessment asks: should a refactor precede the feature, at what depth — 2-3 alternatives with `file:line` evidence (contract → `architecture-assessment-gate.md` §Refactor-first assessment — output contract).
+- **Red-demo invariants (b):** a plan's red-demo invariant names its trigger (a stage that adds/changes an assertion or the code a check guards), never "every stage".
 - **Back-link rationale (vague rung):** the `→ plan: docs/plans/<name>.md` edit is the rung's contract both ways — it stops the next session (or `--all`'s sequencer) re-authoring a plan that already exists, and on a later load the rung belongs to the sub-plan.
 - **Why STOP after authoring:** execution in the same session would run at plan-authoring's inflated prefix; the chained session starts fresh and re-reads the plan from disk (the durable contract).
 
