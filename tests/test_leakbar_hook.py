@@ -1,7 +1,8 @@
 """scripts/check-leakbar.sh — the pre-push leak-bar term check.
 
 Each test builds a throwaway repo in tmp_path, feeds the script git's pre-push
-stdin line, and asserts the exit code: hit -> 1, clean -> 0, unset/missing -> 0.
+stdin line, and asserts the exit code: hit -> 1, clean -> 0, unset/missing -> 0,
+scan error (bad regex, unreadable term file, broken git config) -> 2.
 """
 
 from __future__ import annotations
@@ -62,10 +63,22 @@ def repo(tmp_path: Path, env: dict[str, str]) -> Path:
     return r
 
 
-def run(repo: Path, env: dict[str, str], local: str, remote: str = ZERO):
-    stdin = f"refs/heads/main {local} refs/heads/main {remote}\n"
+def run(
+    repo: Path,
+    env: dict[str, str],
+    local: str,
+    remote: str = ZERO,
+    ref: str = "refs/heads/main",
+    args: tuple[str, ...] = (),
+):
+    stdin = f"{ref} {local} {ref} {remote}\n"
     return subprocess.run(
-        [str(SCRIPT)], cwd=repo, input=stdin, capture_output=True, text=True, env=env
+        [str(SCRIPT), *args],
+        cwd=repo,
+        input=stdin,
+        capture_output=True,
+        text=True,
+        env=env,
     )
 
 
@@ -131,3 +144,92 @@ def test_global_key_is_ignored(repo, env, tmp_path):
     r = run(repo, env, sha)
     assert r.returncode == 0
     assert "skipped" in r.stderr
+
+
+# --- fail-open regressions: each of these pushed the term with "leakbar: ok" ---
+
+
+def test_invalid_regex_blocks(repo, env, tmp_path):
+    sha = commit(repo, env, f"{TERM}\n")
+    (tmp_path / "terms.re").write_text(f"{TERM}\nbad(\n")
+    r = run(repo, env, sha)
+    assert r.returncode == 2, r.stderr
+    assert "grep failed" in r.stderr
+
+
+def test_unreadable_term_file_blocks(repo, env, tmp_path):
+    if os.geteuid() == 0:
+        pytest.skip("root reads mode-000 files")
+    sha = commit(repo, env, f"{TERM}\n")
+    terms = tmp_path / "terms.re"
+    terms.chmod(0)
+    try:
+        r = run(repo, env, sha)
+    finally:
+        terms.chmod(0o600)
+    assert r.returncode == 2, r.stderr
+
+
+def test_broken_git_config_blocks(repo, env):
+    sha = commit(repo, env, f"{TERM}\n")
+    with (repo / ".git" / "config").open("a") as f:
+        f.write("[leakbar\n")
+    r = run(repo, env, sha)
+    assert r.returncode == 2, r.stderr
+    assert "git config" in r.stderr
+
+
+def test_diff_attribute_does_not_hide_patch(repo, env):
+    commit(repo, env, "f.txt -diff\n", name=".gitattributes")
+    sha = commit(repo, env, f"hidden {TERM}\n")
+    r = run(repo, env, sha)
+    assert r.returncode == 1, r.stderr
+    assert f"+hidden {TERM}" in r.stderr
+
+
+def test_color_always_does_not_hide_patch(repo, env):
+    git(repo, env, "config", "color.ui", "always")
+    sha = commit(repo, env, f"colored {TERM}\n")
+    r = run(repo, env, sha)
+    assert r.returncode == 1, r.stderr
+    assert f"+colored {TERM}" in r.stderr
+
+
+def test_hit_in_author_name_blocks(repo, env):
+    e = {**env, "GIT_AUTHOR_NAME": TERM}
+    sha = commit(repo, e, "clean body\n")
+    r = run(repo, env, sha)
+    assert r.returncode == 1, r.stderr
+    assert f"{TERM} t@t" in r.stderr
+
+
+def test_hit_in_annotated_tag_message_blocks(repo, env):
+    commit(repo, env, "clean body\n")
+    git(repo, env, "tag", "-a", "v1", "-m", f"release {TERM}")
+    tag = git(repo, env, "rev-parse", "v1")
+    r = run(repo, env, tag, ref="refs/tags/v1")
+    assert r.returncode == 1, r.stderr
+    assert f"tag refs/tags/v1: release {TERM}" in r.stderr
+
+
+def two_remotes(repo, env, sha):
+    for name in ("origin", "private"):
+        git(repo, env, "remote", "add", name, f"https://example.invalid/{name}.git")
+    git(repo, env, "update-ref", "refs/remotes/private/main", sha)
+
+
+@pytest.mark.parametrize("remote", ["origin", "https://example.invalid/origin.git"])
+def test_commit_on_other_remote_still_scanned(repo, env, remote):
+    sha = commit(repo, env, f"{TERM} only on private\n")
+    two_remotes(repo, env, sha)
+    r = run(repo, env, sha, args=(remote,))
+    assert r.returncode == 1, r.stderr
+
+
+def test_commit_on_push_remote_is_excluded(repo, env):
+    sha = commit(repo, env, f"{TERM} already on origin\n")
+    two_remotes(repo, env, sha)
+    git(repo, env, "update-ref", "refs/remotes/origin/main", sha)
+    new = commit(repo, env, "clean follow-up\n", name="g.txt")
+    r = run(repo, env, new, args=("origin",))
+    assert r.returncode == 0, r.stderr
